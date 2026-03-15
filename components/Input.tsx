@@ -18,11 +18,11 @@ export const Input: React.FC<InputProps> = ({
   return (
     <View className={`w-full ${containerStyle}`}>
       {label && (
-        <Text className="text-textSecondary font-sansMedium mb-2 text-sm uppercase tracking-wider">
+        <Text className="text-textSecondary font-sansSemiBold mb-2 text-sm uppercase tracking-wider">
           {label}
         </Text>
       )}
-      <View className={`bg-white h-14 rounded-xl border ${error ? 'border-error' : 'border-stone-200'} px-4 justify-center`}>
+      <View className={`bg-backgroundSecondary h-14 rounded-2xl border ${error ? 'border-error' : 'border-white/10'} px-4 justify-center`}>
         <TextInput
           placeholderTextColor={colors.textSecondary}
           className={`font-sans text-textPrimary text-base h-full ${className}`}

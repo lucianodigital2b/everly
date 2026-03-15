@@ -1,16 +1,21 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}"],
+  presets: [require("nativewind/preset")],
+  content: [
+    "./app/**/*.{js,jsx,ts,tsx}",
+    "./components/**/*.{js,jsx,ts,tsx}",
+    "./assets/**/*.{css}",
+  ],
   theme: {
     extend: {
       colors: {
-        backgroundPrimary: "#F6F1EB",
-        backgroundSecondary: "#EFE6E1",
+        backgroundPrimary: "#252423",
+        backgroundSecondary: "#2e2c2b",
         accent: "#C6A96B",
-        textPrimary: "#2B2B2B",
-        textSecondary: "#6F6A66",
+        textPrimary: "#f6f4f2",
+        textSecondary: "#d5d3d1",
         error: "#D8A7A0",
-        ivory: "#FFFFF0",
+        ivory: "#2e2c2b",
       },
       fontFamily: {
         serif: ["PlayfairDisplay-Regular", "serif"],
@@ -18,6 +23,7 @@ module.exports = {
         sans: ["Inter-Regular", "sans-serif"],
         sansLight: ["Inter-Light", "sans-serif"],
         sansMedium: ["Inter-Medium", "sans-serif"],
+        sansSemiBold: ["Inter-SemiBold", "sans-serif"],
         sansBold: ["Inter-Bold", "sans-serif"],
       },
     },

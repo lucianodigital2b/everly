@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep \"\"version\"\":*)",
+      "Bash(grep:*)",
+      "WebSearch",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:reactnavigation.org)",
+      "WebFetch(domain:expo.dev)",
+      "WebFetch(domain:docs.expo.dev)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:retool.com)",
+      "Bash(cd \"F:/- apps/everly\" && npx expo install react-native-modal-datetime-picker @react-native-community/datetimepicker 2>&1)",
+      "Bash(cd:*)",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ]
+  }
+}

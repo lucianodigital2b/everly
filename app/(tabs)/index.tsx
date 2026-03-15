@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, FlatList } from 'react-native';
+import { View, Text, FlatList, Image } from 'react-native';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { EventCard } from '../../components/EventCard';
 import { Button } from '../../components/Button';
@@ -42,8 +42,14 @@ export default function EventsScreen() {
   return (
     <ScreenWrapper>
       <View className="mt-6 mb-8">
+        <Image
+          source={require('../../assets/logo_bgless.png')}
+          className="h-10 mb-6"
+          resizeMode="contain"
+          style={{ alignSelf: 'flex-start' }}
+        />
         <Text className="text-4xl font-serif text-textPrimary mb-2">Your Moments</Text>
-        <Text className="text-textSecondary font-sansLight text-lg">
+        <Text className="text-textSecondary font-sansSemiBold text-lg">
           Private films for meaningful events.
         </Text>
       </View>
@@ -56,7 +62,7 @@ export default function EventsScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View className="flex-1 justify-center items-center mt-20">
-            <Text className="text-textSecondary font-sans text-lg mb-6">Create your first event</Text>
+            <Text className="text-textSecondary font-sansSemiBold text-lg mb-6">Create your first event</Text>
             <Button
               title="Create Event"
               onPress={() => router.push('/(tabs)/create')}

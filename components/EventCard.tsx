@@ -22,7 +22,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   onPress,
 }) => {
   const statusColors = {
-    Draft: 'bg-stone-200 text-stone-600',
+    Draft: 'bg-white/10 text-textSecondary',
     Live: 'bg-green-100 text-green-700',
     Revealed: 'bg-accent/20 text-accent',
   };
@@ -31,7 +31,7 @@ export const EventCard: React.FC<EventCardProps> = ({
 
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onPress} className="mb-4">
-      <Card className="p-0 overflow-hidden bg-ivory rounded-[24px]">
+      <Card className="p-0 overflow-hidden bg-ivory rounded-[28px]">
         {thumbnailUrl && (
           <Image
             source={{ uri: thumbnailUrl }}
@@ -46,13 +46,13 @@ export const EventCard: React.FC<EventCardProps> = ({
                 {status}
               </Text>
             </View>
-            <Text className="text-textSecondary font-sans text-xs">{date}</Text>
+            <Text className="text-textSecondary font-sansSemiBold text-xs">{date}</Text>
           </View>
           
           <Text className="text-2xl font-serif text-textPrimary mb-2">{title}</Text>
           
           <View className="flex-row justify-between items-center mt-2">
-            <Text className="text-textSecondary font-sans text-sm">
+            <Text className="text-textSecondary font-sansSemiBold text-sm">
               {participantCount} {participantCount === 1 ? 'Guest' : 'Guests'}
             </Text>
             <View className="bg-backgroundSecondary p-2 rounded-full">
