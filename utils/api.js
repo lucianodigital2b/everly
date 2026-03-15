@@ -6,10 +6,10 @@
 export const generateAPIUrl = (path) => {
   // For Expo development, we need to use the local development server
   // In production, this would be your deployed API URL
-  const baseUrl = __DEV__ 
-    ? 'http://localhost:8081' // Expo default port
-    : 'https://your-production-api.com'; // Replace with your production URL
-  
+  const baseUrl = __DEV__
+    ? "https://8578-2804-56c-a5bc-cf00-9ceb-606f-17c0-cc02.ngrok-free.app"
+    : "https://your-production-api.com";
+
   return `${baseUrl}${path}`;
 };
 
@@ -18,5 +18,5 @@ export const generateAPIUrl = (path) => {
  * Uses relative paths which work better in Expo environment
  */
 export const getApiPath = (path) => {
-  return path.startsWith('/') ? path : `/${path}`;
+  return path.startsWith("/") ? path : `/${path}`;
 };

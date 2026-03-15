@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
-import { User, CreditCard, Bell, HardDrive, HelpCircle, Trash2, ChevronRight, Gift } from 'lucide-react-native';
+import { User, CreditCard, Bell, HardDrive, HelpCircle, Trash2, ChevronRight, Gift, LogOut } from 'lucide-react-native';
 import { colors } from '../../constants/colors';
 import { Input } from '../../components/Input';
 import { api } from '../../services/api';
+import { authStore } from '../../zustand/auth-store';
+import actions from '../../zustand/auth-store/actions';
 
 const SettingItem = ({ icon: Icon, label, onPress, isDestructive = false }: any) => (
   <TouchableOpacity
@@ -24,9 +27,27 @@ const SettingItem = ({ icon: Icon, label, onPress, isDestructive = false }: any)
 );
 
 export default function SettingsScreen() {
+  const router = useRouter();
+  const dispatch = authStore((s) => s.dispatch);
+  const { logout } = actions(dispatch);
+
   const [referralCode, setReferralCode] = useState('');
   const [referralError, setReferralError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleLogout = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
+          router.replace('/(auth)/sign-in');
+        },
+      },
+    ]);
+  };
 
   const handleRedeemReferral = async () => {
     const code = referralCode.trim().toUpperCase();
@@ -88,6 +109,7 @@ export default function SettingsScreen() {
         </View>
 
         <View className="bg-backgroundSecondary rounded-3xl p-6 shadow-sm">
+          <SettingItem icon={LogOut} label="Sign Out" onPress={handleLogout} isDestructive />
           <SettingItem icon={Trash2} label="Delete Account" onPress={() => {}} isDestructive />
         </View>
 

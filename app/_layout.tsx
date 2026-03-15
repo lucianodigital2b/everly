@@ -93,21 +93,10 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="(auth)" />
-              <Stack.Screen name="index" />
-              <Stack.Screen name="folders/index" />
-              <Stack.Screen
-                name="folders/create"
-                options={{
-                  presentation: 'modal',
-                  animation: 'slide_from_bottom',
-                }}
-              />
               <Stack.Screen name="onboarding" />
-              <Stack.Screen name="product/[id]" />
-              <Stack.Screen name="category/[id]" />
-              <Stack.Screen name="scanner" />
               <Stack.Screen name="event/[id]" options={{ presentation: 'modal' }} />
               <Stack.Screen
                 name="(bottomSheet)"

@@ -48,9 +48,9 @@
       "expo-font",
       "expo-apple-authentication",
       "expo-notifications",
-      "expo-updates"
+      "expo-updates",
+      "expo-asset"
     ],
-    "newArchEnabled": true,
     "extra": {
       "router": {
         "origin": false

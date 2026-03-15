@@ -1,17 +1,17 @@
-import axios, { AxiosRequestConfig } from 'axios';
-import * as StorageHelper from '../utils/StorageHelper';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios, { AxiosRequestConfig } from "axios";
+import * as StorageHelper from "../utils/StorageHelper";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://example.com/api';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://example.com/api";
 
 const client = axios.create({
   baseURL: BASE_URL,
   timeout: 20_000,
   headers: {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
+    "Content-Type": "application/json",
+    Accept: "application/json",
   },
 });
 
@@ -29,7 +29,7 @@ client.interceptors.response.use(
   (res) => res,
   async (error) => {
     if (error.response?.status === 401) {
-      await AsyncStorage.multiRemove(['auth-store']);
+      await AsyncStorage.multiRemove(["auth-store"]);
     }
     return Promise.reject(error);
   }
@@ -67,7 +67,7 @@ export interface Event {
   user_id: number;
   plan_id: number;
   qr_code_token: string;
-  status: 'active' | 'pending_payment' | string;
+  status: "active" | "pending_payment" | string;
   public: boolean;
   name: string;
   title: string | null;
@@ -105,35 +105,70 @@ export interface EventDetail {
   event: Event;
   gates: EventGates;
   uploadCount: number;
-  latestPayment: Pick<Payment, 'status' | 'invoiceUrl'> | null;
+  latestPayment: Pick<Payment, "status" | "invoiceUrl"> | null;
 }
 
 export interface UploadToken {
   active: boolean;
-  event: { name: string; title: string | null; cover_image_url: string | null; canUpload?: boolean };
+  event: {
+    name: string;
+    title: string | null;
+    cover_image_url: string | null;
+    canUpload?: boolean;
+  };
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export const authApi = {
-  register: (body: { name: string; email: string; password: string; password_confirmation: string }) =>
-    auth<{ user: User; token: string }>({ method: 'POST', url: '/auth/register', data: body }),
+  register: (body: {
+    name: string;
+    email: string;
+    password: string;
+    password_confirmation: string;
+  }) =>
+    auth<{ user: User; token: string }>({
+      method: "POST",
+      url: "/auth/register",
+      data: body,
+    }),
 
   login: (body: { email: string; password: string; device_name?: string }) =>
-    auth<{ user: User; token: string }>({ method: 'POST', url: '/auth/login', data: body }),
+    auth<{ user: User; token: string }>({
+      method: "POST",
+      url: "/auth/login",
+      data: body,
+    }),
 
   logout: () =>
-    auth<{ message: string }>({ method: 'POST', url: '/auth/logout' }),
+    auth<{ message: string }>({ method: "POST", url: "/auth/logout" }),
 
-  user: () =>
-    auth<User>({ method: 'GET', url: '/auth/user' }),
+  user: () => auth<User>({ method: "GET", url: "/auth/user" }),
+
+  googleLogin: (body: { id_token: string; access_token?: string }) =>
+    auth<{ user: User; token: string }>({
+      method: "POST",
+      url: "/auth/google/callback",
+      data: body,
+    }),
+
+  appleLogin: (body: {
+    identity_token: string;
+    user_identifier: string;
+    full_name: { givenName?: string | null; familyName?: string | null } | null;
+    email: string | null;
+  }) =>
+    auth<{ user: User; token: string }>({
+      method: "POST",
+      url: "/auth/apple/callback",
+      data: body,
+    }),
 };
 
 // ─── Plans ────────────────────────────────────────────────────────────────────
 
 export const plansApi = {
-  index: () =>
-    auth<Plan[]>({ method: 'GET', url: '/plans' }),
+  index: () => auth<Plan[]>({ method: "GET", url: "/plans" }),
 };
 
 // ─── Events ───────────────────────────────────────────────────────────────────
@@ -156,17 +191,16 @@ export type EventStoreBody = {
 export type EventUpdateBody = Partial<EventStoreBody & { public: boolean }>;
 
 export const eventsApi = {
-  index: () =>
-    auth<Event[]>({ method: 'GET', url: '/events' }),
+  index: () => auth<Event[]>({ method: "GET", url: "/events" }),
 
   store: (body: EventStoreBody) =>
-    auth<Event>({ method: 'POST', url: '/events', data: body }),
+    auth<Event>({ method: "POST", url: "/events", data: body }),
 
   show: (eventId: number | string) =>
-    auth<EventDetail>({ method: 'GET', url: `/events/${eventId}` }),
+    auth<EventDetail>({ method: "GET", url: `/events/${eventId}` }),
 
   update: (eventId: number | string, body: EventUpdateBody) =>
-    auth<Event>({ method: 'PATCH', url: `/events/${eventId}`, data: body }),
+    auth<Event>({ method: "PATCH", url: `/events/${eventId}`, data: body }),
 
   destroy: (eventId: number | string) =>
     client.delete(`/events/${eventId}`).then(() => undefined),
@@ -177,13 +211,13 @@ export const eventsApi = {
 export const checkoutApi = {
   create: (eventId: number | string) =>
     auth<{ status: string; invoiceUrl: string | null }>({
-      method: 'POST',
+      method: "POST",
       url: `/events/${eventId}/checkout`,
     }),
 
   paymentStatus: (eventId: number | string) =>
     auth<{ payment: Payment | null }>({
-      method: 'GET',
+      method: "GET",
       url: `/events/${eventId}/payment`,
     }),
 };
@@ -195,19 +229,21 @@ export const uploadApi = {
   show: (token: string) =>
     axios
       .get<UploadToken>(`${BASE_URL}/upload/${token}`, {
-        headers: { Accept: 'application/json' },
+        headers: { Accept: "application/json" },
       })
       .then((r) => r.data),
 
   /** Upload a photo as a guest (no auth — uses X-Guest-Token header) */
   store: (token: string, formData: FormData, guestToken?: string) => {
     const headers: Record<string, string> = {
-      'Content-Type': 'multipart/form-data',
-      Accept: 'application/json',
+      "Content-Type": "multipart/form-data",
+      Accept: "application/json",
     };
-    if (guestToken) headers['X-Guest-Token'] = guestToken;
+    if (guestToken) headers["X-Guest-Token"] = guestToken;
     return axios
-      .post<{ guest_token: string }>(`${BASE_URL}/upload/${token}`, formData, { headers })
+      .post<{
+        guest_token: string;
+      }>(`${BASE_URL}/upload/${token}`, formData, { headers })
       .then((r) => r.data);
   },
 };
@@ -217,8 +253,8 @@ export const uploadApi = {
 export const referralApi = {
   redeem: (code: string) =>
     auth<{ success: boolean; reward: unknown }>({
-      method: 'POST',
-      url: '/referrals/redeem',
+      method: "POST",
+      url: "/referrals/redeem",
       data: { code },
     }),
 };
@@ -227,7 +263,8 @@ export const referralApi = {
 
 export const api = {
   // kept for backward-compat with settings.tsx referral call
-  redeemReferralCode: (code: string, _userId: string) => referralApi.redeem(code),
+  redeemReferralCode: (code: string, _userId: string) =>
+    referralApi.redeem(code),
 
   // events (backward-compat with index.tsx)
   getEvents: () => eventsApi.index(),
