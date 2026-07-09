@@ -1,42 +1,75 @@
-import React, { useState } from 'react';
-import { View, Text, FlatList, Image } from 'react-native';
+import React from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  Image,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { EventCard } from '../../components/EventCard';
 import { Button } from '../../components/Button';
-import { useRouter } from 'expo-router';
+import { eventsApi, type Event } from '../../services/api';
+import { colors } from '../../constants/colors';
 
-const mockEvents = [
-  {
-    id: '1',
-    title: 'Sarah & James Wedding',
-    date: 'Oct 24, 2026',
-    participantCount: 142,
-    status: 'Live',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop',
-  },
-  {
-    id: '2',
-    title: 'Summer Getaway',
-    date: 'Jul 15, 2026',
-    participantCount: 8,
-    status: 'Draft',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?q=80&w=2070&auto=format&fit=crop',
-  },
-];
+const mapStatus = (event: Event): 'Draft' | 'Live' | 'Revealed' => {
+  if (event.is_revealed) return 'Revealed';
+  if (event.status === 'active') return 'Live';
+  return 'Draft';
+};
+
+const formatDate = (dateStr: string | null): string => {
+  if (!dateStr) return 'No date set';
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
 
 export default function EventsScreen() {
   const router = useRouter();
-  const [events, setEvents] = useState(mockEvents);
 
-  const renderItem = ({ item }: any) => (
+  const { data: events, isLoading } = useQuery({
+    queryKey: ['events'],
+    queryFn: eventsApi.index,
+  });
+
+  const activeEventsWithCover = (events ?? []).filter(
+    (event) => event.status === 'active' && !!event.cover_image_url
+  );
+
+  const renderItem = ({ item }: { item: Event }) => (
     <EventCard
-      title={item.title}
-      date={item.date}
-      participantCount={item.participantCount}
-      status={item.status}
-      thumbnailUrl={item.thumbnailUrl}
+      title={item.name}
+      date={formatDate(item.expires_at)}
+      participantCount={item.participant_limit ?? 0}
+      status={mapStatus(item)}
+      thumbnailUrl={item.cover_image_url ?? undefined}
       onPress={() => router.push(`/event/${item.id}`)}
     />
+  );
+
+  const renderActiveCarouselItem = ({ item }: { item: Event }) => (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => router.push(`/event/${item.id}`)}
+      className="mr-4"
+      style={{ width: 280 }}
+    >
+      <Image
+        source={{ uri: item.cover_image_url as string }}
+        resizeMode="cover"
+        className="w-full rounded-2xl"
+        style={{ aspectRatio: 16 / 9 }}
+      />
+      <Text className="text-textPrimary font-sansSemiBold text-base mt-2" numberOfLines={1}>
+        {item.name}
+      </Text>
+    </TouchableOpacity>
   );
 
   return (
@@ -54,23 +87,47 @@ export default function EventsScreen() {
         </Text>
       </View>
 
-      <FlatList
-        data={events}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View className="flex-1 justify-center items-center mt-20">
-            <Text className="text-textSecondary font-sansSemiBold text-lg mb-6">Create your first event</Text>
-            <Button
-              title="Create Event"
-              onPress={() => router.push('/(tabs)/create')}
-              className="w-48"
-            />
-          </View>
-        }
-      />
+      {isLoading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator color={colors.accent} />
+        </View>
+      ) : (
+        <FlatList
+          data={events ?? []}
+          renderItem={renderItem}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            activeEventsWithCover.length > 0 ? (
+              <View className="mb-6">
+                <Text className="text-textPrimary font-sansSemiBold text-xl mb-3">
+                  Active Now
+                </Text>
+                <FlatList
+                  data={activeEventsWithCover}
+                  horizontal
+                  keyExtractor={(item) => `active-${item.id}`}
+                  renderItem={renderActiveCarouselItem}
+                  showsHorizontalScrollIndicator={false}
+                />
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            <View className="flex-1 justify-center items-center mt-20">
+              <Text className="text-textSecondary font-sansSemiBold text-lg mb-6">
+                Create your first event
+              </Text>
+              <Button
+                title="Create Event"
+                onPress={() => router.push('/(tabs)/create')}
+                className="w-48"
+              />
+            </View>
+          }
+        />
+      )}
     </ScreenWrapper>
   );
 }

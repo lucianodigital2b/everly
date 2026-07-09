@@ -10,6 +10,7 @@ try {
 } catch {}
 
 const ENTITLEMENT_ID = "healthlyst_pro";
+const REVENUECAT_FALLBACK_API_KEY = "sk_zcczUwcmVakcFjjNowtDjrBBgzIig";
 
 type InitOptions = {
   apiKey?: string;
@@ -22,8 +23,12 @@ export type RevenueCatPackage = any;
 
 const getApiKeyForPlatform = (explicit?: string) => {
   if (explicit) return explicit;
-  if (Platform.OS === "ios") return process.env.EXPO_PUBLIC_RC_IOS;
-  if (Platform.OS === "android") return process.env.EXPO_PUBLIC_RC_ANDROID;
+  if (Platform.OS === "ios") {
+    return process.env.EXPO_PUBLIC_RC_IOS ?? REVENUECAT_FALLBACK_API_KEY;
+  }
+  if (Platform.OS === "android") {
+    return process.env.EXPO_PUBLIC_RC_ANDROID ?? REVENUECAT_FALLBACK_API_KEY;
+  }
   return undefined;
 };
 

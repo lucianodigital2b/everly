@@ -99,8 +99,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundSecondary,
   },
   imageContainer: {
-    height: 220,
     width: '100%',
+    aspectRatio: 16 / 9,
   },
   image: {
     width: '100%',
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.12)',
   },
   statText: {
-    fontFamily: 'Inter_500Medium',
+    fontFamily: 'Outfit-Medium',
     fontSize: 12,
     color: 'rgba(255,255,255,0.85)',
   },

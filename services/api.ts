@@ -4,7 +4,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://example.com/api";
+const BASE_URL =
+  "https://8578-2804-56c-a5bc-cf00-9ceb-606f-17c0-cc02.ngrok-free.app/casamentoapp/public/api/";
 
 const client = axios.create({
   baseURL: BASE_URL,
@@ -37,8 +38,10 @@ client.interceptors.response.use(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const auth = <T = any>(config: AxiosRequestConfig) =>
-  client.request<T>(config).then((r) => r.data);
+const auth = <T = any>(config: AxiosRequestConfig) => {
+  console.log(client);
+  return client.request<T>(config).then((r) => r.data);
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -106,6 +109,17 @@ export interface EventDetail {
   gates: EventGates;
   uploadCount: number;
   latestPayment: Pick<Payment, "status" | "invoiceUrl"> | null;
+}
+
+export interface EventPhoto {
+  id: number;
+  url: string;
+  thumbnail_url: string | null;
+  media_type: "image" | "video";
+  duration_seconds: number | null;
+  width: number | null;
+  height: number | null;
+  created_at: string;
 }
 
 export interface UploadToken {
@@ -204,6 +218,9 @@ export const eventsApi = {
 
   destroy: (eventId: number | string) =>
     client.delete(`/events/${eventId}`).then(() => undefined),
+
+  photos: (eventId: number | string) =>
+    auth<{ photos: EventPhoto[] }>({ method: "GET", url: `/events/${eventId}/photos` }),
 };
 
 // ─── Checkout ─────────────────────────────────────────────────────────────────

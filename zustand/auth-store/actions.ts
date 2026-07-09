@@ -66,7 +66,9 @@ const actions = (dispatch: any) => ({
     dispatch({ type: Types.AUTH_LOGIN_REQUEST });
 
     try {
-      const { GoogleSignin } = require("@react-native-google-signin/google-signin");
+      const {
+        GoogleSignin,
+      } = require("@react-native-google-signin/google-signin");
       const authConfig = require("../../config/auth.js").authConfig;
 
       GoogleSignin.configure({
@@ -178,6 +180,9 @@ const actions = (dispatch: any) => ({
       }
     } catch (e: any) {
       const errorData = e?.response?.data;
+
+      console.log(errorData);
+
       const errorMessage =
         errorData?.error ||
         errorData?.message ||

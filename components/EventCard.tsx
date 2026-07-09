@@ -35,7 +35,8 @@ export const EventCard: React.FC<EventCardProps> = ({
         {thumbnailUrl && (
           <Image
             source={{ uri: thumbnailUrl }}
-            className="w-full h-32 opacity-90"
+            className="w-full opacity-90"
+            style={{ aspectRatio: 16 / 9 }}
             resizeMode="cover"
           />
         )}

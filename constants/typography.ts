@@ -2,10 +2,10 @@ export const typography = {
   fonts: {
     serif: "PlayfairDisplay-Regular",
     serifBold: "PlayfairDisplay-Bold",
-    sans: "Inter-Regular",
-    sansLight: "Inter-Light",
-    sansMedium: "Inter-Medium",
-    sansBold: "Inter-Bold",
+    sans: "Outfit-Regular",
+    sansLight: "Outfit-Light",
+    sansMedium: "Outfit-Medium",
+    sansBold: "Outfit-Bold",
   },
   sizes: {
     h1: 32,
