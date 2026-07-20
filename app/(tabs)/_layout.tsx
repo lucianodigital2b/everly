@@ -1,109 +1,168 @@
-import { Tabs, TabList, TabTrigger, TabSlot } from 'expo-router/ui';
-import type { TabTriggerSlotProps } from 'expo-router/ui';
-import { View, TouchableOpacity, StyleSheet, Pressable } from 'react-native';
-import { Home, Plus, Settings } from 'lucide-react-native';
-import { colors } from '../../constants/colors';
-import { forwardRef } from 'react';
+import { Tabs, TabList, TabTrigger, TabSlot } from "expo-router/ui";
+import type { TabTriggerSlotProps } from "expo-router/ui";
+import { View, Pressable, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { Home, Plus, Settings } from "lucide-react-native";
+import { forwardRef } from "react";
+import { colors } from "../../constants/colors";
+import { GlassSurface } from "../../components/GlassSurface";
 
-const TabButton = forwardRef<View, TabTriggerSlotProps & { icon: 'home' | 'settings' }>(
-  ({ isFocused, onPress, icon }, ref) => {
-    const Icon = icon === 'home' ? Home : Settings;
-    return (
-      <Pressable ref={ref} onPress={onPress} style={styles.tabButton}>
-        <Icon
-          size={24}
-          color={isFocused ? colors.accent : colors.textSecondary}
-          strokeWidth={isFocused ? 2.5 : 2}
-        />
-        {isFocused && <View style={styles.dot} />}
-      </Pressable>
-    );
-  }
-);
+// A single nav slot inside the glass pill. Active → gold gradient circle.
+const NavSlot = forwardRef<
+  View,
+  TabTriggerSlotProps & { icon: "home" | "settings" }
+>(({ isFocused, onPress, icon }, ref) => {
+  const Icon = icon === "home" ? Home : Settings;
+  return (
+    <Pressable
+      ref={ref}
+      onPress={onPress}
+      style={[styles.slot, icon === "home" ? styles.slotFirst : styles.slotLast]}
+    >
+      {isFocused ? (
+        <LinearGradient
+          colors={[colors.accentBright, colors.accentDeep]}
+          start={{ x: 0.2, y: 0 }}
+          end={{ x: 0.9, y: 1 }}
+          style={styles.slotActive}
+        >
+          <Icon size={22} color="#2E2429" strokeWidth={2.2} />
+        </LinearGradient>
+      ) : (
+        <Icon size={23} color={colors.textPrimary} strokeWidth={2} />
+      )}
+    </Pressable>
+  );
+});
 
+// Detached frosted "create" circle with a gold plus.
 const CreateButton = forwardRef<View, TabTriggerSlotProps>(({ onPress }, ref) => (
-  <TouchableOpacity
-    ref={ref}
-    onPress={onPress}
-    style={styles.createOuter}
-    activeOpacity={0.9}
-  >
-    <View style={styles.createInner}>
-      <Plus size={32} color="#fff" strokeWidth={2.5} />
+  <Pressable ref={ref} onPress={onPress} style={styles.createOuter}>
+    <View style={styles.createShadow}>
+      <GlassSurface shape="circle" bordered={false} style={styles.createGlass}>
+        <Plus size={25} color={colors.accentDeep} strokeWidth={2.4} />
+      </GlassSurface>
     </View>
-  </TouchableOpacity>
+  </Pressable>
 ));
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
   return (
     <Tabs>
       <TabSlot />
-      <TabList style={styles.tabList}>
+      {/* TabTriggers must be DIRECT children of TabList — expo-router's trigger
+          parser only descends into Fragments and TabList, so wrapping them in a
+          View silently unregisters them and their onPress becomes a no-op.
+          The glass pill is therefore a backdrop behind the first two slots. */}
+      <TabList style={[styles.bar, { bottom: insets.bottom + 14 }]}>
+        <View style={styles.pill} pointerEvents="none">
+          <GlassSurface
+            shape="capsule"
+            bordered={false}
+            style={[StyleSheet.absoluteFill, styles.pillGlass] as any}
+          />
+        </View>
+
         <TabTrigger name="index" href="/(tabs)" asChild>
-          <TabButton icon="home" />
-        </TabTrigger>
-        <TabTrigger name="create" href="/(tabs)/create" asChild>
-          <CreateButton />
+          <NavSlot icon="home" />
         </TabTrigger>
         <TabTrigger name="settings" href="/(tabs)/settings" asChild>
-          <TabButton icon="settings" />
+          <NavSlot icon="settings" />
+        </TabTrigger>
+
+        <TabTrigger name="create" href="/(tabs)/create" asChild>
+          <CreateButton />
         </TabTrigger>
       </TabList>
     </Tabs>
   );
 }
 
+const GLASS_BORDER = "rgba(255,255,255,0.7)";
+// Sits *under* the glass so the bar keeps a legible base over photos, where a
+// purely translucent surface leaves the icons unreadable.
+const GLASS_BASE = "rgba(255,255,255,0.55)";
+const LIFT = {
+  shadowColor: "#3A2E14",
+  shadowOffset: { width: 0, height: 14 },
+  shadowOpacity: 0.28,
+  shadowRadius: 22,
+  elevation: 10,
+};
+
+const SLOT = 46;
+const PILL_PAD = 7;
+const SLOT_GAP = 4;
+const PILL_W = PILL_PAD * 2 + SLOT * 2 + SLOT_GAP;
+const PILL_H = PILL_PAD * 2 + SLOT;
+
 const styles = StyleSheet.create({
-  tabList: {
-    position: 'absolute',
-    bottom: 25,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    borderRadius: 32,
-    backgroundColor: '#2e2c2b',
-    height: 80,
-    alignItems: 'center',
-    overflow: 'visible',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 8,
+  bar: {
+    position: "absolute",
+    bottom: 26,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "transparent",
+    borderWidth: 0,
   },
-  tabButton: {
-    width: 72,
-    height: 80,
-    justifyContent: 'center',
-    alignItems: 'center',
+  // Backdrop only — the two nav slots sit on top of it as siblings.
+  pill: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: PILL_W,
+    height: PILL_H,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    backgroundColor: GLASS_BASE,
+    ...LIFT, // shadow lives here (no overflow:hidden, so it isn't clipped)
   },
-  dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.accent,
-    marginTop: 4,
+  pillGlass: {
+    borderRadius: 999, // rounds the blur; GlassSurface adds overflow:hidden
+  },
+  slot: {
+    width: SLOT,
+    height: SLOT,
+    borderRadius: SLOT / 2,
+    marginVertical: PILL_PAD,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  slotFirst: { marginLeft: PILL_PAD, marginRight: SLOT_GAP / 2 },
+  slotLast: { marginLeft: SLOT_GAP / 2, marginRight: PILL_PAD },
+  slotActive: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: colors.accentDeep,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 6,
   },
   createOuter: {
-    width: 72,
-    height: 80,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingBottom: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 12, // detaches the create circle from the pill
   },
-  createInner: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
-    borderWidth: 4,
-    borderColor: colors.backgroundPrimary,
-    marginBottom: 8,
+  createShadow: {
+    borderRadius: 27,
+    ...LIFT, // shadow on the outer wrapper so the glass clip doesn't cut it
+  },
+  createGlass: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    backgroundColor: GLASS_BASE,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

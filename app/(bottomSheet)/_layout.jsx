@@ -12,10 +12,8 @@ export default function BottomSheetLayout() {
 
   const handleSheetChange = useCallback(
     (index) => {
-      console.log(index);
-      
-      if (index === -1) {
-        // Sheet is closed, navigate back
+      // Sheet fully closed → dismiss, but only if there's a screen to pop.
+      if (index === -1 && router.canGoBack()) {
         router.back();
       }
     },

@@ -1,13 +1,26 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
-import { User, CreditCard, Bell, HardDrive, HelpCircle, Trash2, ChevronRight, Gift, LogOut } from 'lucide-react-native';
+import { CreditCard, Bell, HelpCircle, Trash2, ChevronRight, LogOut } from 'lucide-react-native';
 import { colors } from '../../constants/colors';
-import { Input } from '../../components/Input';
-import { api } from '../../services/api';
+import { authApi } from '../../services/api';
+import { useRevenueCat } from '../../hooks/useRevenueCat';
 import { authStore } from '../../zustand/auth-store';
 import actions from '../../zustand/auth-store/actions';
+
+const SUPPORT_EMAIL = 'luciano@getclevernote.app';
+
+// Tailwind's `shadow-sm` translates to a tight, offset iOS shadow that reads as a
+// hard band on the right/bottom edge. A wide, low-opacity shadow matches the
+// soft/editorial design language instead.
+const CARD_SHADOW = {
+  shadowColor: '#2E2429',
+  shadowOffset: { width: 0, height: 8 },
+  shadowOpacity: 0.06,
+  shadowRadius: 20,
+  elevation: 3,
+};
 
 const SettingItem = ({ icon: Icon, label, onPress, isDestructive = false }: any) => (
   <TouchableOpacity
@@ -30,10 +43,10 @@ export default function SettingsScreen() {
   const router = useRouter();
   const dispatch = authStore((s) => s.dispatch);
   const { logout } = actions(dispatch);
+  const user = authStore((s) => s.data?.user);
+  const { openCustomerCenter } = useRevenueCat();
 
-  const [referralCode, setReferralCode] = useState('');
-  const [referralError, setReferralError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -49,23 +62,42 @@ export default function SettingsScreen() {
     ]);
   };
 
-  const handleRedeemReferral = async () => {
-    const code = referralCode.trim().toUpperCase();
-    if (!code) {
-      setReferralError('Please enter a referral code.');
-      return;
+  const handleHelp = async () => {
+    const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Everly — Help')}`;
+    if (await Linking.canOpenURL(url)) {
+      Linking.openURL(url);
+    } else {
+      Alert.alert('No mail app', `Reach us at ${SUPPORT_EMAIL}.`);
     }
-    setReferralError('');
-    setIsSubmitting(true);
-    try {
-      await api.redeemReferralCode(code, 'current-user-id');
-      setReferralCode('');
-      Alert.alert('Code applied!', 'Your referral code has been redeemed successfully.');
-    } catch {
-      setReferralError('Invalid or already used code. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This permanently deletes your account, your events and every photo your guests uploaded. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              await authApi.deleteAccount();
+              await logout();
+              router.replace('/(auth)/welcome');
+            } catch (e: any) {
+              Alert.alert(
+                "Couldn't delete account",
+                e?.response?.data?.message ?? 'Please try again, or contact support.'
+              );
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -73,44 +105,38 @@ export default function SettingsScreen() {
       <Text className="text-3xl font-serif text-textPrimary mt-6 mb-8">Settings</Text>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        <View className="bg-backgroundSecondary rounded-3xl p-6 shadow-sm mb-6">
-          <SettingItem icon={User} label="Profile" onPress={() => {}} />
-          <SettingItem icon={CreditCard} label="Purchases" onPress={() => {}} />
-          <SettingItem icon={Bell} label="Notifications" onPress={() => {}} />
-          <SettingItem icon={HardDrive} label="Storage" onPress={() => {}} />
-          <SettingItem icon={HelpCircle} label="Help" onPress={() => {}} />
-        </View>
-
-        <View className="bg-backgroundSecondary rounded-3xl p-6 shadow-sm mb-6">
-          <View className="flex-row items-center mb-4">
-            <View className="p-2 rounded-full bg-backgroundSecondary mr-4">
-              <Gift size={20} color={colors.accent} />
-            </View>
-            <Text className="font-sansMedium text-base text-textPrimary">Referral Code</Text>
+        {/* Account — the signed-in user, not a link to a screen that doesn't exist */}
+        <View className="bg-backgroundSecondary rounded-3xl p-6 mb-6 flex-row items-center" style={CARD_SHADOW}>
+          <View className="w-14 h-14 rounded-full bg-accent/15 items-center justify-center mr-4">
+            <Text className="font-sansBold text-lg text-accentDeep">
+              {(user?.name ?? '?').trim().charAt(0).toUpperCase()}
+            </Text>
           </View>
-          <Input
-            placeholder="ENTER CODE"
-            value={referralCode}
-            onChangeText={(v) => { setReferralCode(v); setReferralError(''); }}
-            autoCapitalize="characters"
-            error={referralError}
-          />
-          <TouchableOpacity
-            onPress={handleRedeemReferral}
-            disabled={isSubmitting}
-            className="mt-3 h-12 rounded-2xl items-center justify-center"
-            style={{ backgroundColor: colors.accent }}
-          >
-            {isSubmitting
-              ? <ActivityIndicator color="#fff" />
-              : <Text className="font-sansSemiBold text-sm text-white">Redeem</Text>
-            }
-          </TouchableOpacity>
+          <View className="flex-1">
+            <Text className="font-sansSemiBold text-base text-textPrimary" numberOfLines={1}>
+              {user?.name ?? 'Your account'}
+            </Text>
+            <Text className="font-sans text-xs text-textSecondary mt-0.5" numberOfLines={1}>
+              {user?.email ?? '—'}
+            </Text>
+          </View>
         </View>
 
-        <View className="bg-backgroundSecondary rounded-3xl p-6 shadow-sm">
+        <View className="bg-backgroundSecondary rounded-3xl p-6 mb-6" style={CARD_SHADOW}>
+          <SettingItem icon={CreditCard} label="Purchases" onPress={openCustomerCenter} />
+          <SettingItem icon={Bell} label="Notifications" onPress={() => Linking.openSettings()} />
+          <SettingItem icon={HelpCircle} label="Help" onPress={handleHelp} />
+        </View>
+
+        <View className="bg-backgroundSecondary rounded-3xl p-6" style={CARD_SHADOW}>
           <SettingItem icon={LogOut} label="Sign Out" onPress={handleLogout} isDestructive />
-          <SettingItem icon={Trash2} label="Delete Account" onPress={() => {}} isDestructive />
+          {isDeleting ? (
+            <View className="py-4 items-center">
+              <ActivityIndicator color={colors.error} />
+            </View>
+          ) : (
+            <SettingItem icon={Trash2} label="Delete Account" onPress={handleDeleteAccount} isDestructive />
+          )}
         </View>
 
         <Text className="text-center text-textSecondary font-sansSemiBold text-xs mt-8">

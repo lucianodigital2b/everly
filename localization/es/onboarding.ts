@@ -1,6 +1,6 @@
 export default {
   // Welcome slide
-  welcome_title: 'Bienvenido a Clevernote',
+  welcome_title: 'Bienvenido a Everly',
   welcome_description: 'Potencia tu aprendizaje con toma de notas impulsada por IA, herramientas de estudio inteligentes e insights personalizados.',
   
   // Notifications slide
@@ -26,7 +26,7 @@ export default {
   study_methods_summaries: 'Resumir Contenido',
   
   // Goals question
-  goals_question: '¿Cuál es tu objetivo principal con Clevernote?',
+  goals_question: '¿Cuál es tu objetivo principal con Everly?',
   goals_improve_grades: 'Mejorar mis calificaciones',
   goals_stay_organized: 'Mantenerme organizado',
   goals_retain_better: 'Retener más información',
@@ -40,7 +40,7 @@ export default {
   study_frequency_rarely: 'Solo antes de los exámenes',
   
   // Premium features
-  premium_title: 'Clevernote Premium',
+  premium_title: 'Everly Premium',
   premium_description: 'Desbloquea herramientas que potencian tu experiencia de aprendizaje.',
   premium_ai_summaries: 'Resúmenes y cuestionarios generados por IA',
   premium_topic_segmentation: 'Segmentación automática de temas',

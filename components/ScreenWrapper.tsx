@@ -9,9 +9,12 @@ interface ScreenWrapperProps {
 
 export const ScreenWrapper: React.FC<ScreenWrapperProps> = ({ children, className = '' }) => {
   return (
-    <SafeAreaView className="flex-1 bg-backgroundPrimary" style={{ backgroundColor: colors.backgroundPrimary }}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.backgroundPrimary} />
-      <View className={`flex-1 px-6 ${className}`}>
+    <SafeAreaView
+      className="flex-1 bg-backgroundPrimary"
+      style={{ flex: 1, backgroundColor: colors.backgroundPrimary }}
+    >
+      <StatusBar barStyle="dark-content" backgroundColor={colors.backgroundPrimary} />
+      <View className={`flex-1 px-6 ${className}`} style={{ flex: 1 }}>
         {children}
       </View>
     </SafeAreaView>

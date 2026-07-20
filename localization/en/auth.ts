@@ -1,7 +1,7 @@
 export default {
     // Sign In
     welcome_back: 'Welcome Back',
-    sign_in_subtitle: 'Sign in to continue to Clevernote',
+    sign_in_subtitle: 'Sign in to continue to Everly',
     email_address: 'Email Address',
     password: 'Password',
     sign_in: 'Sign In',
@@ -11,7 +11,7 @@ export default {
     
     // Sign Up
     create_account: 'Create Account',
-    sign_up_subtitle: 'Join Clevernote and start organizing your notes',
+    sign_up_subtitle: 'Join Everly and start organizing your notes',
     username: 'Username',
     confirm_password: 'Confirm Password',
     create_account_button: 'Create Account',

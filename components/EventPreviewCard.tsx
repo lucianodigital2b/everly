@@ -3,6 +3,7 @@ import { View, Text, Image, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Calendar, Users, Camera } from 'lucide-react-native';
 import { colors } from '../constants/colors';
+import { eventCover } from '../constants/sampleImages';
 import { getFilterMatrix, type FilterKey } from '../constants/filters';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -47,18 +48,14 @@ export const EventPreviewCard = ({
     <View style={styles.card}>
       {/* Cover image / placeholder */}
       <View style={styles.imageContainer}>
-        {coverUri ? (
-          <Image
-            source={{ uri: coverUri }}
-            style={[
-              styles.image,
-              matrix.length > 0 && ({ filter: matrix } as any),
-            ]}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={styles.imagePlaceholder} />
-        )}
+        <Image
+          source={{ uri: eventCover(coverUri) }}
+          style={[
+            styles.image,
+            matrix.length > 0 && ({ filter: matrix } as any),
+          ]}
+          resizeMode="cover"
+        />
 
         {/* Bottom gradient */}
         <LinearGradient
@@ -94,7 +91,7 @@ export const EventPreviewCard = ({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 20,
+    borderRadius: 26,
     overflow: 'hidden',
     backgroundColor: colors.backgroundSecondary,
   },
@@ -106,11 +103,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  imagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#2a2520',
-  },
   overlay: {
     position: 'absolute',
     bottom: 0,
@@ -121,11 +113,12 @@ const styles = StyleSheet.create({
     paddingTop: 32,
   },
   title: {
-    fontFamily: 'PlayfairDisplay_700Bold',
-    fontSize: 22,
+    fontFamily: 'Inter-ExtraBold',
+    fontSize: 24,
     color: '#fff',
     marginBottom: 12,
     lineHeight: 28,
+    letterSpacing: -0.5,
   },
   statsRow: {
     flexDirection: 'row',
@@ -144,7 +137,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.12)',
   },
   statText: {
-    fontFamily: 'Outfit-Medium',
+    fontFamily: 'Inter-Medium',
     fontSize: 12,
     color: 'rgba(255,255,255,0.85)',
   },

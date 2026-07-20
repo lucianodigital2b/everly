@@ -6,23 +6,24 @@ import {
   Dimensions,
   Image,
   Keyboard,
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Text,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { useQueryClient } from "@tanstack/react-query";
 import { ScreenWrapper } from "../../components/ScreenWrapper";
 import { EventPreviewCard } from "../../components/EventPreviewCard";
 import { Input } from "../../components/Input";
 import { useRouter } from "expo-router";
 import { colors } from "../../constants/colors";
 import { FILTERS, type FilterKey } from "../../constants/filters";
-import { eventsApi } from "../../services/api";
+import { TiltedEventTypeCards } from "../../components/TiltedEventTypeCards";
+import { eventsApi, uploadApi } from "../../services/api";
+import { captureStore } from "../../zustand/capture-store";
 import {
   ArrowLeft,
   ArrowRight,
@@ -78,7 +79,7 @@ const REVEAL_MODES = ["Instant", "End of Event", "Scheduled"];
 const SectionLabel = ({ children }: { children: string }) => (
   <Text
     style={{
-      fontFamily: "PlayfairDisplay_700Bold",
+      fontFamily: "Inter-ExtraBold",
       fontSize: 11,
       color: colors.textSecondary,
       letterSpacing: 1.2,
@@ -93,7 +94,7 @@ const SectionLabel = ({ children }: { children: string }) => (
 const HintText = ({ children }: { children: string }) => (
   <Text
     style={{
-      fontFamily: "Outfit-Regular",
+      fontFamily: "Inter-Regular",
       fontSize: 13,
       color: colors.textSecondary,
       marginTop: 14,
@@ -123,7 +124,7 @@ const DatePickerRow = ({
       backgroundColor: colors.backgroundSecondary,
       borderRadius: 16,
       borderWidth: 1,
-      borderColor: value ? colors.accent : "rgba(255,255,255,0.08)",
+      borderColor: value ? colors.accent : "rgba(30,24,16,0.08)",
       paddingHorizontal: 16,
       height: 56,
       marginBottom: 24,
@@ -136,7 +137,7 @@ const DatePickerRow = ({
     />
     <Text
       style={{
-        fontFamily: "Outfit-Regular",
+        fontFamily: "Inter-Regular",
         fontSize: 15,
         color: value ? colors.textPrimary : colors.textSecondary,
         flex: 1,
@@ -187,14 +188,14 @@ const Chip = ({
             ? colors.accent
             : colors.backgroundSecondary,
           borderWidth: 1,
-          borderColor: selected ? colors.accent : "rgba(255,255,255,0.08)",
+          borderColor: selected ? colors.accent : "rgba(30,24,16,0.08)",
         }}
       >
         <Text
           style={{
-            fontFamily: "PlayfairDisplay_700Bold",
+            fontFamily: "Inter-ExtraBold",
             fontSize: 14,
-            color: selected ? colors.white : colors.textSecondary,
+            color: selected ? "#2E2429" : colors.textSecondary,
           }}
         >
           {label}
@@ -245,7 +246,7 @@ const FilterCard = ({
     <Text
       style={{
         marginTop: 8,
-        fontFamily: "PlayfairDisplay_700Bold",
+        fontFamily: "Inter-ExtraBold",
         fontSize: 13,
         color: selected ? colors.accent : colors.textSecondary,
       }}
@@ -278,7 +279,7 @@ const ProgressBar = ({ step, total }: { step: number; total: number }) => {
     <View
       style={{
         height: 2,
-        backgroundColor: "rgba(255,255,255,0.08)",
+        backgroundColor: "rgba(30,24,16,0.08)",
         borderRadius: 2,
         overflow: "hidden",
         marginBottom: 32,
@@ -409,18 +410,16 @@ const GuestStepper = ({
             borderRadius: 26,
             backgroundColor: canDec
               ? colors.backgroundSecondary
-              : "rgba(255,255,255,0.03)",
+              : "rgba(30,24,16,0.03)",
             borderWidth: 1,
-            borderColor: canDec
-              ? "rgba(255,255,255,0.1)"
-              : "rgba(255,255,255,0.04)",
+            borderColor: canDec ? "rgba(30,24,16,0.1)" : "rgba(30,24,16,0.04)",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
           <Minus
             size={20}
-            color={canDec ? colors.textPrimary : "rgba(255,255,255,0.15)"}
+            color={canDec ? colors.textPrimary : "rgba(30,24,16,0.15)"}
             strokeWidth={2}
           />
         </TouchableOpacity>
@@ -437,7 +436,7 @@ const GuestStepper = ({
         >
           <Text
             style={{
-              fontFamily: "PlayfairDisplay_700Bold",
+              fontFamily: "Inter-ExtraBold",
               fontSize: 13,
               color: colors.accent,
               letterSpacing: 2,
@@ -449,7 +448,7 @@ const GuestStepper = ({
           </Text>
           <Text
             style={{
-              fontFamily: "PlayfairDisplay_700Bold",
+              fontFamily: "Inter-ExtraBold",
               fontSize: 52,
               lineHeight: 56,
               color: colors.textPrimary,
@@ -460,7 +459,7 @@ const GuestStepper = ({
           </Text>
           <Text
             style={{
-              fontFamily: "Outfit-Regular",
+              fontFamily: "Inter-Regular",
               fontSize: 13,
               color: colors.textSecondary,
               marginTop: 4,
@@ -480,9 +479,9 @@ const GuestStepper = ({
             width: 52,
             height: 52,
             borderRadius: 26,
-            backgroundColor: canInc ? colors.accent : "rgba(255,255,255,0.03)",
+            backgroundColor: canInc ? colors.accent : "rgba(30,24,16,0.03)",
             borderWidth: 1,
-            borderColor: canInc ? colors.accent : "rgba(255,255,255,0.04)",
+            borderColor: canInc ? colors.accent : "rgba(30,24,16,0.04)",
             alignItems: "center",
             justifyContent: "center",
             shadowColor: canInc ? colors.accent : "transparent",
@@ -494,7 +493,7 @@ const GuestStepper = ({
         >
           <Plus
             size={20}
-            color={canInc ? "#fff" : "rgba(255,255,255,0.15)"}
+            color={canInc ? "#fff" : "rgba(30,24,16,0.15)"}
             strokeWidth={2}
           />
         </TouchableOpacity>
@@ -505,7 +504,7 @@ const GuestStepper = ({
         style={{
           width: "100%",
           height: 3,
-          backgroundColor: "rgba(255,255,255,0.06)",
+          backgroundColor: "rgba(30,24,16,0.06)",
           borderRadius: 2,
           marginBottom: 10,
           overflow: "hidden",
@@ -538,7 +537,7 @@ const GuestStepper = ({
               height: 6,
               borderRadius: 3,
               backgroundColor:
-                i <= index ? colors.accent : "rgba(255,255,255,0.12)",
+                i <= index ? colors.accent : "rgba(30,24,16,0.12)",
             }}
           />
         ))}
@@ -549,22 +548,18 @@ const GuestStepper = ({
         style={{
           transform: [{ scale: priceScale }],
           backgroundColor:
-            tier.price === 0
-              ? "rgba(255,255,255,0.05)"
-              : "rgba(198,169,107,0.12)",
+            tier.price === 0 ? "rgba(30,24,16,0.05)" : "rgba(198,169,107,0.12)",
           borderRadius: 100,
           paddingHorizontal: 20,
           paddingVertical: 10,
           borderWidth: 1,
           borderColor:
-            tier.price === 0
-              ? "rgba(255,255,255,0.08)"
-              : "rgba(198,169,107,0.3)",
+            tier.price === 0 ? "rgba(30,24,16,0.08)" : "rgba(198,169,107,0.3)",
         }}
       >
         <Text
           style={{
-            fontFamily: "Outfit-SemiBold",
+            fontFamily: "Inter-SemiBold",
             fontSize: 15,
             color: tier.price === 0 ? colors.textSecondary : colors.accent,
             textAlign: "center",
@@ -581,9 +576,22 @@ const GuestStepper = ({
 
 export default function CreateScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [step, setStep] = useState(0);
   const [tierIndex, setTierIndex] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // The camera pops back here with its captures in the store. We hold on to the
+  // event we just created so we know where those photos belong.
+  const [pendingEvent, setPendingEvent] = useState<{
+    id: number;
+    token: string;
+  } | null>(null);
+  const [uploading, setUploading] = useState<{ done: number; total: number } | null>(
+    null,
+  );
+  const capturedPhotos = captureStore((s) => s.photos);
   const [formData, setFormData] = useState({
     name: "",
     type: "",
@@ -612,6 +620,24 @@ export default function CreateScreen() {
       stiffness: 80,
       delay: 100,
     } as any).start();
+  }, []);
+
+  // Track the keyboard so the floating CTA never hides behind it.
+  React.useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const show = Keyboard.addListener(showEvent, (e) =>
+      setKeyboardHeight(e.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+
+    return () => {
+      show.remove();
+      hide.remove();
+    };
   }, []);
 
   // ─── Navigation ─────────────────────────────────────────────────────────────
@@ -654,8 +680,11 @@ export default function CreateScreen() {
   };
 
   const goBack = () => {
-    if (step === 0) router.back();
-    else animateToStep(step - 1);
+    if (step === 0) {
+      // Create is a tab root — nothing to pop. Fall back to the events tab.
+      if (router.canGoBack()) router.back();
+      else router.replace("/(tabs)");
+    } else animateToStep(step - 1);
   };
 
   const canContinue = () => {
@@ -687,26 +716,121 @@ export default function CreateScreen() {
     }
   };
 
+  // ─── Upload captured photos to the new event ─────────────────────────────────
+
+  // The backend has no authed host-upload route — the only upload endpoint is the
+  // guest one, keyed by the event's qr_code_token. The owner uploads through it
+  // too, reusing the guest_token it hands back so every shot lands on one guest.
+  React.useEffect(() => {
+    if (!pendingEvent || capturedPhotos.length === 0 || uploading) return;
+
+    const photos = capturedPhotos;
+    let cancelled = false;
+
+    (async () => {
+      setUploading({ done: 0, total: photos.length });
+      let guestToken: string | undefined;
+      let failed = 0;
+
+      for (let i = 0; i < photos.length; i++) {
+        try {
+          const formData = new FormData();
+          formData.append("photo", {
+            uri: photos[i],
+            name: `everly-${Date.now()}-${i}.jpg`,
+            type: "image/jpeg",
+          } as any);
+
+          const res = await uploadApi.store(
+            pendingEvent.token,
+            formData,
+            guestToken,
+          );
+          if (res?.guest_token) guestToken = res.guest_token;
+        } catch {
+          failed += 1;
+        }
+        if (cancelled) return;
+        setUploading({ done: i + 1, total: photos.length });
+      }
+
+      captureStore.getState().clear();
+      setPendingEvent(null);
+      setUploading(null);
+
+      await queryClient.invalidateQueries({
+        queryKey: ["event-photos", String(pendingEvent.id)],
+      });
+      await queryClient.invalidateQueries({ queryKey: ["events"] });
+
+      if (failed > 0) {
+        Alert.alert(
+          "Some photos didn't upload",
+          `${failed} of ${photos.length} failed. You can add them again from the event.`,
+        );
+      }
+      router.push(`/event/${pendingEvent.id}`);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [capturedPhotos, pendingEvent]);
+
   // ─── Submit ──────────────────────────────────────────────────────────────────
+
+  // Create is a tab, so it never unmounts — leaving the screen doesn't clear it.
+  // The camera pops back here when it's done, so the form has to be reset by hand.
+  const resetForm = () => {
+    setStep(0);
+    setTierIndex(0);
+    setFormData({
+      name: "",
+      type: "",
+      expires_at: null,
+      revealMode: "",
+      revealDate: null,
+      shotLimit: "",
+      participantLimit: "",
+      filter: "none",
+      coverImage: null,
+    });
+  };
 
   const handleCreate = async () => {
     setIsCreating(true);
     try {
-      await eventsApi.store({
-        name: formData.name,
-        plan_id: tierIndex + 1,
-        reveal_time: formData.revealMode || undefined,
-        expires_at: formData.expires_at?.toISOString() ?? undefined,
-        shot_limit: formData.shotLimit
-          ? parseInt(formData.shotLimit, 10)
+      const created = await eventsApi.store(
+        {
+          name: formData.name,
+          plan_id: tierIndex + 1,
+          reveal_time: formData.revealMode || undefined,
+          expires_at: formData.expires_at?.toISOString() ?? undefined,
+          shot_limit: formData.shotLimit
+            ? parseInt(formData.shotLimit, 10)
+            : undefined,
+          participant_limit: formData.participantLimit
+            ? parseInt(formData.participantLimit, 10)
+            : undefined,
+          filter: formData.filter !== "none" ? formData.filter : undefined,
+        },
+        // The cover is a local picker URI, not a hosted URL — send it as a raw
+        // file so the backend can upload to R2 and return cover_image_url.
+        formData.coverImage
+          ? { uri: formData.coverImage, name: "cover.jpg", type: "image/jpeg" }
           : undefined,
-        participant_limit: formData.participantLimit
-          ? parseInt(formData.participantLimit, 10)
-          : undefined,
-        filter: formData.filter !== "none" ? formData.filter : undefined,
-        cover_image_url: formData.coverImage ?? undefined,
-      });
-      router.push("/(tabs)");
+      );
+      // Home is a tab — it stays mounted, so it never refetches on its own.
+      await queryClient.invalidateQueries({ queryKey: ["events"] });
+
+      // Straight into shooting for the event we just created. The camera pops
+      // back here and the effect above uploads whatever it captured.
+      captureStore.getState().clear();
+      setPendingEvent({ id: created.id, token: created.qr_code_token });
+
+      const limit = created?.shot_limit ?? undefined;
+      resetForm();
+      router.push(limit ? `/camera?limit=${limit}` : "/camera");
     } catch (e: any) {
       const message =
         e?.response?.data?.message ||
@@ -722,11 +846,13 @@ export default function CreateScreen() {
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 
   const expiresAtLabel = formData.expires_at
-    ? formData.expires_at.toLocaleDateString("en-US", {
+    ? formData.expires_at.toLocaleString("en-US", {
         weekday: "long",
         year: "numeric",
         month: "long",
         day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       })
     : null;
 
@@ -740,89 +866,133 @@ export default function CreateScreen() {
       })
     : null;
 
+  // Measured from the screen bottom; the layout sits inside the safe area, so
+  // this slightly overshoots — which just leaves a little air above the keyboard.
+  const keyboardOverlap = keyboardHeight;
+
   // ─── Render ──────────────────────────────────────────────────────────────────
+
+  // Uploading happens right after the camera pops back, so it needs to own the
+  // screen — otherwise the form flashes back up as if nothing were happening.
+  if (uploading) {
+    return (
+      <ScreenWrapper>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text
+            style={{
+              fontFamily: "Inter-ExtraBold",
+              fontSize: 20,
+              color: colors.textPrimary,
+              marginTop: 20,
+            }}
+          >
+            Adding your photos
+          </Text>
+          <Text
+            style={{
+              fontFamily: "Inter-Regular",
+              fontSize: 14,
+              color: colors.textSecondary,
+              marginTop: 6,
+            }}
+          >
+            {uploading.done} of {uploading.total}
+          </Text>
+        </View>
+      </ScreenWrapper>
+    );
+  }
 
   return (
     <ScreenWrapper>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={{ flex: 1 }}
+      <View style={{ flex: 1 }}>
+        {/* Top bar */}
+        <Animated.View
+          style={{
+            opacity: headerAnim,
+            transform: [
+              {
+                translateY: headerAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-8, 0],
+                }),
+              },
+            ],
+          }}
         >
-          {/* Top bar */}
-          <Animated.View
+          <View
             style={{
-              opacity: headerAnim,
-              transform: [
-                {
-                  translateY: headerAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-8, 0],
-                  }),
-                },
-              ],
+              flexDirection: "row",
+              alignItems: "center",
+              marginTop: 24,
+              marginBottom: 24,
             }}
           >
-            <View
+            <TouchableOpacity
+              onPress={goBack}
+              activeOpacity={0.7}
               style={{
-                flexDirection: "row",
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: colors.backgroundSecondary,
                 alignItems: "center",
-                marginTop: 24,
-                marginBottom: 24,
+                justifyContent: "center",
+                marginRight: 16,
               }}
             >
-              <TouchableOpacity
-                onPress={goBack}
-                activeOpacity={0.7}
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: colors.backgroundSecondary,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginRight: 16,
-                }}
-              >
-                <ArrowLeft size={18} color={colors.textPrimary} />
-              </TouchableOpacity>
+              <ArrowLeft size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
 
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-              >
-                {STEPS.map((_, i) => (
-                  <View
-                    key={i}
-                    style={{
-                      width: i === step ? 20 : 6,
-                      height: 6,
-                      borderRadius: 3,
-                      backgroundColor:
-                        i === step ? colors.accent : "rgba(255,255,255,0.15)",
-                    }}
-                  />
-                ))}
-              </View>
-
-              <Text
-                style={{
-                  marginLeft: "auto",
-                  fontFamily: "Outfit-Regular",
-                  fontSize: 12,
-                  color: colors.textSecondary,
-                }}
-              >
-                {step + 1} / {STEPS.length}
-              </Text>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+            >
+              {STEPS.map((_, i) => (
+                <View
+                  key={i}
+                  style={{
+                    width: i === step ? 20 : 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor:
+                      i === step ? colors.accent : "rgba(30,24,16,0.15)",
+                  }}
+                />
+              ))}
             </View>
 
-            <ProgressBar step={step} total={STEPS.length} />
-          </Animated.View>
+            <Text
+              style={{
+                marginLeft: "auto",
+                fontFamily: "Inter-Regular",
+                fontSize: 12,
+                color: colors.textSecondary,
+              }}
+            >
+              {step + 1} / {STEPS.length}
+            </Text>
+          </View>
 
-          {/* Step content */}
+          <ProgressBar step={step} total={STEPS.length} />
+        </Animated.View>
+
+        {/* Step content — scrolls instead of being squeezed by the keyboard */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingBottom: keyboardOverlap + 140,
+          }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
           <Animated.View
             style={{
-              flex: 1,
+              flexGrow: 1,
               opacity: fadeAnim,
               transform: [{ translateX: slideAnim }],
             }}
@@ -830,7 +1000,7 @@ export default function CreateScreen() {
             {/* Heading */}
             <Text
               style={{
-                fontFamily: "PlayfairDisplay_700Bold",
+                fontFamily: "Inter-ExtraBold",
                 fontSize: 36,
                 lineHeight: 44,
                 color: colors.textPrimary,
@@ -841,7 +1011,7 @@ export default function CreateScreen() {
             </Text>
             <Text
               style={{
-                fontFamily: "Outfit-Regular",
+                fontFamily: "Inter-Regular",
                 fontSize: 15,
                 color: colors.textSecondary,
                 marginBottom: 32,
@@ -864,26 +1034,21 @@ export default function CreateScreen() {
                   autoFocus
                 />
                 <SectionLabel>Event Type</SectionLabel>
-                <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                  {EVENT_TYPES.map((type) => (
-                    <Chip
-                      key={type}
-                      label={type}
-                      selected={formData.type === type}
-                      onPress={() => setFormData({ ...formData, type })}
-                    />
-                  ))}
-                </View>
+                <TiltedEventTypeCards
+                  types={EVENT_TYPES}
+                  selected={formData.type}
+                  onSelect={(type) => setFormData({ ...formData, type })}
+                />
               </View>
             )}
 
             {/* ── Step 1: When ── */}
             {step === 1 && (
               <View>
-                <SectionLabel>End Date</SectionLabel>
+                <SectionLabel>End Date & Time</SectionLabel>
                 <DatePickerRow
                   value={expiresAtLabel}
-                  placeholder="Select an end date"
+                  placeholder="Select an end date & time"
                   onPress={() => setDatePickerOpen("expires_at")}
                 />
 
@@ -936,7 +1101,14 @@ export default function CreateScreen() {
             {/* ── Step 3: Filter ── */}
             {step === 3 && (
               <View>
-                <View style={{ flexDirection: "row", paddingBottom: 8 }}>
+                {/* Scrolls: four 102px cards overflow the 345px of usable width,
+                    which was silently clipping the last filter off-screen. */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{ paddingBottom: 8, paddingRight: 24 }}
+                >
                   {FILTERS.map((f) => (
                     <FilterCard
                       key={f.key}
@@ -947,7 +1119,7 @@ export default function CreateScreen() {
                       }
                     />
                   ))}
-                </View>
+                </ScrollView>
                 <HintText>
                   Guests won't be able to override this. Choose wisely.
                 </HintText>
@@ -956,10 +1128,7 @@ export default function CreateScreen() {
 
             {/* ── Step 4: Cover photo + Preview ── */}
             {step === 4 && (
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 160 }}
-              >
+              <View>
                 {/* Image picker */}
                 <TouchableOpacity
                   onPress={pickCoverImage}
@@ -970,7 +1139,7 @@ export default function CreateScreen() {
                     overflow: "hidden",
                     backgroundColor: colors.backgroundSecondary,
                     borderWidth: formData.coverImage ? 0 : 1.5,
-                    borderColor: "rgba(255,255,255,0.1)",
+                    borderColor: "rgba(30,24,16,0.1)",
                     borderStyle: "dashed",
                     alignItems: "center",
                     justifyContent: "center",
@@ -990,7 +1159,7 @@ export default function CreateScreen() {
                           width: 52,
                           height: 52,
                           borderRadius: 26,
-                          backgroundColor: "rgba(255,255,255,0.06)",
+                          backgroundColor: "rgba(30,24,16,0.06)",
                           alignItems: "center",
                           justifyContent: "center",
                         }}
@@ -999,7 +1168,7 @@ export default function CreateScreen() {
                       </View>
                       <Text
                         style={{
-                          fontFamily: "Outfit-Regular",
+                          fontFamily: "Inter-Regular",
                           fontSize: 14,
                           color: colors.textSecondary,
                         }}
@@ -1016,10 +1185,12 @@ export default function CreateScreen() {
                   title={formData.name}
                   date={
                     formData.expires_at
-                      ? formData.expires_at.toLocaleDateString("en-US", {
+                      ? formData.expires_at.toLocaleString("en-US", {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
                         })
                       : ""
                   }
@@ -1028,7 +1199,7 @@ export default function CreateScreen() {
                   coverUri={formData.coverImage}
                   filter={formData.filter}
                 />
-              </ScrollView>
+              </View>
             )}
 
             {/* ── Step 5: Who's invited (stepper) ── */}
@@ -1057,56 +1228,56 @@ export default function CreateScreen() {
               </View>
             )}
           </Animated.View>
+        </ScrollView>
 
-          {/* Date pickers */}
-          <DateTimePickerModal
-            isVisible={datePickerOpen === "expires_at"}
-            mode="date"
-            minimumDate={new Date()}
-            date={formData.expires_at ?? new Date()}
-            onConfirm={(date) => {
-              setFormData({ ...formData, expires_at: date });
-              setDatePickerOpen(null);
-            }}
-            onCancel={() => setDatePickerOpen(null)}
-            display={Platform.OS === "ios" ? "inline" : "default"}
-            themeVariant="dark"
-            isDarkModeEnabled
-            accentColor={colors.accent}
-            buttonTextColorIOS={colors.accent}
-            pickerContainerStyleIOS={{
-              backgroundColor: colors.backgroundPrimary,
-            }}
-            pickerStyleIOS={{ backgroundColor: colors.backgroundPrimary }}
-          />
-          <DateTimePickerModal
-            isVisible={datePickerOpen === "reveal"}
-            mode="datetime"
-            minimumDate={formData.expires_at ?? new Date()}
-            date={formData.revealDate ?? formData.expires_at ?? new Date()}
-            onConfirm={(date) => {
-              setFormData({ ...formData, revealDate: date });
-              setDatePickerOpen(null);
-            }}
-            onCancel={() => setDatePickerOpen(null)}
-            display={Platform.OS === "ios" ? "inline" : "default"}
-            themeVariant="dark"
-            isDarkModeEnabled
-            accentColor={colors.accent}
-            buttonTextColorIOS={colors.accent}
-            pickerContainerStyleIOS={{
-              backgroundColor: colors.backgroundPrimary,
-            }}
-            pickerStyleIOS={{ backgroundColor: colors.backgroundPrimary }}
-          />
-        </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+        {/* Date pickers */}
+        <DateTimePickerModal
+          isVisible={datePickerOpen === "expires_at"}
+          mode="datetime"
+          minimumDate={new Date()}
+          date={formData.expires_at ?? new Date()}
+          onConfirm={(date) => {
+            setFormData({ ...formData, expires_at: date });
+            setDatePickerOpen(null);
+          }}
+          onCancel={() => setDatePickerOpen(null)}
+          display={Platform.OS === "ios" ? "inline" : "default"}
+          themeVariant="light"
+          isDarkModeEnabled={false}
+          accentColor={colors.accent}
+          buttonTextColorIOS={colors.accentDeep}
+          pickerContainerStyleIOS={{
+            backgroundColor: colors.backgroundPrimary,
+          }}
+          pickerStyleIOS={{ backgroundColor: colors.backgroundPrimary }}
+        />
+        <DateTimePickerModal
+          isVisible={datePickerOpen === "reveal"}
+          mode="datetime"
+          minimumDate={formData.expires_at ?? new Date()}
+          date={formData.revealDate ?? formData.expires_at ?? new Date()}
+          onConfirm={(date) => {
+            setFormData({ ...formData, revealDate: date });
+            setDatePickerOpen(null);
+          }}
+          onCancel={() => setDatePickerOpen(null)}
+          display={Platform.OS === "ios" ? "inline" : "default"}
+          themeVariant="light"
+          isDarkModeEnabled={false}
+          accentColor={colors.accent}
+          buttonTextColorIOS={colors.accentDeep}
+          pickerContainerStyleIOS={{
+            backgroundColor: colors.backgroundPrimary,
+          }}
+          pickerStyleIOS={{ backgroundColor: colors.backgroundPrimary }}
+        />
+      </View>
 
       {/* Floating CTA */}
       <Animated.View
         style={{
           position: "absolute",
-          bottom: 130,
+          bottom: keyboardOverlap > 0 ? keyboardOverlap + 20 : 130,
           right: 24,
           opacity: headerAnim,
           transform: [
@@ -1128,7 +1299,7 @@ export default function CreateScreen() {
           >
             <Text
               style={{
-                fontFamily: "Outfit-Regular",
+                fontFamily: "Inter-Regular",
                 fontSize: 13,
                 color: colors.textSecondary,
                 textDecorationLine: "underline",
@@ -1165,7 +1336,7 @@ export default function CreateScreen() {
             <>
               <Text
                 style={{
-                  fontFamily: "Outfit-SemiBold",
+                  fontFamily: "Inter-SemiBold",
                   fontSize: 15,
                   color: canContinue() ? "#fff" : colors.textSecondary,
                 }}

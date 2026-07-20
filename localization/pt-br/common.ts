@@ -20,7 +20,7 @@ export default {
     are_you_sure_you_want_to_delete_your_account: 'Tem certeza de que deseja excluir sua conta?',
     delete_description: 'Esta ação não pode ser desfeita. Todos os seus dados serão excluídos permanentemente.',
     rate_app: 'Avalie Nosso App',
-  rate_app_description: 'Gosta de usar o Clevernote? Nos ajude deixando uma avaliação!',
+  rate_app_description: 'Gosta de usar o Everly? Nos ajude deixando uma avaliação!',
   cancel: 'Cancelar',
   check_updates: 'Verificar Atualizações',
     not_now: 'Agora Não',

@@ -13,6 +13,7 @@ import { StatusBar } from "expo-status-bar";
 
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
+import { BackButton } from "../../components/BackButton";
 import { authStore } from "../../zustand/auth-store";
 import actions from "../../zustand/auth-store/actions";
 
@@ -39,7 +40,11 @@ const SignUp = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-backgroundPrimary">
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
+
+      <View className="px-8 pt-2">
+        <BackButton />
+      </View>
 
       <KeyboardAvoidingView
         className="flex-1"

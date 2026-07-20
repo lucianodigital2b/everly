@@ -1,6 +1,6 @@
 # Sounds Directory
 
-This directory contains audio files used in the CleverNote app.
+This directory contains audio files used in the Everly app.
 
 ## Adding Snap Sound
 

@@ -6,10 +6,10 @@ export const initialState: State = {
     password: '',
   },
   registerFields: {
-    name: 'test',
-    email: 'test@hotmail.com',
-    password: 'merceloki',
-    password_confirmation: 'merceloki'
+    name: '',
+    email: '',
+    password: '',
+    password_confirmation: ''
   },
   isLoading: false,
   isCreating: false,

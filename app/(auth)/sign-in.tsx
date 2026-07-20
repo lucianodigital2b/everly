@@ -13,6 +13,7 @@ import { StatusBar } from "expo-status-bar";
 
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
+import { BackButton } from "../../components/BackButton";
 import { authStore } from "../../zustand/auth-store";
 import actions from "../../zustand/auth-store/actions";
 
@@ -32,7 +33,11 @@ const SignIn = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-backgroundPrimary">
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
+
+      <View className="px-8 pt-2">
+        <BackButton />
+      </View>
 
       <KeyboardAvoidingView
         className="flex-1"
@@ -83,7 +88,10 @@ const SignIn = () => {
 
             {/* Footer links */}
             <View className="items-center mt-10 gap-4">
-              <TouchableOpacity activeOpacity={0.7}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => router.push("/(auth)/forgot-password")}
+              >
                 <Text className="text-textSecondary font-sans text-sm">
                   Forgot password?
                 </Text>

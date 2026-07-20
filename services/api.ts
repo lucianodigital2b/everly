@@ -4,8 +4,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
 
-const BASE_URL =
-  "https://8578-2804-56c-a5bc-cf00-9ceb-606f-17c0-cc02.ngrok-free.app/casamentoapp/public/api/";
+// Trailing slashes are stripped: uploadApi builds `${BASE_URL}/upload/...`, and a
+// double slash makes Laravel fail to match the route at all (404 before it ever
+// looks the event up).
+const BASE_URL = (
+  process.env.EXPO_PUBLIC_API_URL ||
+  "https://e01c-2804-56c-a4c4-1100-354c-8c64-86c6-7216.ngrok-free.app/everly/public/api"
+).replace(/\/+$/, "");
 
 const client = axios.create({
   baseURL: BASE_URL,
@@ -129,6 +134,8 @@ export interface UploadToken {
     title: string | null;
     cover_image_url: string | null;
     canUpload?: boolean;
+    /** Photos this guest may still upload (null = unlimited). */
+    shotLimit?: number | null;
   };
 }
 
@@ -157,7 +164,29 @@ export const authApi = {
   logout: () =>
     auth<{ message: string }>({ method: "POST", url: "/auth/logout" }),
 
+  /**
+   * Sends a password-reset email. Returns 200 even for unknown addresses so the
+   * endpoint can't be used to probe which emails have accounts.
+   * NOTE: this route is not in BACKEND.md yet — the app is ready, the server
+   * still has to implement POST /auth/forgot-password.
+   */
+  forgotPassword: (body: { email: string }) =>
+    auth<{ message: string }>({
+      method: "POST",
+      url: "/auth/forgot-password",
+      data: body,
+    }),
+
   user: () => auth<User>({ method: "GET", url: "/auth/user" }),
+
+  /**
+   * Permanently deletes the account and its events. Required by App Store
+   * guideline 5.1.1(v).
+   * NOTE: this route does not exist in BACKEND.md yet — the app is ready, the
+   * server side still has to implement DELETE /auth/user.
+   */
+  deleteAccount: () =>
+    auth<{ message: string }>({ method: "DELETE", url: "/auth/user" }),
 
   googleLogin: (body: { id_token: string; access_token?: string }) =>
     auth<{ user: User; token: string }>({
@@ -204,11 +233,38 @@ export type EventStoreBody = {
 
 export type EventUpdateBody = Partial<EventStoreBody & { public: boolean }>;
 
+/** A local (device) image to upload — file:// or content:// URI from the picker. */
+export type CoverImageFile = { uri: string; name?: string; type?: string };
+
 export const eventsApi = {
   index: () => auth<Event[]>({ method: "GET", url: "/events" }),
 
-  store: (body: EventStoreBody) =>
-    auth<Event>({ method: "POST", url: "/events", data: body }),
+  /**
+   * Create an event. When `coverImage` is given, the request goes out as
+   * multipart/form-data with the raw image as a `cover_image` file part — the
+   * backend uploads it to R2 and returns the hosted `cover_image_url` on the
+   * created event. Without it, a plain JSON body is sent.
+   */
+  store: (body: EventStoreBody, coverImage?: CoverImageFile) => {
+    if (!coverImage) {
+      return auth<Event>({ method: "POST", url: "/events", data: body });
+    }
+    const form = new FormData();
+    for (const [key, value] of Object.entries(body)) {
+      if (value !== undefined && value !== null) form.append(key, String(value));
+    }
+    form.append("cover_image", {
+      uri: coverImage.uri,
+      name: coverImage.name ?? "cover.jpg",
+      type: coverImage.type ?? "image/jpeg",
+    } as any);
+    return auth<Event>({
+      method: "POST",
+      url: "/events",
+      data: form,
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
 
   show: (eventId: number | string) =>
     auth<EventDetail>({ method: "GET", url: `/events/${eventId}` }),
@@ -220,7 +276,10 @@ export const eventsApi = {
     client.delete(`/events/${eventId}`).then(() => undefined),
 
   photos: (eventId: number | string) =>
-    auth<{ photos: EventPhoto[] }>({ method: "GET", url: `/events/${eventId}/photos` }),
+    auth<{ photos: EventPhoto[] }>({
+      method: "GET",
+      url: `/events/${eventId}/photos`,
+    }),
 };
 
 // ─── Checkout ─────────────────────────────────────────────────────────────────
@@ -251,7 +310,7 @@ export const uploadApi = {
       .then((r) => r.data),
 
   /** Upload a photo as a guest (no auth — uses X-Guest-Token header) */
-  store: (token: string, formData: FormData, guestToken?: string) => {
+  store: async (token: string, formData: FormData, guestToken?: string) => {
     const headers: Record<string, string> = {
       "Content-Type": "multipart/form-data",
       Accept: "application/json",
@@ -265,26 +324,3 @@ export const uploadApi = {
   },
 };
 
-// ─── Referral ─────────────────────────────────────────────────────────────────
-
-export const referralApi = {
-  redeem: (code: string) =>
-    auth<{ success: boolean; reward: unknown }>({
-      method: "POST",
-      url: "/referrals/redeem",
-      data: { code },
-    }),
-};
-
-// ─── Unified export (replaces the mock `api` object) ─────────────────────────
-
-export const api = {
-  // kept for backward-compat with settings.tsx referral call
-  redeemReferralCode: (code: string, _userId: string) =>
-    referralApi.redeem(code),
-
-  // events (backward-compat with index.tsx)
-  getEvents: () => eventsApi.index(),
-  createEvent: (data: EventStoreBody) => eventsApi.store(data),
-  getEventDetails: (id: string) => eventsApi.show(id),
-};

@@ -10,7 +10,6 @@ try {
 } catch {}
 
 const ENTITLEMENT_ID = "healthlyst_pro";
-const REVENUECAT_FALLBACK_API_KEY = "sk_zcczUwcmVakcFjjNowtDjrBBgzIig";
 
 type InitOptions = {
   apiKey?: string;
@@ -21,21 +20,39 @@ export type RevenueCatOffering = any;
 export type RevenueCatCustomerInfo = any;
 export type RevenueCatPackage = any;
 
+// Only public SDK keys belong in the app: appl_… (iOS) and goog_… (Android).
+// A secret key (sk_…) is rejected by the backend and must never ship.
 const getApiKeyForPlatform = (explicit?: string) => {
-  if (explicit) return explicit;
-  if (Platform.OS === "ios") {
-    return process.env.EXPO_PUBLIC_RC_IOS ?? REVENUECAT_FALLBACK_API_KEY;
+  const key =
+    explicit ??
+    (Platform.OS === "ios"
+      ? process.env.EXPO_PUBLIC_RC_IOS
+      : Platform.OS === "android"
+        ? process.env.EXPO_PUBLIC_RC_ANDROID
+        : undefined);
+
+  if (!key) return undefined;
+
+  if (key.startsWith("sk_")) {
+    console.warn(
+      "[RevenueCat] Refusing to configure with a secret key (sk_…). Use the public SDK key for this platform.",
+    );
+    return undefined;
   }
-  if (Platform.OS === "android") {
-    return process.env.EXPO_PUBLIC_RC_ANDROID ?? REVENUECAT_FALLBACK_API_KEY;
-  }
-  return undefined;
+
+  return key;
 };
 
 const configure = async (opts?: InitOptions) => {
   if (!Purchases) return;
   const apiKey = getApiKeyForPlatform(opts?.apiKey);
-  if (!apiKey) return;
+  if (!apiKey) {
+    console.warn(
+      "[RevenueCat] No public API key configured — purchases are disabled. " +
+        "Set EXPO_PUBLIC_RC_IOS / EXPO_PUBLIC_RC_ANDROID in .env.local.",
+    );
+    return;
+  }
   if (opts?.appUserID) {
     await Purchases.configure({ apiKey, appUserID: opts.appUserID });
   } else {
@@ -120,7 +137,7 @@ const getCustomerInfo = async (): Promise<RevenueCatCustomerInfo | null> => {
 
 const hasActiveEntitlement = (
   info: any,
-  entitlementId: string = ENTITLEMENT_ID
+  entitlementId: string = ENTITLEMENT_ID,
 ) => {
   if (!info || !info.entitlements || !info.entitlements.active) return false;
   const active = info.entitlements.active[entitlementId];

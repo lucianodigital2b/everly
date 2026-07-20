@@ -6,51 +6,53 @@ import {
   ActivityIndicator,
   Image,
   Dimensions,
-  Clipboard,
+  StyleSheet,
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { LinearGradient } from "expo-linear-gradient";
 import Transition from "react-native-screen-transitions";
-import { ScreenWrapper } from "../../components/ScreenWrapper";
-import {
-  SerifBoldText,
-  SansText,
-  SansSemiText,
-} from "../../components/Text";
+import { GlassSurface } from "../../components/GlassSurface";
+import { SerifBoldText, SansText, SansSemiText } from "../../components/Text";
+import { EmptyState } from "../../components/EmptyState";
 import { colors } from "../../constants/colors";
+import { eventCover } from "../../constants/sampleImages";
 import { eventsApi } from "../../services/api";
 import {
   QrCode,
   Clock,
-  Users,
-  Camera,
   ChevronLeft,
-  Share2,
   Play,
-  Copy,
+  Images,
+  ArrowUpRight,
 } from "lucide-react-native";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const H_PAD = 24; // matches ScreenWrapper px-6
 const GAP = 6;
-const COL_W = (SCREEN_WIDTH - H_PAD * 2 - GAP) / 2;
-const RATIOS = [1.15, 1.5, 1.0, 1.65, 1.3, 1.1, 1.45, 1.25, 1.6, 1.0];
+// Bento layout: a wide/tall feature tile beside two stacked small tiles.
+const CONTENT_W = SCREEN_WIDTH - H_PAD * 2;
+const BENTO_BIG_W = Math.round((CONTENT_W - GAP) * 0.6);
+const BENTO_SMALL_W = CONTENT_W - GAP - BENTO_BIG_W;
+const BENTO_ROW_H = 232;
+const BENTO_SMALL_H = (BENTO_ROW_H - GAP) / 2;
+const BENTO_HALF_W = (CONTENT_W - GAP) / 2;
 const EVENT_SCREEN_OPTIONS = {
   headerShown: false,
 };
 
 const statusConfig = (event) => {
-  if (event.is_revealed)
-    return { label: "Revealed", color: colors.accent };
+  if (event.is_revealed) return { label: "Revealed", color: colors.accent };
   if (event.status === "active")
-    return { label: "Live", color: "#4ade80" };
-  return { label: "Draft", color: "rgba(255,255,255,0.4)" };
+    return { label: "Live", color: colors.success };
+  return { label: "Draft", color: "rgba(255,255,255,0.8)" };
 };
 
 export default function EventDetailScreen() {
   const { id, sharedBoundTag } = useLocalSearchParams();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const coverSharedBoundTag =
     typeof sharedBoundTag === "string" && sharedBoundTag.length > 0
       ? sharedBoundTag
@@ -70,8 +72,25 @@ export default function EventDetailScreen() {
 
   const event = data?.event;
   const photos = photosData?.photos ?? [];
-  const leftPhotos = photos.filter((_, i) => i % 2 === 0);
-  const rightPhotos = photos.filter((_, i) => i % 2 === 1);
+
+  // The hero fills the screen; "View gallery" scrolls the sheet below into view.
+  const scrollRef = React.useRef(null);
+  const galleryY = React.useRef(0);
+
+  const scrollToGallery = () => {
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, galleryY.current - insets.top - 8),
+      animated: true,
+    });
+  };
+
+  const openQr = () => {
+    router.push(
+      `/qr?token=${encodeURIComponent(
+        event?.qr_code_token ?? "",
+      )}&name=${encodeURIComponent(event?.name ?? "")}`,
+    );
+  };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
@@ -91,41 +110,47 @@ export default function EventDetailScreen() {
 
   if (isLoading) {
     return (
-      <ScreenWrapper>
+      <View
+        style={{ flex: 1, backgroundColor: colors.backgroundPrimary }}
+        className="items-center justify-center"
+      >
         <Stack.Screen options={EVENT_SCREEN_OPTIONS} />
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={colors.accent} />
-        </View>
-      </ScreenWrapper>
+        <ActivityIndicator color={colors.accent} />
+      </View>
     );
   }
 
   if (!event) {
     return (
-      <ScreenWrapper>
+      <View
+        style={{ flex: 1, backgroundColor: colors.backgroundPrimary }}
+        className="items-center justify-center"
+      >
         <Stack.Screen options={EVENT_SCREEN_OPTIONS} />
-        <View className="flex-1 items-center justify-center">
-          <SansSemiText className="text-textSecondary text-base">
-            Event not found.
-          </SansSemiText>
-        </View>
-      </ScreenWrapper>
+        <SansSemiText className="text-textSecondary text-base">
+          Event not found.
+        </SansSemiText>
+      </View>
     );
   }
 
   const status = statusConfig(event);
 
-  const renderPhotoCell = (photo, colIndex, photoIndex) => {
-    const ratioIdx = (colIndex * 3 + photoIndex) % RATIOS.length;
-    const h = Math.round(COL_W * RATIOS[ratioIdx]);
+  const PhotoTile = ({ photo, width, height }) => {
     const duration = formatDuration(photo.duration_seconds);
-
     return (
       <TouchableOpacity
-        key={photo.id}
-        activeOpacity={0.88}
-        className="rounded-2xl overflow-hidden bg-backgroundSecondary"
-        style={{ height: h, marginBottom: GAP }}
+        activeOpacity={0.9}
+        onPress={() =>
+          router.push(`/photo?url=${encodeURIComponent(photo.url)}`)
+        }
+        style={{
+          width,
+          height,
+          borderRadius: 20,
+          overflow: "hidden",
+          backgroundColor: colors.surface2,
+        }}
       >
         <Image
           source={{ uri: photo.thumbnail_url ?? photo.url }}
@@ -134,7 +159,9 @@ export default function EventDetailScreen() {
         />
         {duration && (
           <View className="absolute bottom-2 right-2 flex-row items-center gap-1 bg-black/60 rounded-full px-2 py-1">
-            <SansSemiText className="text-white text-xs">{duration}</SansSemiText>
+            <SansSemiText className="text-white text-xs">
+              {duration}
+            </SansSemiText>
             <Play size={9} color="#fff" fill="#fff" />
           </View>
         )}
@@ -142,55 +169,130 @@ export default function EventDetailScreen() {
     );
   };
 
+  // Lay photos into a bento: groups of 3 (feature + two stacked, alternating
+  // sides), with graceful fallbacks for 1–2 leftover photos.
+  const renderBento = (all) => {
+    const rows = [];
+    let i = 0;
+    let g = 0;
+    while (i < all.length) {
+      const remaining = all.length - i;
+      if (remaining >= 3) {
+        const a = all[i];
+        const b = all[i + 1];
+        const c = all[i + 2];
+        const bigLeft = g % 2 === 0;
+        const big = (
+          <PhotoTile photo={a} width={BENTO_BIG_W} height={BENTO_ROW_H} />
+        );
+        const stack = (
+          <View style={{ gap: GAP }}>
+            <PhotoTile photo={b} width={BENTO_SMALL_W} height={BENTO_SMALL_H} />
+            <PhotoTile photo={c} width={BENTO_SMALL_W} height={BENTO_SMALL_H} />
+          </View>
+        );
+        rows.push(
+          <View
+            key={`row-${g}`}
+            style={{ flexDirection: "row", gap: GAP, marginBottom: GAP }}
+          >
+            {bigLeft ? big : stack}
+            {bigLeft ? stack : big}
+          </View>,
+        );
+        i += 3;
+      } else if (remaining === 2) {
+        rows.push(
+          <View
+            key={`row-${g}`}
+            style={{ flexDirection: "row", gap: GAP, marginBottom: GAP }}
+          >
+            <PhotoTile
+              photo={all[i]}
+              width={BENTO_HALF_W}
+              height={BENTO_HALF_W}
+            />
+            <PhotoTile
+              photo={all[i + 1]}
+              width={BENTO_HALF_W}
+              height={BENTO_HALF_W}
+            />
+          </View>,
+        );
+        i += 2;
+      } else {
+        rows.push(
+          <View key={`row-${g}`} style={{ marginBottom: GAP }}>
+            <PhotoTile photo={all[i]} width={CONTENT_W} height={200} />
+          </View>,
+        );
+        i += 1;
+      }
+      g += 1;
+    }
+    return <View>{rows}</View>;
+  };
+
+  const guestLabel = `${data.uploadCount} ${
+    data.uploadCount === 1 ? "guest" : "guests"
+  }`;
+
   return (
-    <ScreenWrapper>
+    <View style={{ flex: 1, backgroundColor: colors.backgroundPrimary }}>
       <Stack.Screen options={EVENT_SCREEN_OPTIONS} />
+
+      {/* ── Cover: full-bleed photo, pinned behind the hero ── */}
+      <Transition.View
+        sharedBoundTag={coverSharedBoundTag}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: SCREEN_HEIGHT,
+        }}
+      >
+        <Image
+          source={{ uri: eventCover(event.cover_image_url) }}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
+        {/* Light veil up top for the back button, deep shade below for the text. */}
+        <LinearGradient
+          colors={["rgba(0,0,0,0.32)", "rgba(0,0,0,0)", "rgba(0,0,0,0.78)"]}
+          locations={[0, 0.4, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+      </Transition.View>
+
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
       >
-        {/* ── Hero ── */}
-        <Transition.View
-          sharedBoundTag={coverSharedBoundTag}
-          className="relative"
-          style={{ height: 320, marginHorizontal: -H_PAD, marginTop: -8 }}
+        {/* ── Hero: fills the screen, editorial and minimal ── */}
+        <View
+          style={{
+            height: SCREEN_HEIGHT,
+            paddingTop: insets.top + 8,
+            paddingBottom: insets.bottom + 24,
+            paddingHorizontal: H_PAD,
+          }}
         >
-          {event.cover_image_url ? (
-            <Image
-              source={{ uri: event.cover_image_url }}
-              className="absolute inset-0 w-full h-full"
-              resizeMode="cover"
-            />
-          ) : (
-            <View className="absolute inset-0 bg-backgroundSecondary" />
-          )}
-          <LinearGradient
-            colors={["rgba(0,0,0,0.28)", "transparent", "rgba(0,0,0,0.82)"]}
-            locations={[0, 0.38, 1]}
-            className="absolute inset-0"
-          />
+          {/* Back only — the QR lives in the action row below */}
+          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.75}>
+            <GlassSurface tint="dark" shape="circle" style={styles.glassButton}>
+              <ChevronLeft size={24} color="#fff" />
+            </GlassSurface>
+          </TouchableOpacity>
 
-          {/* Back / Share */}
-          <View className="flex-row justify-between px-6 pt-4">
-            <TouchableOpacity
-              onPress={() => router.back()}
-              className="w-10 h-10 rounded-full items-center justify-center bg-black/30"
-            >
-              <ChevronLeft size={22} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity className="w-10 h-10 rounded-full items-center justify-center bg-black/30">
-              <Share2 size={19} color="#fff" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Event info */}
-          <View className="px-6 pb-7 mt-auto">
-            <View
-              className="flex-row items-center self-start rounded-full px-3 py-1 mb-3 border"
-              style={{
-                backgroundColor: status.color + "28",
-                borderColor: status.color + "55",
-              }}
+          {/* Title block + actions, anchored to the bottom */}
+          <View style={{ marginTop: "auto" }}>
+            <GlassSurface
+              tint="dark"
+              shape="capsule"
+              cornerRadius={999}
+              style={styles.statusPill}
             >
               <View
                 className="w-1.5 h-1.5 rounded-full mr-2"
@@ -202,124 +304,153 @@ export default function EventDetailScreen() {
               >
                 {status.label}
               </SansSemiText>
-            </View>
+            </GlassSurface>
 
             <SerifBoldText
-              className="text-4xl leading-tight text-white mb-1"
+              className="text-white"
+              style={styles.heroTitle}
               numberOfLines={2}
             >
               {event.name}
             </SerifBoldText>
-            <SansText className="text-sm text-white/65">
-              {formatDate(event.expires_at)}
+            <SansText className="text-white/70" style={styles.heroSubtitle}>
+              {formatDate(event.expires_at)} · {guestLabel}
             </SansText>
+
+            {/* Action row: QR (invite) + View gallery */}
+            <View style={styles.actionRow}>
+              <TouchableOpacity onPress={openQr} activeOpacity={0.8}>
+                <GlassSurface
+                  tint="light"
+                  shape="circle"
+                  intensity={60}
+                  style={styles.circleAction}
+                >
+                  <QrCode size={24} color={colors.textPrimary} />
+                </GlassSurface>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={scrollToGallery}
+                activeOpacity={0.85}
+                style={styles.pillCta}
+              >
+                <SansSemiText style={styles.pillCtaText}>
+                  View gallery
+                </SansSemiText>
+                <ArrowUpRight size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
           </View>
-        </Transition.View>
+        </View>
 
-        {/* ── Body ── */}
-        <View className="pt-5">
-
-          {/* Stats */}
-          <View className="flex-row items-center bg-backgroundSecondary rounded-3xl py-5 px-2 mb-3">
-            <View className="flex-1 items-center gap-1">
-              <Users size={15} color={colors.accent} />
-              <SerifBoldText className="text-lg">{data.uploadCount}</SerifBoldText>
-              <SansText className="text-xs text-textSecondary uppercase tracking-widest">Guests</SansText>
+        {/* ── Gallery sheet — below the fold, rises over the photo on scroll ── */}
+        <View
+          onLayout={(e) => {
+            galleryY.current = e.nativeEvent.layout.y;
+          }}
+          style={{
+            borderTopLeftRadius: 32,
+            borderTopRightRadius: 32,
+            backgroundColor: colors.backgroundPrimary,
+            minHeight: SCREEN_HEIGHT * 0.6,
+          }}
+        >
+          <View style={{ paddingHorizontal: H_PAD, paddingTop: 28 }}>
+            {/* Gallery header */}
+            <View className="flex-row justify-between items-baseline mb-4">
+              <SerifBoldText className="text-2xl">Gallery</SerifBoldText>
+              <SansText className="text-sm text-textSecondary">
+                {photosLoading
+                  ? "Loading…"
+                  : data.uploadCount === 0
+                    ? "No photos yet"
+                    : `${data.uploadCount} photo${data.uploadCount === 1 ? "" : "s"}`}
+              </SansText>
             </View>
 
-            <View className="w-px h-8 bg-white/[0.07]" />
-
-            <View className="flex-1 items-center gap-1">
-              <Camera size={15} color={colors.accent} />
-              <SerifBoldText className="text-lg">{event.shot_limit ?? "∞"}</SerifBoldText>
-              <SansText className="text-xs text-textSecondary uppercase tracking-widest">Shots</SansText>
-            </View>
-
-            <View className="w-px h-8 bg-white/[0.07]" />
-
-            <View className="flex-1 items-center gap-1">
-              <Clock size={15} color={colors.accent} />
-              <SerifBoldText className="text-lg" numberOfLines={1}>
-                {event.reveal_time ?? "Instant"}
-              </SerifBoldText>
-              <SansText className="text-xs text-textSecondary uppercase tracking-widest">Reveal</SansText>
-            </View>
-
-            {event.plan && (
-              <>
-                <View className="w-px h-8 bg-white/[0.07]" />
-                <View className="flex-1 items-center gap-1">
-                  <SansSemiText className="text-accent text-sm">✦</SansSemiText>
-                  <SerifBoldText className="text-lg" numberOfLines={1}>
-                    {event.plan.name}
-                  </SerifBoldText>
-                  <SansText className="text-xs text-textSecondary uppercase tracking-widest">Plan</SansText>
-                </View>
-              </>
+            {/* Gallery body */}
+            {data.uploadCount === 0 ? (
+              <EmptyState
+                variant="bare"
+                icon={Images}
+                title="No photos yet"
+                subtitle="Share the QR code so guests can start adding their shots."
+              />
+            ) : !event.is_revealed ? (
+              <EmptyState
+                variant="bare"
+                icon={Clock}
+                title="Not yet revealed"
+                subtitle="Photos will appear here once the gallery is revealed."
+              />
+            ) : photosLoading ? (
+              <View className="items-center py-12">
+                <ActivityIndicator color={colors.accent} />
+              </View>
+            ) : (
+              renderBento(photos)
             )}
           </View>
-
-          {/* QR card */}
-          <View className="flex-row items-center bg-backgroundSecondary rounded-3xl p-4 mb-7 gap-4">
-            <View className="w-14 h-14 rounded-2xl bg-backgroundPrimary items-center justify-center">
-              <QrCode size={30} color={colors.textPrimary} />
-            </View>
-            <View className="flex-1">
-              <SerifBoldText className="text-base mb-0.5">Scan to Join</SerifBoldText>
-              <SansText className="text-xs text-textSecondary">Share with your guests</SansText>
-            </View>
-            <TouchableOpacity
-              className="flex-row items-center gap-1.5 bg-accent/10 border border-accent/20 rounded-full px-3 py-2"
-              onPress={() => Clipboard.setString(event.qr_code_token ?? "")}
-            >
-              <Copy size={13} color={colors.accent} />
-              <SansSemiText className="text-xs text-accent">Copy link</SansSemiText>
-            </TouchableOpacity>
-          </View>
-
-          {/* Gallery header */}
-          <View className="flex-row justify-between items-baseline mb-4">
-            <SerifBoldText className="text-2xl">Gallery</SerifBoldText>
-            <SansText className="text-sm text-textSecondary">
-              {photosLoading
-                ? "Loading…"
-                : data.uploadCount === 0
-                ? "No photos yet"
-                : `${data.uploadCount} photo${data.uploadCount === 1 ? "" : "s"}`}
-            </SansText>
-          </View>
-
-          {/* Gallery body */}
-          {data.uploadCount === 0 ? (
-            <View className="bg-backgroundSecondary rounded-3xl p-9 items-center">
-              <SansText className="text-sm text-textSecondary text-center leading-6">
-                No photos yet.{"\n"}Share the QR code to get started.
-              </SansText>
-            </View>
-          ) : !event.is_revealed ? (
-            <View className="bg-backgroundSecondary rounded-3xl p-10 items-center gap-3">
-              <Clock size={30} color={colors.textSecondary} />
-              <SerifBoldText className="text-xl">Not yet revealed</SerifBoldText>
-              <SansText className="text-sm text-textSecondary text-center leading-5">
-                Photos will appear here once the gallery is revealed.
-              </SansText>
-            </View>
-          ) : photosLoading ? (
-            <View className="items-center py-12">
-              <ActivityIndicator color={colors.accent} />
-            </View>
-          ) : (
-            <View className="flex-row">
-              <View className="flex-1">
-                {leftPhotos.map((p, i) => renderPhotoCell(p, 0, i))}
-              </View>
-              <View className="flex-1" style={{ marginLeft: GAP }}>
-                {rightPhotos.map((p, i) => renderPhotoCell(p, 1, i))}
-              </View>
-            </View>
-          )}
         </View>
       </ScrollView>
-    </ScreenWrapper>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  glassButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginBottom: 14,
+  },
+  heroTitle: {
+    fontSize: 46,
+    lineHeight: 50,
+    letterSpacing: -1,
+    marginBottom: 8,
+  },
+  heroSubtitle: {
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 26,
+  },
+  circleAction: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // Solid frosted-white pill — stays legible over any cover, unlike glass.
+  pillCta: {
+    flex: 1,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(255,255,255,0.94)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+  },
+  pillCtaText: {
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+});
