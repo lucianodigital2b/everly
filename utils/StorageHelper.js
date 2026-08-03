@@ -10,16 +10,20 @@ export const setItem = (key, content) =>
       .catch((err) => reject(err));
   });
 
+/**
+ * Writes several prefixed entries at once. Takes `[key, value]` pairs to match
+ * the other helpers' call style; AsyncStorage v3 wants a plain object, so the
+ * pairs are folded into one here rather than mutating the caller's array.
+ */
 export const multiSet = (content) =>
   new Promise((resolve, reject) => {
-    const updatedContent = content.map((item) => {
-      item[0] = `${STORAGE_KEY_PREFIX}:${item[0]}`;
-      item[1] = typeof item[1] === 'object' ? JSON.stringify(item[1]) : item[1];
+    const entries = content.reduce((acc, [key, value]) => {
+      acc[`${STORAGE_KEY_PREFIX}:${key}`] =
+        typeof value === 'string' ? value : JSON.stringify(value);
+      return acc;
+    }, {});
 
-      return item;
-    });
-
-    AsyncStorage.multiSet(updatedContent)
+    AsyncStorage.setMany(entries)
       .then(() => resolve())
       .catch((err) => reject(err));
   });

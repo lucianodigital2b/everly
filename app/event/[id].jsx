@@ -7,11 +7,13 @@ import {
   Image,
   Dimensions,
   StyleSheet,
+  Text,
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import Transition from "react-native-screen-transitions";
 import { GlassSurface } from "../../components/GlassSurface";
 import { SerifBoldText, SansText, SansSemiText } from "../../components/Text";
@@ -40,6 +42,26 @@ const BENTO_SMALL_H = (BENTO_ROW_H - GAP) / 2;
 const BENTO_HALF_W = (CONTENT_W - GAP) / 2;
 const EVENT_SCREEN_OPTIONS = {
   headerShown: false,
+};
+
+// The hero card. Wide margins, a little taller than square — enough room for a
+// plate number up top and the look credit along the bottom.
+const CARD_W = SCREEN_WIDTH - H_PAD * 2;
+const CARD_H = Math.min(Math.round(SCREEN_HEIGHT * 0.46), Math.round(CARD_W * 1.2));
+
+// Every guest shoots the event's filter, so the card credits it like a film
+// stock. Codes are decorative; the label and blurb are the real information.
+const FILTER_TAG = {
+  none: { code: "N0", label: "Natural", blurb: "No filter — true colours." },
+  warm: { code: "W2", label: "Warm", blurb: "Every guest shoots this look." },
+  film: { code: "F4", label: "Film", blurb: "Every guest shoots this look." },
+  mono: { code: "M1", label: "Mono", blurb: "Every guest shoots this look." },
+};
+
+const REVEAL_TAG = {
+  Instant: "REVEALS AS THEY SHOOT",
+  "End of Event": "REVEALS WHEN IT ENDS",
+  Scheduled: "REVEALS AT A SET TIME",
 };
 
 const statusConfig = (event) => {
@@ -233,15 +255,21 @@ export default function EventDetailScreen() {
     return <View>{rows}</View>;
   };
 
-  const guestLabel = `${data.uploadCount} ${
-    data.uploadCount === 1 ? "guest" : "guests"
-  }`;
+  // uploadCount is the *photo* count (BACKEND.md), which the card now states —
+  // so the subtitle carries the guest allowance instead of repeating it under
+  // the wrong noun.
+  const guestLabel = `${event.participant_limit ?? "∞"} guests`;
+
+  const filterTag = FILTER_TAG[event.filter] ?? FILTER_TAG.none;
+  const revealTag = REVEAL_TAG[event.reveal_time] ?? "REVEALS WHEN IT ENDS";
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.backgroundPrimary }}>
       <Stack.Screen options={EVENT_SCREEN_OPTIONS} />
 
-      {/* ── Cover: full-bleed photo, pinned behind the hero ── */}
+      {/* ── Backdrop: the cover again, blown up and frosted, so the card in
+             front of it reads as the one sharp thing on the screen. Keeps the
+             shared-element bound tag — this is what flies in from the list. ── */}
       <Transition.View
         sharedBoundTag={coverSharedBoundTag}
         style={{
@@ -257,6 +285,11 @@ export default function EventDetailScreen() {
           style={StyleSheet.absoluteFill}
           resizeMode="cover"
         />
+        <BlurView
+          intensity={70}
+          tint="dark"
+          style={StyleSheet.absoluteFill}
+        />
         {/* Light veil up top for the back button, deep shade below for the text. */}
         <LinearGradient
           colors={["rgba(0,0,0,0.32)", "rgba(0,0,0,0)", "rgba(0,0,0,0.78)"]}
@@ -265,11 +298,10 @@ export default function EventDetailScreen() {
         />
       </Transition.View>
 
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
-      >
+      {/* No bottom padding: the cover is pinned behind this ScrollView, so any
+          gap under the sheet shows a strip of photo below it. The sheet runs to
+          the bottom itself. */}
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
         {/* ── Hero: fills the screen, editorial and minimal ── */}
         <View
           style={{
@@ -286,8 +318,66 @@ export default function EventDetailScreen() {
             </GlassSurface>
           </TouchableOpacity>
 
+          {/* ── The card: cover held sharp above its own frosted blow-up ── */}
+          <View style={styles.cardWrap}>
+            {/* Oversized ghost of the name, bleeding off both edges behind it */}
+            <Text style={styles.ghostType} numberOfLines={1}>
+              {event.name}
+            </Text>
+
+            <TouchableOpacity
+              activeOpacity={0.92}
+              onPress={scrollToGallery}
+              style={styles.card}
+            >
+              <Image
+                source={{ uri: eventCover(event.cover_image_url) }}
+                style={StyleSheet.absoluteFill}
+                resizeMode="cover"
+              />
+              {/* Photos go pale at either end — scrims keep the type legible. */}
+              <LinearGradient
+                colors={["rgba(12,8,6,0.5)", "transparent"]}
+                locations={[0, 0.32]}
+                style={StyleSheet.absoluteFill}
+              />
+              <LinearGradient
+                colors={["transparent", "rgba(12,8,6,0.72)"]}
+                locations={[0.55, 1]}
+                style={StyleSheet.absoluteFill}
+              />
+
+              {/* Top: the count, set like a plate number */}
+              <View style={styles.cardTop}>
+                <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                  <Text style={styles.cardNumeral}>
+                    {String(Math.min(data.uploadCount, 99)).padStart(2, "0")}
+                  </Text>
+                  <View style={{ marginLeft: 8, marginTop: 6 }}>
+                    <Text style={styles.cardCaption}>
+                      {data.uploadCount === 1 ? "photo" : "photos"}
+                    </Text>
+                    <Text style={styles.cardCaption}>so far</Text>
+                  </View>
+                </View>
+                <Text style={styles.cardEyebrow}>{revealTag}</Text>
+              </View>
+
+              {/* Bottom: the look every guest shoots in */}
+              <View style={styles.cardBottom}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View style={styles.cardBadge}>
+                    <Text style={styles.cardBadgeText}>{filterTag.code}</Text>
+                  </View>
+                  <Text style={styles.cardBadgeLabel}>{filterTag.label}</Text>
+                </View>
+                <Text style={styles.cardFine}>{filterTag.blurb}</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
           {/* Title block + actions, anchored to the bottom */}
-          <View style={{ marginTop: "auto" }}>
+          <View>
             <GlassSurface
               tint="dark"
               shape="capsule"
@@ -319,15 +409,14 @@ export default function EventDetailScreen() {
 
             {/* Action row: QR (invite) + View gallery */}
             <View style={styles.actionRow}>
-              <TouchableOpacity onPress={openQr} activeOpacity={0.8}>
-                <GlassSurface
-                  tint="light"
-                  shape="circle"
-                  intensity={60}
-                  style={styles.circleAction}
-                >
-                  <QrCode size={24} color={colors.textPrimary} />
-                </GlassSurface>
+              <TouchableOpacity
+                onPress={openQr}
+                activeOpacity={0.85}
+                style={styles.circleAction}
+                accessibilityRole="button"
+                accessibilityLabel="Share QR code"
+              >
+                <QrCode size={24} color={colors.textPrimary} />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -349,44 +438,60 @@ export default function EventDetailScreen() {
           onLayout={(e) => {
             galleryY.current = e.nativeEvent.layout.y;
           }}
-          style={{
-            borderTopLeftRadius: 32,
-            borderTopRightRadius: 32,
-            backgroundColor: colors.backgroundPrimary,
-            minHeight: SCREEN_HEIGHT * 0.6,
-          }}
+          // A full screen tall, so scrolling it up always covers the pinned
+          // cover edge to edge — anything shorter leaves the photo showing
+          // under it.
+          style={[styles.sheet, { minHeight: SCREEN_HEIGHT }]}
         >
-          <View style={{ paddingHorizontal: H_PAD, paddingTop: 28 }}>
+          <View
+            style={{
+              flexGrow: 1,
+              paddingHorizontal: H_PAD,
+              paddingTop: 28,
+              paddingBottom: insets.bottom + 32,
+            }}
+          >
             {/* Gallery header */}
             <View className="flex-row justify-between items-baseline mb-4">
               <SerifBoldText className="text-2xl">Gallery</SerifBoldText>
+              {/* Silent when empty — the placeholder below already says it. */}
               <SansText className="text-sm text-textSecondary">
                 {photosLoading
                   ? "Loading…"
                   : data.uploadCount === 0
-                    ? "No photos yet"
+                    ? ""
                     : `${data.uploadCount} photo${data.uploadCount === 1 ? "" : "s"}`}
               </SansText>
             </View>
 
-            {/* Gallery body */}
+            {/* Gallery body — placeholders centre in the sheet instead of
+                clinging to the top of an empty screen. */}
             {data.uploadCount === 0 ? (
-              <EmptyState
-                variant="bare"
-                icon={Images}
-                title="No photos yet"
-                subtitle="Share the QR code so guests can start adding their shots."
-              />
+              <View style={styles.placeholder}>
+                <EmptyState
+                  variant="bare"
+                  icon={Images}
+                  title="No photos yet"
+                  subtitle="Share the QR code so guests can start adding their shots."
+                  actionLabel="Share QR code"
+                  onAction={openQr}
+                />
+              </View>
             ) : !event.is_revealed ? (
-              <EmptyState
-                variant="bare"
-                icon={Clock}
-                title="Not yet revealed"
-                subtitle="Photos will appear here once the gallery is revealed."
-              />
+              <View style={styles.placeholder}>
+                <EmptyState
+                  variant="bare"
+                  icon={Clock}
+                  title="Not yet revealed"
+                  subtitle="Photos will appear here once the gallery is revealed."
+                />
+              </View>
             ) : photosLoading ? (
-              <View className="items-center py-12">
-                <ActivityIndicator color={colors.accent} />
+              <View style={styles.placeholder}>
+                <ActivityIndicator
+                  color={colors.accent}
+                  style={{ alignSelf: "center" }}
+                />
               </View>
             ) : (
               renderBento(photos)
@@ -399,12 +504,110 @@ export default function EventDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  sheet: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    backgroundColor: colors.backgroundPrimary,
+  },
+  placeholder: {
+    flexGrow: 1,
+    minHeight: 260,
+    justifyContent: "center",
+    paddingBottom: 24,
+    // Deliberately no alignItems: "center" — EmptyState already centres its own
+    // content, and shrink-wrapping it here leaves its button with no definite
+    // parent width, so the button's `w-full` collapses onto the label.
+  },
   glassButton: {
     width: 46,
     height: 46,
     borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
+  },
+  cardWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ghostType: {
+    position: "absolute",
+    // Wider than the screen so it runs off both edges, like a masthead.
+    width: SCREEN_WIDTH * 2,
+    textAlign: "center",
+    fontFamily: "Inter-ExtraBold",
+    fontSize: 96,
+    lineHeight: 104,
+    letterSpacing: -4,
+    color: "rgba(255,255,255,0.07)",
+  },
+  card: {
+    width: CARD_W,
+    height: CARD_H,
+    borderRadius: 28,
+    overflow: "hidden",
+    backgroundColor: colors.surface2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 22 },
+    shadowOpacity: 0.35,
+    shadowRadius: 30,
+    elevation: 12,
+  },
+  cardTop: {
+    position: "absolute",
+    top: 18,
+    left: 20,
+    right: 20,
+  },
+  cardNumeral: {
+    fontFamily: "Inter-ExtraBold",
+    fontSize: 40,
+    lineHeight: 42,
+    letterSpacing: -1.5,
+    color: "#fff",
+  },
+  cardCaption: {
+    fontFamily: "Inter-Medium",
+    fontSize: 12,
+    lineHeight: 15,
+    color: "rgba(255,255,255,0.82)",
+  },
+  cardEyebrow: {
+    marginTop: 8,
+    fontFamily: "Inter-SemiBold",
+    fontSize: 10,
+    letterSpacing: 1.6,
+    color: "rgba(255,255,255,0.72)",
+  },
+  cardBottom: {
+    position: "absolute",
+    left: 20,
+    right: 20,
+    bottom: 18,
+  },
+  cardBadge: {
+    backgroundColor: colors.accent,
+    borderRadius: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    marginRight: 9,
+  },
+  cardBadgeText: {
+    fontFamily: "Inter-ExtraBold",
+    fontSize: 14,
+    color: "#2E2429",
+  },
+  cardBadgeLabel: {
+    fontFamily: "Inter-ExtraBold",
+    fontSize: 22,
+    letterSpacing: -0.5,
+    color: "#fff",
+  },
+  cardFine: {
+    marginTop: 5,
+    fontFamily: "Inter-Medium",
+    fontSize: 12.5,
+    color: "rgba(255,255,255,0.75)",
   },
   statusPill: {
     flexDirection: "row",
@@ -431,10 +634,13 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 26,
   },
+  // Solid white, same as the pill beside it — a light glass surface disappears
+  // against a bright cover and takes the dark icon with it.
   circleAction: {
     width: 60,
     height: 60,
     borderRadius: 30,
+    backgroundColor: "rgba(255,255,255,0.94)",
     alignItems: "center",
     justifyContent: "center",
   },

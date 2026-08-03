@@ -5,6 +5,8 @@ import { notificationsStore } from "../notifications";
 import * as AppleAuthentication from "expo-apple-authentication";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authApi } from "../../services/api";
+import { appleAuth } from "../../services/appleAuth";
+import { appsFlyerService } from "../../services/appsflyer";
 import { StorageHelper } from "../../utils";
 
 const actions = (dispatch: any) => ({
@@ -35,6 +37,7 @@ const actions = (dispatch: any) => ({
       if (data?.token) {
         await StorageHelper.saveAccessToken(data.token);
         dispatch({ type: Types.AUTH_LOGIN_FULFILLED, payload: data });
+        appsFlyerService.setUserId(data.user?.id);
       } else {
         throw new Error("Invalid response from server");
       }
@@ -90,6 +93,7 @@ const actions = (dispatch: any) => ({
         if (data?.token) {
           await StorageHelper.saveAccessToken(data.token);
           dispatch({ type: Types.AUTH_LOGIN_FULFILLED, payload: data });
+          appsFlyerService.setUserId(data.user?.id);
         } else {
           throw new Error("Invalid response from server");
         }
@@ -133,24 +137,41 @@ const actions = (dispatch: any) => ({
         ],
       });
 
-      if (credential) {
-        const data = await authApi.appleLogin({
-          identity_token: credential.identityToken ?? "",
-          user_identifier: credential.user,
-          full_name: credential.fullName,
-          email: credential.email,
-        });
-
-        if (data?.token) {
-          await StorageHelper.saveAccessToken(data.token);
-          dispatch({ type: Types.AUTH_LOGIN_FULFILLED, payload: data });
-        } else {
-          throw new Error("Invalid response from server");
-        }
+      if (!credential?.identityToken) {
+        throw new Error("Apple did not return an identity token");
       }
+
+      // Name/email only ever arrive on the first authorization — mergeProfile
+      // caches them so a failed attempt doesn't lose them for good.
+      const profile = await appleAuth.mergeProfile(credential);
+
+      const data = await authApi.appleLogin({
+        identity_token: credential.identityToken,
+        authorization_code: credential.authorizationCode ?? null,
+        user_identifier: credential.user,
+        full_name: profile.fullName,
+        email: profile.email,
+      });
+
+      if (!data?.token) {
+        throw new Error("Invalid response from server");
+      }
+
+      await StorageHelper.saveAccessToken(data.token);
+      dispatch({ type: Types.AUTH_LOGIN_FULFILLED, payload: data });
+      appsFlyerService.setUserId(data.user?.id);
+      await appleAuth.rememberSession(credential.user);
     } catch (error: any) {
+      // Dismissing the Apple sheet is not a failure — reset quietly, no toast.
+      if (error?.code === "ERR_REQUEST_CANCELED") {
+        dispatch({ type: Types.AUTH_LOGIN_REJECTED, payload: "" });
+        return;
+      }
+
       const errorMessage =
-        error?.response?.data?.error || "Apple Sign-In failed";
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        "Apple Sign-In failed";
 
       notificationsShow({
         message: errorMessage,
@@ -175,6 +196,7 @@ const actions = (dispatch: any) => ({
       if (data?.token) {
         await StorageHelper.saveAccessToken(data.token);
         dispatch({ type: Types.AUTH_REGISTER_FULFILLED, payload: data });
+        appsFlyerService.setUserId(data.user?.id);
       } else {
         throw new Error("Invalid response from server");
       }
@@ -210,6 +232,7 @@ const actions = (dispatch: any) => ({
     } finally {
       await StorageHelper.removeItem("token");
       await AsyncStorage.removeItem("auth-store");
+      await appleAuth.forgetSession();
       dispatch({ type: Types.AUTH_LOGOUT });
     }
   },

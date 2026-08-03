@@ -30,7 +30,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F5EDEA"
       },
-      "package": "com.jsm.everly",
+      "package": "com.get.everly",
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "NOTIFICATIONS",
@@ -49,7 +49,21 @@
       "expo-apple-authentication",
       "expo-notifications",
       "expo-updates",
-      "expo-asset"
+      "expo-asset",
+      [
+        "react-native-appsflyer",
+        {
+          "shouldUseStrictMode": false,
+          "shouldUsePurchaseConnector": false,
+          "preferAppsFlyerBackupRules": false
+        }
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "Everly uses this to measure ad performance and improve your experience. Your data is never sold."
+        }
+      ]
     ],
     "extra": {
       "router": {

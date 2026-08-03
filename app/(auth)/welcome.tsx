@@ -77,15 +77,16 @@ const ENTRY = { x: -SCREEN_W * 0.5, y: -CARD_H * 0.35, rot: -18 };
 const EXIT = { x: SCREEN_W * 1.15, y: ARC_H + CARD_H * 0.2, rot: 30 };
 
 // One period of the path as keyframes (u ∈ [0,1]); the trailing entry keyframe
-// at u = 1 closes the loop, and the exit→entry hop sits at opacity 0 so the wrap
-// is invisible. Each card reads this path offset by its phase.
+// at u = 1 closes the loop. Both ENTRY and EXIT sit fully off-screen, so the
+// exit→entry hop is never seen and the cards stay fully opaque the whole way —
+// they slide in and out like a carousel rather than fading. Each card reads this
+// path offset by its phase.
 const U_BASE = [0, 0.08, 0.28, 0.48, 0.68, 0.86, 0.999, 1];
 const PATH = {
   x: [ENTRY.x, SLOTS[0].x, SLOTS[1].x, SLOTS[2].x, SLOTS[3].x, SLOTS[4].x, EXIT.x, ENTRY.x],
   y: [ENTRY.y, SLOTS[0].y, SLOTS[1].y, SLOTS[2].y, SLOTS[3].y, SLOTS[4].y, EXIT.y, ENTRY.y],
   rot: [ENTRY.rot, SLOTS[0].rot, SLOTS[1].rot, SLOTS[2].rot, SLOTS[3].rot, SLOTS[4].rot, EXIT.rot, ENTRY.rot],
   scale: [0.82, 1, 1, 1, 1, 1, 0.82, 0.82],
-  opacity: [0, 1, 1, 1, 1, 1, 0, 0],
 };
 // Double each array over u ∈ [0,2]. The second copy repeats the first, so
 // f(u) === f(u + 1): when the shared driver resets 1→0 the output is unchanged,
@@ -97,7 +98,6 @@ const PATH2 = {
   y: dbl(PATH.y),
   rot: dbl(PATH.rot).map((r) => `${r}deg`),
   scale: dbl(PATH.scale),
-  opacity: dbl(PATH.opacity),
 };
 const CARD_COUNT = WELCOME_HERO_IMAGES.length; // phases evenly spaced → conveyor
 
@@ -124,7 +124,6 @@ export default function Welcome() {
           translateY: at(PATH2.y),
           rotate: at(PATH2.rot),
           scale: at(PATH2.scale),
-          opacity: at(PATH2.opacity),
         };
       }),
     [t]
@@ -231,7 +230,6 @@ export default function Welcome() {
               style={[
                 styles.arcCard,
                 {
-                  opacity: c.opacity,
                   transform: [
                     { translateX: c.translateX },
                     { translateY: c.translateY },

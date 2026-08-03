@@ -9,7 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // looks the event up).
 const BASE_URL = (
   process.env.EXPO_PUBLIC_API_URL ||
-  "https://e01c-2804-56c-a4c4-1100-354c-8c64-86c6-7216.ngrok-free.app/everly/public/api"
+  "https://4e82-2804-56c-a41f-7100-b08e-ef3c-f971-472e.ngrok-free.app/everly/public/api"
 ).replace(/\/+$/, "");
 
 const client = axios.create({
@@ -30,12 +30,23 @@ client.interceptors.request.use(async (config) => {
   return config;
 });
 
-// 401 → clear session
+// 401 → clear session.
+// The cleanup is wrapped so a storage failure can never replace the original
+// axios error with its own — callers branch on `error.response.status`, and
+// losing that turns an expired token into an unreadable crash.
 client.interceptors.response.use(
   (res) => res,
   async (error) => {
     if (error.response?.status === 401) {
-      await AsyncStorage.multiRemove(["auth-store"]);
+      try {
+        // Both halves of the session: the persisted zustand store and the
+        // Bearer token the request interceptor reads. Dropping only the store
+        // leaves the dead token attached to every subsequent request.
+        await AsyncStorage.removeMany(["auth-store"]);
+        await StorageHelper.removeItem("token");
+      } catch {
+        // Best effort — surfacing the 401 matters more than the cleanup.
+      }
     }
     return Promise.reject(error);
   }
@@ -181,9 +192,8 @@ export const authApi = {
 
   /**
    * Permanently deletes the account and its events. Required by App Store
-   * guideline 5.1.1(v).
-   * NOTE: this route does not exist in BACKEND.md yet — the app is ready, the
-   * server side still has to implement DELETE /auth/user.
+   * guideline 5.1.1(v) — the server also revokes the Sign in with Apple grant
+   * before deleting, using the refresh token from `authorization_code`.
    */
   deleteAccount: () =>
     auth<{ message: string }>({ method: "DELETE", url: "/auth/user" }),
@@ -195,8 +205,19 @@ export const authApi = {
       data: body,
     }),
 
+  /**
+   * `full_name` / `email` only arrive on a user's *first* authorization — every
+   * later sign-in sends them as null, so the backend must persist what it gets
+   * the first time and never overwrite a stored name with null.
+   *
+   * `authorization_code` is a one-time code the server exchanges with Apple for
+   * a refresh token. It has to be stored so `DELETE /auth/user` can call Apple's
+   * token revocation endpoint — App Store guideline 5.1.1(v) requires an app
+   * offering Sign in with Apple to revoke the token when the account is deleted.
+   */
   appleLogin: (body: {
     identity_token: string;
+    authorization_code: string | null;
     user_identifier: string;
     full_name: { givenName?: string | null; familyName?: string | null } | null;
     email: string | null;
@@ -229,6 +250,9 @@ export type EventStoreBody = {
   tier?: string;
   is_revealed?: boolean;
   cover_image_url?: string;
+  /** Everyone sees every photo. Documented on update; sent on create too — see
+   *  the create wizard, which re-PATCHes it if the store response disagrees. */
+  public?: boolean;
 };
 
 export type EventUpdateBody = Partial<EventStoreBody & { public: boolean }>;
@@ -251,7 +275,8 @@ export const eventsApi = {
     }
     const form = new FormData();
     for (const [key, value] of Object.entries(body)) {
-      if (value !== undefined && value !== null) form.append(key, String(value));
+      if (value !== undefined && value !== null)
+        form.append(key, String(value));
     }
     form.append("cover_image", {
       uri: coverImage.uri,
@@ -323,4 +348,3 @@ export const uploadApi = {
       .then((r) => r.data);
   },
 };
-

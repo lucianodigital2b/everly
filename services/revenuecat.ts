@@ -9,7 +9,34 @@ try {
   PurchasesUI = require("react-native-purchases-ui");
 } catch {}
 
-const ENTITLEMENT_ID = "healthlyst_pro";
+const ENTITLEMENT_ID = "everly_guests";
+
+/**
+ * Guest packs are **consumables**: one purchase adds N guest slots to a single
+ * event. RevenueCat does not keep consumables in `customerInfo.entitlements`,
+ * so the client can never derive a guest allowance from the SDK.
+ *
+ * Source of truth is `Event.participant_limit`, incremented server-side by the
+ * RevenueCat webhook. After a purchase, refetch the event — do not optimistically
+ * add slots on the client.
+ */
+const GUEST_PACKS: Record<string, number | null> = {
+  guests_10: 10,
+  guests_25: 25,
+  guests_50: 50,
+  guests_100: 100,
+  guests_150: 150,
+  guests_unlimited: null, // null = unlimited, matches Event.participant_limit
+};
+
+const PACK_ORDER = [
+  "guests_10",
+  "guests_25",
+  "guests_50",
+  "guests_100",
+  "guests_150",
+  "guests_unlimited",
+];
 
 type InitOptions = {
   apiKey?: string;
@@ -43,20 +70,95 @@ const getApiKeyForPlatform = (explicit?: string) => {
   return key;
 };
 
+// configure() is called from several places (root layout, useRevenueCat, the
+// create flow) and must stay a no-op after the first one. Re-running
+// Purchases.configure() re-initialises the native SDK mid-session and re-sends
+// the cached device attributes, which the backend then rejects with
+// "$idfv: IDFV cannot be modified".
+let configuring: Promise<void> | null = null;
+
 const configure = async (opts?: InitOptions) => {
   if (!Purchases) return;
-  const apiKey = getApiKeyForPlatform(opts?.apiKey);
-  if (!apiKey) {
-    console.warn(
-      "[RevenueCat] No public API key configured — purchases are disabled. " +
-        "Set EXPO_PUBLIC_RC_IOS / EXPO_PUBLIC_RC_ANDROID in .env.local.",
-    );
-    return;
+  if (configuring) return configuring;
+
+  configuring = (async () => {
+    const apiKey = getApiKeyForPlatform(opts?.apiKey);
+    if (!apiKey) {
+      console.warn(
+        "[RevenueCat] No public API key configured — purchases are disabled. " +
+          "Set EXPO_PUBLIC_RC_IOS / EXPO_PUBLIC_RC_ANDROID in .env.local.",
+      );
+      return;
+    }
+    // Survives a JS reload in dev, where the module flag resets but the native
+    // SDK is still configured from the previous bundle.
+    if (await Purchases.isConfigured?.()) return;
+
+    if (opts?.appUserID) {
+      await Purchases.configure({ apiKey, appUserID: opts.appUserID });
+    } else {
+      await Purchases.configure({ apiKey });
+    }
+  })();
+
+  try {
+    await configuring;
+  } catch (e) {
+    // Let the next caller retry rather than latching a failed init.
+    configuring = null;
+    console.warn("[RevenueCat] configure failed", e);
   }
-  if (opts?.appUserID) {
-    await Purchases.configure({ apiKey, appUserID: opts.appUserID });
-  } else {
-    await Purchases.configure({ apiKey });
+};
+
+/**
+ * Identify the signed-in user to RevenueCat so purchases carry
+ * `app_user_id = users.id`. The backend cross-checks event ownership against
+ * this on the webhook, so it must match the API user id. Idempotent.
+ */
+const logIn = async (appUserID: string | number) => {
+  if (!Purchases || appUserID == null || appUserID === "") return;
+  try {
+    // Already this user — skip. A redundant logIn re-runs the alias/attribute
+    // sync on every purchase attempt, which is what makes the "$idfv cannot be
+    // modified" warning repeat each time the user retries.
+    const current = await Purchases.getAppUserID();
+    if (current === String(appUserID)) return;
+
+    await Purchases.logIn(String(appUserID));
+  } catch (e) {
+    console.warn("[RevenueCat] logIn failed", e);
+  }
+};
+
+const logOut = async () => {
+  if (!Purchases) return;
+  try {
+    await Purchases.logOut();
+  } catch {}
+};
+
+/**
+ * Wire the RevenueCat → AppsFlyer integration. RevenueCat forwards purchase and
+ * subscription events to AppsFlyer server-side, but only if it knows the device's
+ * AppsFlyer ID and identifiers — otherwise the events land unattributed.
+ *
+ * Call once after both SDKs are configured (see app/_layout.tsx). Because RC
+ * sends `non_renewing_purchase` for consumables, this is what reports guest-pack
+ * revenue to AppsFlyer — do NOT also log `af_purchase` from the client or the
+ * revenue is double-counted.
+ */
+const linkAppsFlyer = async (appsFlyerId?: string | null) => {
+  if (!Purchases) return;
+  try {
+    // Grabs IDFA/IDFV (iOS) / GAID (Android) + the RC device id so AppsFlyer can
+    // match. IDFA is only non-zero once ATT is granted; matching still works
+    // off the AppsFlyer ID without it.
+    await Purchases.collectDeviceIdentifiers();
+    if (appsFlyerId) {
+      await Purchases.setAppsflyerID(appsFlyerId);
+    }
+  } catch (e) {
+    console.warn("[RevenueCat] linkAppsFlyer failed", e);
   }
 };
 
@@ -135,6 +237,66 @@ const getCustomerInfo = async (): Promise<RevenueCatCustomerInfo | null> => {
   }
 };
 
+/**
+ * Packages from the current offering that map to a known guest pack, ordered
+ * smallest to largest. Anything unrecognised is dropped rather than shown with
+ * an unknown guest count.
+ */
+const getGuestPacks = async () => {
+  const offerings = await getOfferings();
+  const packages = offerings?.current?.availablePackages ?? [];
+
+  return packages
+    .filter((pkg: any) => pkg?.identifier in GUEST_PACKS)
+    .map((pkg: any) => ({
+      pkg,
+      lookupKey: pkg.identifier as string,
+      guests: GUEST_PACKS[pkg.identifier],
+      priceString: pkg?.product?.priceString ?? "",
+    }))
+    .sort(
+      (a: any, b: any) =>
+        PACK_ORDER.indexOf(a.lookupKey) - PACK_ORDER.indexOf(b.lookupKey),
+    );
+};
+
+/**
+ * Buys a guest pack for a specific event. On success the RevenueCat webhook
+ * credits the slots to that event server-side, so callers must refetch the
+ * event to see the new limit — the returned customerInfo will NOT contain the
+ * entitlement (consumable).
+ *
+ * `eventId` is attached as the `everly_event_id` subscriber attribute so the
+ * webhook knows which event to credit. Without it the purchase lands
+ * `unattributed` on the backend and no slots are granted — so it is required.
+ */
+const purchaseGuestPack = async (
+  pkg: RevenueCatPackage,
+  eventId: string | number,
+) => {
+  if (!Purchases) return { success: false, customerInfo: null as any };
+  if (eventId == null || eventId === "") {
+    console.warn(
+      "[RevenueCat] purchaseGuestPack called without an eventId — the webhook cannot attribute this purchase. Aborting.",
+    );
+    return { success: false, customerInfo: null as any };
+  }
+  try {
+    // Must be set BEFORE the purchase so the transaction carries the attribute.
+    await Purchases.setAttributes({ everly_event_id: String(eventId) });
+  } catch (e) {
+    console.warn("[RevenueCat] Failed to set everly_event_id attribute", e);
+  }
+  const res = await purchasePackage(pkg);
+  if (!res.success) return res;
+  return { ...res, needsEventRefetch: true };
+};
+
+/**
+ * Only meaningful for non-consumable / subscription entitlements. Guest packs
+ * are consumables and will never appear here — use `Event.participant_limit`
+ * from the API instead. Kept for future subscription products.
+ */
 const hasActiveEntitlement = (
   info: any,
   entitlementId: string = ENTITLEMENT_ID,
@@ -146,6 +308,9 @@ const hasActiveEntitlement = (
 
 export const revenueCat = {
   configure,
+  logIn,
+  logOut,
+  linkAppsFlyer,
   setLogLevel,
   getOfferings,
   purchasePackage,
@@ -153,6 +318,9 @@ export const revenueCat = {
   presentCustomerCenter,
   restorePurchases,
   getCustomerInfo,
+  getGuestPacks,
+  purchaseGuestPack,
   hasActiveEntitlement,
   ENTITLEMENT_ID,
+  GUEST_PACKS,
 };

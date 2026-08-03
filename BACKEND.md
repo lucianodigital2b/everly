@@ -146,10 +146,37 @@ Represents an anonymous uploader tied to one event via the QR token.
 | POST   | `/auth/logout`          | ✔    | — → `{message}` |
 | GET    | `/auth/user`            | ✔    | — → `User` |
 | POST   | `/auth/google/callback` | —    | `{id_token, access_token?}` → `{user, token}` |
-| POST   | `/auth/apple/callback`  | —    | `{identity_token, user_identifier, full_name, email}` → `{user, token}` |
+| POST   | `/auth/apple/callback`  | —    | `{identity_token, authorization_code, user_identifier, full_name, email}` → `{user, token}` |
 
 `User` = `{ id, name, email, created_at, updated_at }`.
 `full_name` (Apple) = `{ givenName?, familyName? } | null`.
+
+#### Sign in with Apple — server side
+
+Implemented in the backend repo (`F:\www\everly`): `SocialAuthController@apple`
++ `SocialTokenVerifier` for the identity token, `AppleTokenClient` for Apple's
+token/revoke endpoints. Covered by `tests/Feature/Api/AppleSignInTest.php`.
+
+1. **`identity_token` is verified** against Apple's JWKS — signature, `iss`,
+   `exp`, `aud`. Identity comes from the signed `sub`; `user_identifier` is only
+   cross-checked against it (mismatch → 422), never used as a lookup key.
+2. **All three bundle ids are accepted as `aud`** — `com.get.everly`,
+   `com.get.everly.dev`, `com.get.everly.preview` — via a comma-separated
+   `APPLE_CLIENT_ID`. The first is the primary, the one the .p8 is registered to.
+3. **Users match on `apple_id` (= `sub`) first, verified email second**, so
+   signing in with Apple after registering with a password links the accounts.
+   A withheld email (`@privaterelay.appleid.com`, or none at all) is fine — the
+   account falls back to a unique non-routable placeholder.
+4. **`full_name` / `email` are stored on first receipt and never overwritten with
+   `null`.** The app replays its cached copy after a failed attempt, so repeats
+   are idempotent.
+5. **`authorization_code` is exchanged for a refresh token** and stored encrypted
+   on the user, purely so `DELETE /auth/user` can revoke the grant before
+   deleting — guideline 5.1.1(v). Best-effort on both ends: an already-redeemed
+   code never fails a login, and a failed revoke never blocks a deletion.
+
+Revocation needs `APPLE_TEAM_ID` / `APPLE_KEY_ID` / the .p8 key on the server.
+Without them sign-in still works — only revocation is lost.
 
 ### 2.2 Plans
 

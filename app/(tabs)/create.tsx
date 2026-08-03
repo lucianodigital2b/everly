@@ -4,33 +4,46 @@ import {
   Alert,
   Animated,
   Dimensions,
+  Easing,
   Image,
   Keyboard,
   Platform,
   ScrollView,
+  StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { useQueryClient } from "@tanstack/react-query";
 import { ScreenWrapper } from "../../components/ScreenWrapper";
 import { EventPreviewCard } from "../../components/EventPreviewCard";
 import { Input } from "../../components/Input";
-import { useRouter } from "expo-router";
+import { useIsFocused, useRouter } from "expo-router";
 import { colors } from "../../constants/colors";
 import { FILTERS, type FilterKey } from "../../constants/filters";
 import { TiltedEventTypeCards } from "../../components/TiltedEventTypeCards";
 import { eventsApi, uploadApi } from "../../services/api";
+import { revenueCat } from "../../services/revenuecat";
+import { appsFlyerService } from "../../services/appsflyer";
 import { captureStore } from "../../zustand/capture-store";
+import { authStore } from "../../zustand/auth-store";
+import { unsplash } from "../../constants/sampleImages";
 import {
   ArrowLeft,
   ArrowRight,
   Calendar,
+  CalendarClock,
+  Hourglass,
   ImageUp,
+  Lock,
   Minus,
   Plus,
+  Zap,
 } from "lucide-react-native";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -43,8 +56,9 @@ const STEPS = [
     subtitle: "Give your moment a name and type.",
   },
   {
-    title: "When does\nit close?",
-    subtitle: "Set the end date and how the gallery reveals.",
+    title: "Choose the\nreveal moment.",
+    // Replaced at render time by the copy for the selected mode — see REVEAL_COPY.
+    subtitle: "Decide when guests get to see the gallery.",
   },
   {
     title: "How many\nshots?",
@@ -72,7 +86,24 @@ const EVENT_TYPES = [
   "Party",
   "Other",
 ];
-const REVEAL_MODES = ["Instant", "End of Event", "Scheduled"];
+// `mode` is sent to the API as `reveal_time`, so those strings are fixed.
+const REVEAL_OPTIONS = [
+  { mode: "Instant", icon: Zap, line1: "During", line2: "the event" },
+  { mode: "End of Event", icon: Hourglass, line1: "After", line2: "the event" },
+  { mode: "Scheduled", icon: CalendarClock, line1: "At a set", line2: "time" },
+] as const;
+
+// The subtitle under the step heading describes the choice that's selected,
+// so the preview above and the words below always say the same thing.
+const REVEAL_COPY: Record<string, string> = {
+  "": "Pick when the photos become visible. Until then, nobody sees a thing.",
+  Instant:
+    "Every photo appears the moment it's taken — guests watch the album fill up live.",
+  "End of Event":
+    "Photos stay hidden until the event ends. Then the whole gallery opens at once.",
+  Scheduled:
+    "Photos stay hidden until the time you set. Then the whole gallery opens at once.",
+};
 
 // ─── Reusable sub-components ──────────────────────────────────────────────────
 
@@ -148,62 +179,253 @@ const DatePickerRow = ({
   </TouchableOpacity>
 );
 
-// ─── Chip ─────────────────────────────────────────────────────────────────────
+// ─── Reveal preview ───────────────────────────────────────────────────────────
 
-const Chip = ({
-  label,
+// Two stand-in guest shots. Showing the *effect* of the choice — frosted and
+// locked, or open — says more than three buttons ever could.
+const REVEAL_PREVIEW = [
+  { uri: unsplash("1533174072545-7a4b6ad7a6c3", 500), name: "Emma L." },
+  { uri: unsplash("1543269865-cbf427effbad", 500), name: "James W." },
+];
+
+const RevealPreview = ({ mode }: { mode: string }) => {
+  // Anything but "Instant" — including nothing chosen yet — keeps them hidden.
+  const hidden = mode !== "Instant";
+
+  // 0 = photos open, 1 = withheld. Both layers stay mounted and cross-fade, so
+  // the frost lands on the photo instead of replacing it.
+  const veil = useRef(new Animated.Value(hidden ? 1 : 0)).current;
+  // Fires on every mode change — including one hidden mode to another, where
+  // the frost doesn't move — so a tap always registers on the photos.
+  const pulse = useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    Animated.timing(veil, {
+      toValue: hidden ? 1 : 0,
+      duration: 340,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [hidden]);
+
+  React.useEffect(() => {
+    pulse.setValue(0.97);
+    Animated.spring(pulse, {
+      toValue: 1,
+      useNativeDriver: true,
+      damping: 11,
+      stiffness: 220,
+    }).start();
+  }, [mode]);
+
+  const openOpacity = veil.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0],
+  });
+  const lockScale = veil.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.55, 1],
+  });
+
+  return (
+    <View style={{ flexDirection: "row", gap: 12, marginBottom: 26 }}>
+      {REVEAL_PREVIEW.map((p) => (
+        <Animated.View
+          key={p.name}
+          style={[previewStyles.card, { transform: [{ scale: pulse }] }]}
+        >
+          <Image
+            source={{ uri: p.uri }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+
+          {/* Open: scrim under the name */}
+          <Animated.View
+            style={[StyleSheet.absoluteFill, { opacity: openOpacity }]}
+            pointerEvents="none"
+          >
+            <LinearGradient
+              colors={["transparent", "rgba(20,12,8,0.6)"]}
+              locations={[0.55, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
+
+          {/* Withheld: frost + lock */}
+          <Animated.View
+            style={[StyleSheet.absoluteFill, { opacity: veil }]}
+            pointerEvents="none"
+          >
+            <BlurView
+              intensity={48}
+              tint="light"
+              style={StyleSheet.absoluteFill}
+            />
+            {/* expo-blur is thin on some Android builds; the wash guarantees
+                the shot reads as withheld either way. */}
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: "rgba(251,248,245,0.42)" },
+              ]}
+            />
+            <Animated.View
+              style={[previewStyles.lock, { transform: [{ scale: lockScale }] }]}
+            >
+              <Lock size={15} color={colors.accentDeep} strokeWidth={2.2} />
+            </Animated.View>
+          </Animated.View>
+
+          {/* Two colourways of the name, cross-faded with the frost. */}
+          <Animated.Text
+            style={[
+              previewStyles.name,
+              previewStyles.nameOpen,
+              { opacity: openOpacity },
+            ]}
+          >
+            {p.name}
+          </Animated.Text>
+          <Animated.Text
+            style={[
+              previewStyles.name,
+              previewStyles.nameHidden,
+              { opacity: veil },
+            ]}
+          >
+            {p.name}
+          </Animated.Text>
+        </Animated.View>
+      ))}
+    </View>
+  );
+};
+
+const previewStyles = StyleSheet.create({
+  card: {
+    flex: 1,
+    aspectRatio: 0.8,
+    borderRadius: 22,
+    overflow: "hidden",
+    backgroundColor: colors.surface2,
+  },
+  lock: {
+    position: "absolute",
+    top: "50%",
+    alignSelf: "center",
+    marginTop: -18,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  name: {
+    position: "absolute",
+    left: 12,
+    bottom: 11,
+    fontFamily: "Inter-SemiBold",
+    fontSize: 13,
+  },
+  nameOpen: { color: "#fff" },
+  nameHidden: { color: colors.textSecondary },
+});
+
+// ─── Reveal option tile ───────────────────────────────────────────────────────
+
+const RevealTile = ({
+  option,
   selected,
   onPress,
 }: {
-  label: string;
+  option: (typeof REVEAL_OPTIONS)[number];
   selected: boolean;
   onPress: () => void;
 }) => {
+  const Icon = option.icon;
   const scale = useRef(new Animated.Value(1)).current;
 
   const handlePress = () => {
     Animated.sequence([
       Animated.spring(scale, {
-        toValue: 0.92,
+        toValue: 0.94,
         useNativeDriver: true,
         speed: 50,
       }),
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30 }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 26 }),
     ]).start();
     onPress();
   };
 
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
+    <Animated.View style={{ flex: 1, transform: [{ scale }] }}>
       <TouchableOpacity
-        activeOpacity={0.9}
+        activeOpacity={0.85}
         onPress={handlePress}
-        style={{
-          paddingHorizontal: 18,
-          paddingVertical: 10,
-          borderRadius: 100,
-          marginRight: 8,
-          marginBottom: 10,
-          backgroundColor: selected
-            ? colors.accent
-            : colors.backgroundSecondary,
-          borderWidth: 1,
-          borderColor: selected ? colors.accent : "rgba(30,24,16,0.08)",
-        }}
+        style={[tileStyles.tile, selected && tileStyles.tileOn]}
       >
-        <Text
-          style={{
-            fontFamily: "Inter-ExtraBold",
-            fontSize: 14,
-            color: selected ? "#2E2429" : colors.textSecondary,
-          }}
-        >
-          {label}
+        <Icon
+          size={20}
+          color={selected ? colors.accentDeep : colors.textSecondary}
+          strokeWidth={2}
+        />
+        <Text style={[tileStyles.label, selected && tileStyles.labelOn]}>
+          {option.line1}
+          {"\n"}
+          {option.line2}
         </Text>
       </TouchableOpacity>
     </Animated.View>
   );
 };
+
+const tileStyles = StyleSheet.create({
+  tile: {
+    flex: 1,
+    minHeight: 104,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: "rgba(30,24,16,0.08)",
+    backgroundColor: colors.backgroundSecondary,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    justifyContent: "space-between",
+  },
+  tileOn: {
+    borderColor: colors.accent,
+    backgroundColor: "rgba(230,169,180,0.12)",
+  },
+  label: {
+    fontFamily: "Inter-SemiBold",
+    fontSize: 13,
+    lineHeight: 17,
+    color: colors.textSecondary,
+  },
+  labelOn: { color: colors.textPrimary },
+});
+
+const styles = StyleSheet.create({
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(30,24,16,0.07)",
+    marginTop: 28,
+    marginBottom: 22,
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  toggleText: {
+    flex: 1,
+    fontFamily: "Inter-Regular",
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textSecondary,
+  },
+});
 
 // ─── Filter card ──────────────────────────────────────────────────────────────
 
@@ -299,18 +521,129 @@ const ProgressBar = ({ step, total }: { step: number; total: number }) => {
 
 // ─── Guest tiers (stepper) ────────────────────────────────────────────────────
 
+// `price` is a display fallback only — the charged amount comes from the store
+// via the RevenueCat package. `lookupKey` links the tier to that package;
+// null means no purchase (free tier).
+//
+// `planId` is sent as the event's `plan_id`, which the backend still requires.
+// It is listed explicitly rather than derived from the array index so that
+// adding or removing a tier can never silently remap existing events. The
+// values keep the original index+1 numbering, and 7 stays retired with the
+// removed 200-guest tier.
 const GUEST_TIERS = [
-  { title: "Starter", participants: 5, price: 0 },
-  { title: "Small", participants: 10, price: 2.99 },
-  { title: "Medium", participants: 25, price: 7.99 },
-  { title: "Large", participants: 50, price: 14.99 },
-  { title: "XL", participants: 100, price: 24.99 },
-  { title: "XXL", participants: 150, price: 34.99 },
-  { title: "Premium", participants: 200, price: 49.99 },
-  { title: "Enterprise", participants: "custom", price: 59.99 },
+  { title: "Starter", participants: 5, price: 0, lookupKey: null, planId: 1 },
+  {
+    title: "Small",
+    participants: 10,
+    price: 1.99,
+    lookupKey: "guests_10",
+    planId: 2,
+  },
+  {
+    title: "Medium",
+    participants: 25,
+    price: 4.99,
+    lookupKey: "guests_25",
+    planId: 3,
+  },
+  {
+    title: "Large",
+    participants: 50,
+    price: 14.99,
+    lookupKey: "guests_50",
+    planId: 4,
+  },
+  {
+    title: "XL",
+    participants: 100,
+    price: 25.99,
+    lookupKey: "guests_100",
+    planId: 5,
+  },
+  {
+    title: "XXL",
+    participants: 150,
+    price: 45.99,
+    lookupKey: "guests_150",
+    planId: 6,
+  },
+  {
+    title: "Enterprise",
+    participants: "custom",
+    price: 69.99,
+    lookupKey: "guests_unlimited",
+    planId: 8,
+  },
 ] as const;
 
 type GuestTier = (typeof GUEST_TIERS)[number];
+
+/** An event created by this wizard run, held until the flow actually finishes. */
+type PendingCreatedEvent = {
+  id: number;
+  token: string;
+  shotLimit?: number;
+  /** Serialized body last sent for it, so a retry only PATCHes real edits. */
+  sentBody: string;
+};
+
+type PurchaseFailure = "cancelled" | "unavailable" | "failed";
+type PurchaseOutcome = { purchased: boolean; reason?: PurchaseFailure };
+
+type WizardForm = {
+  name: string;
+  type: string;
+  expires_at: Date | null;
+  revealMode: string;
+  revealDate: Date | null;
+  shotLimit: string;
+  participantLimit: string;
+  filter: FilterKey;
+  coverImage: string | null;
+  /** Sent as the event's `public` flag — everyone sees every photo. */
+  publicGallery: boolean;
+};
+
+const emptyForm = (): WizardForm => ({
+  name: "",
+  type: "",
+  expires_at: null,
+  revealMode: "",
+  revealDate: null,
+  shotLimit: "",
+  participantLimit: "",
+  filter: "none",
+  coverImage: null,
+  publicGallery: true,
+});
+
+// The wizard's answers, held outside the component.
+//
+// `useState` only keeps them for as long as the screen stays mounted, and that
+// isn't guaranteed across a store purchase: presenting the StoreKit sheet takes
+// the app through inactive/background, and anything that tears this route down
+// while it's away (a re-render at the router root, a dev reload) takes the whole
+// form with it — which is how a cancelled purchase lands the user back on step 1
+// with an empty form. This draft outlives the component; the screen seeds its
+// state from it on mount and mirrors every change back into it. Cleared only by
+// resetForm(), once a create actually completes.
+const draft: {
+  step: number;
+  tierIndex: number;
+  form: WizardForm;
+  createdEvent: PendingCreatedEvent | null;
+} = {
+  step: 0,
+  tierIndex: 0,
+  form: emptyForm(),
+  createdEvent: null,
+};
+
+// RevenueCat flags a dismissed store sheet on the thrown error. Older SDK
+// versions nest it under userInfo, so check both — misreading a cancel as a
+// hard failure only changes the wording of the prompt, but it's free to get right.
+const isUserCancelled = (e: any) =>
+  !!(e?.userCancelled ?? e?.userInfo?.userCancelled);
 
 // ─── GuestStepper component ───────────────────────────────────────────────────
 
@@ -465,9 +798,7 @@ const GuestStepper = ({
               marginTop: 4,
             }}
           >
-            {tier.participants === "custom"
-              ? "custom guests"
-              : `guest${tier.participants === 1 ? "" : "s"}`}
+            {tier.participants === "custom" ? "custom guests" : "guests"}
           </Text>
         </Animated.View>
 
@@ -577,9 +908,15 @@ const GuestStepper = ({
 export default function CreateScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [step, setStep] = useState(0);
-  const [tierIndex, setTierIndex] = useState(0);
+  // This screen stays mounted behind the camera it pushes, so an autoFocus'd
+  // field must never fire while it's in the background — that's a keyboard on
+  // top of the viewfinder.
+  const isFocused = useIsFocused();
+  // Seeded from the module-level draft so a remount picks up where the user was.
+  const [step, setStep] = useState(draft.step);
+  const [tierIndex, setTierIndex] = useState(draft.tierIndex);
   const [isCreating, setIsCreating] = useState(false);
+  const user = authStore((s) => s.data?.user);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   // The camera pops back here with its captures in the store. We hold on to the
@@ -591,18 +928,27 @@ export default function CreateScreen() {
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(
     null,
   );
+
+  // The event created by the current wizard run, if any. It exists before the
+  // guest pack is bought (the purchase has to be attributed to its id), so when
+  // a purchase is cancelled it lives here until the flow completes — a retry
+  // reuses it rather than creating a duplicate. Cleared by resetForm().
+  const createdEventRef = useRef<PendingCreatedEvent | null>(draft.createdEvent);
   const capturedPhotos = captureStore((s) => s.photos);
-  const [formData, setFormData] = useState({
-    name: "",
-    type: "",
-    expires_at: null as Date | null,
-    revealMode: "",
-    revealDate: null as Date | null,
-    shotLimit: "",
-    participantLimit: "",
-    filter: "none" as FilterKey,
-    coverImage: null as string | null,
-  });
+  const [formData, setFormData] = useState<WizardForm>(draft.form);
+
+  // Mirror the answers into the draft on every change, so whatever the screen
+  // survives — or doesn't — the next mount restores them.
+  React.useEffect(() => {
+    draft.step = step;
+    draft.tierIndex = tierIndex;
+    draft.form = formData;
+  }, [step, tierIndex, formData]);
+
+  const setCreatedEvent = (event: PendingCreatedEvent | null) => {
+    createdEventRef.current = event;
+    draft.createdEvent = event;
+  };
 
   const [datePickerOpen, setDatePickerOpen] = useState<
     "expires_at" | "reveal" | null
@@ -611,6 +957,15 @@ export default function CreateScreen() {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const headerAnim = useRef(new Animated.Value(0)).current;
+
+  // Dev-only. If the wizard ever appears to "reset itself", this says whether
+  // the screen was torn down (draft restores it) or something called resetForm.
+  React.useEffect(() => {
+    if (__DEV__) console.log("[create] wizard mounted at step", draft.step);
+    return () => {
+      if (__DEV__) console.log("[create] wizard unmounted");
+    };
+  }, []);
 
   React.useEffect(() => {
     Animated.spring(headerAnim, {
@@ -777,6 +1132,31 @@ export default function CreateScreen() {
     };
   }, [capturedPhotos, pendingEvent]);
 
+  // The camera closed without handing back any shots — the X, or "Not now" on
+  // the permission prompt. Nothing to upload, but the event is real and the user
+  // was last looking at it being created, so open it. Landing back on a blank
+  // wizard reads as if the event was thrown away.
+  //
+  // Only after this screen has actually been backgrounded: `pendingEvent` is set
+  // in the same tick the camera is pushed, so without the flag this would fire
+  // before focus ever moves and hijack the navigation to the camera.
+  const wentToCameraRef = useRef(false);
+
+  React.useEffect(() => {
+    if (!isFocused) {
+      wentToCameraRef.current = true;
+      return;
+    }
+    if (!wentToCameraRef.current) return;
+    wentToCameraRef.current = false;
+
+    if (!pendingEvent || capturedPhotos.length > 0 || uploading) return;
+
+    const eventId = pendingEvent.id;
+    setPendingEvent(null);
+    router.push(`/event/${eventId}`);
+  }, [isFocused, pendingEvent, capturedPhotos, uploading]);
+
   // ─── Submit ──────────────────────────────────────────────────────────────────
 
   // Create is a tab, so it never unmounts — leaving the screen doesn't clear it.
@@ -784,53 +1164,221 @@ export default function CreateScreen() {
   const resetForm = () => {
     setStep(0);
     setTierIndex(0);
-    setFormData({
-      name: "",
-      type: "",
-      expires_at: null,
-      revealMode: "",
-      revealDate: null,
-      shotLimit: "",
-      participantLimit: "",
-      filter: "none",
-      coverImage: null,
-    });
+    setCreatedEvent(null);
+    setFormData(emptyForm());
+  };
+
+  const buildEventBody = () => ({
+    name: formData.name,
+    plan_id: GUEST_TIERS[tierIndex].planId,
+    reveal_time: formData.revealMode || undefined,
+    expires_at: formData.expires_at?.toISOString() ?? undefined,
+    shot_limit: formData.shotLimit
+      ? parseInt(formData.shotLimit, 10)
+      : undefined,
+    public: formData.publicGallery,
+    // participant_limit is NOT sent from the client — it's the paid entitlement
+    // and would be forgeable here. The server sets it: free baseline (5) on
+    // create, then the verified guest-pack purchase credits the tier total via
+    // the RevenueCat webhook. The tier picker is intent/display only.
+    filter: formData.filter !== "none" ? formData.filter : undefined,
+  });
+
+  // Creates the event on the first attempt and reuses it on every later one.
+  //
+  // The event must exist *before* the guest pack can be bought — the purchase is
+  // attributed to its id. A cancelled purchase leaves the user on this screen to
+  // retry, so pressing Create again has to land on the same event instead of
+  // spawning a duplicate. Edits made in between are PATCHed onto it — except the
+  // cover photo, which PATCH can't carry (it takes a hosted URL, not a file), and
+  // fields the user *cleared*, since an omitted key leaves the old value.
+  const ensureEvent = async () => {
+    const body = buildEventBody();
+    const signature = JSON.stringify(body);
+    const existing = createdEventRef.current;
+
+    if (existing) {
+      if (existing.sentBody === signature) return existing;
+      const updated = await eventsApi.update(existing.id, body);
+      const synced = {
+        ...existing,
+        shotLimit: updated?.shot_limit ?? existing.shotLimit,
+        sentBody: signature,
+      };
+      setCreatedEvent(synced);
+      await queryClient.invalidateQueries({ queryKey: ["events"] });
+      return synced;
+    }
+
+    const created = await eventsApi.store(
+      body,
+      // The cover is a local picker URI, not a hosted URL — send it as a raw
+      // file so the backend can upload to R2 and return cover_image_url.
+      formData.coverImage
+        ? { uri: formData.coverImage, name: "cover.jpg", type: "image/jpeg" }
+        : undefined,
+    );
+    // `public` is only documented on PATCH, so a store endpoint that validates
+    // strictly would drop it and silently ignore the visibility toggle. Cheap to
+    // verify against the response and correct it.
+    if (
+      typeof created?.public === "boolean" &&
+      created.public !== body.public
+    ) {
+      try {
+        await eventsApi.update(created.id, { public: body.public });
+      } catch (e) {
+        console.warn("[create] couldn't apply the visibility setting", e);
+      }
+    }
+
+    // Home is a tab — it stays mounted, so it never refetches on its own.
+    await queryClient.invalidateQueries({ queryKey: ["events"] });
+
+    const event = {
+      id: created.id,
+      token: created.qr_code_token,
+      shotLimit: created?.shot_limit ?? undefined,
+      sentBody: signature,
+    };
+    setCreatedEvent(event);
+    return event;
+  };
+
+  // Done — hand the event over to the camera and clear the wizard for the next one.
+  const proceedToCamera = (event: PendingCreatedEvent) => {
+    const limit = event.shotLimit;
+    captureStore.getState().clear();
+    setPendingEvent({ id: event.id, token: event.token });
+    Keyboard.dismiss();
+    router.push(limit ? `/camera?limit=${limit}` : "/camera");
+    // Rewind only once the camera is up. Resetting first re-mounts step 1's
+    // autoFocus'd name field while this screen is still frontmost, and the
+    // keyboard it raises then sits on top of the camera.
+    requestAnimationFrame(resetForm);
+  };
+
+  // The user backed out of the store. Nothing was charged, so drop the event
+  // back to Starter — it was created carrying the paid tier's plan_id in
+  // anticipation of a purchase that never happened.
+  const continueWithFreeTier = async (event: PendingCreatedEvent) => {
+    const freeTier = GUEST_TIERS[0];
+    if (GUEST_TIERS[tierIndex].planId !== freeTier.planId) {
+      try {
+        await eventsApi.update(event.id, { plan_id: freeTier.planId });
+        await queryClient.invalidateQueries({ queryKey: ["events"] });
+      } catch (e) {
+        console.warn("[create] couldn't drop the event back to Starter", e);
+      }
+    }
+    proceedToCamera(event);
+  };
+
+  // Buys the guest pack whose RevenueCat package identifier matches the tier's
+  // lookupKey, attributing it to `eventId`. Never throws and never alerts — the
+  // caller decides what to do with the outcome, so the user gets one prompt
+  // instead of two stacked ones.
+  const purchaseGuestPackForEvent = async (
+    eventId: number,
+    lookupKey: string,
+  ): Promise<PurchaseOutcome> => {
+    try {
+      await revenueCat.configure();
+      if (user?.id != null) {
+        await revenueCat.logIn(user.id);
+        appsFlyerService.setUserId(user.id);
+      }
+
+      const packs = await revenueCat.getGuestPacks();
+      const match = packs.find((p) => p.lookupKey === lookupKey);
+      if (!match) return { purchased: false, reason: "unavailable" };
+
+      const res = await revenueCat.purchaseGuestPack(match.pkg, eventId);
+      if (!res.success) {
+        return {
+          purchased: false,
+          reason: isUserCancelled(res.error) ? "cancelled" : "failed",
+        };
+      }
+
+      // Revenue is reported to AppsFlyer by RevenueCat's server-side integration
+      // (see revenueCat.linkAppsFlyer) — do not log af_purchase here.
+
+      // Slots are credited by the webhook — refetch so the event reflects the
+      // new participant_limit once it lands.
+      await queryClient.invalidateQueries({ queryKey: ["events"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["event", String(eventId)],
+      });
+      return { purchased: true };
+    } catch (e) {
+      console.warn("[create] guest pack purchase failed", e);
+      return {
+        purchased: false,
+        reason: isUserCancelled(e) ? "cancelled" : "failed",
+      };
+    }
+  };
+
+  // Nothing was bought. The wizard stays exactly where it is — same step, same
+  // answers, same tier — so the user can retry, pick a different pack, or take
+  // the free baseline. `createdEventRef` keeps the already-created event so none
+  // of those paths creates a second one.
+  const promptPurchaseFallback = (
+    event: PendingCreatedEvent,
+    reason: PurchaseFailure = "failed",
+  ) => {
+    const copy = {
+      cancelled: [
+        "Purchase cancelled",
+        "You weren't charged. Your event is saved with the free 5-guest limit — try again, choose another pack, or continue and upgrade later.",
+      ],
+      unavailable: [
+        "Guest pack unavailable",
+        "We couldn't load this pack from the store. Your event is saved with the free 5-guest limit — try again, choose another pack, or continue and upgrade later.",
+      ],
+      failed: [
+        "Purchase didn't complete",
+        "The store couldn't finish the purchase. Your event is saved with the free 5-guest limit — try again, choose another pack, or continue and upgrade later.",
+      ],
+    }[reason];
+
+    Alert.alert(copy[0], copy[1], [
+      { text: "Try again", onPress: () => void handleCreate() },
+      {
+        text: "Continue with 5 guests",
+        onPress: () => void continueWithFreeTier(event),
+      },
+      { text: "Choose another pack", style: "cancel" },
+    ]);
   };
 
   const handleCreate = async () => {
     setIsCreating(true);
     try {
-      const created = await eventsApi.store(
-        {
-          name: formData.name,
-          plan_id: tierIndex + 1,
-          reveal_time: formData.revealMode || undefined,
-          expires_at: formData.expires_at?.toISOString() ?? undefined,
-          shot_limit: formData.shotLimit
-            ? parseInt(formData.shotLimit, 10)
-            : undefined,
-          participant_limit: formData.participantLimit
-            ? parseInt(formData.participantLimit, 10)
-            : undefined,
-          filter: formData.filter !== "none" ? formData.filter : undefined,
-        },
-        // The cover is a local picker URI, not a hosted URL — send it as a raw
-        // file so the backend can upload to R2 and return cover_image_url.
-        formData.coverImage
-          ? { uri: formData.coverImage, name: "cover.jpg", type: "image/jpeg" }
-          : undefined,
-      );
-      // Home is a tab — it stays mounted, so it never refetches on its own.
-      await queryClient.invalidateQueries({ queryKey: ["events"] });
+      const event = await ensureEvent();
+
+      // Paid tier → buy the matching guest pack for THIS event. The slots are
+      // credited server-side by the RevenueCat webhook (attributed via the
+      // everly_event_id we set on the purchase), so we just kick off the buy and
+      // refetch. If it doesn't go through we stop here and leave the wizard
+      // untouched — resetting the form would throw away everything the user
+      // just filled in over the cancellation of a $1.99 purchase.
+      const tier = GUEST_TIERS[tierIndex];
+      if (tier.lookupKey) {
+        const outcome = await purchaseGuestPackForEvent(
+          event.id,
+          tier.lookupKey,
+        );
+        if (!outcome.purchased) {
+          promptPurchaseFallback(event, outcome.reason);
+          return;
+        }
+      }
 
       // Straight into shooting for the event we just created. The camera pops
       // back here and the effect above uploads whatever it captured.
-      captureStore.getState().clear();
-      setPendingEvent({ id: created.id, token: created.qr_code_token });
-
-      const limit = created?.shot_limit ?? undefined;
-      resetForm();
-      router.push(limit ? `/camera?limit=${limit}` : "/camera");
+      proceedToCamera(event);
     } catch (e: any) {
       const message =
         e?.response?.data?.message ||
@@ -1017,7 +1565,9 @@ export default function CreateScreen() {
                 marginBottom: 32,
               }}
             >
-              {STEPS[step].subtitle}
+              {step === 1
+                ? (REVEAL_COPY[formData.revealMode] ?? STEPS[1].subtitle)
+                : STEPS[step].subtitle}
             </Text>
 
             {/* ── Step 0: Basics ── */}
@@ -1031,7 +1581,7 @@ export default function CreateScreen() {
                     setFormData({ ...formData, name: text })
                   }
                   containerStyle="mb-6"
-                  autoFocus
+                  autoFocus={isFocused}
                 />
                 <SectionLabel>Event Type</SectionLabel>
                 <TiltedEventTypeCards
@@ -1042,32 +1592,26 @@ export default function CreateScreen() {
               </View>
             )}
 
-            {/* ── Step 1: When ── */}
+            {/* ── Step 1: Reveal ── */}
             {step === 1 && (
               <View>
-                <SectionLabel>End Date & Time</SectionLabel>
-                <DatePickerRow
-                  value={expiresAtLabel}
-                  placeholder="Select an end date & time"
-                  onPress={() => setDatePickerOpen("expires_at")}
-                />
+                <RevealPreview mode={formData.revealMode} />
 
-                <SectionLabel>Gallery Reveal</SectionLabel>
-                <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                  {REVEAL_MODES.map((mode) => (
-                    <Chip
-                      key={mode}
-                      label={mode}
-                      selected={formData.revealMode === mode}
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {REVEAL_OPTIONS.map((option) => (
+                    <RevealTile
+                      key={option.mode}
+                      option={option}
+                      selected={formData.revealMode === option.mode}
                       onPress={() =>
-                        setFormData({ ...formData, revealMode: mode })
+                        setFormData({ ...formData, revealMode: option.mode })
                       }
                     />
                   ))}
                 </View>
 
                 {formData.revealMode === "Scheduled" && (
-                  <View style={{ marginTop: 16 }}>
+                  <View style={{ marginTop: 26 }}>
                     <SectionLabel>Reveal Date & Time</SectionLabel>
                     <DatePickerRow
                       value={revealDateLabel}
@@ -1076,6 +1620,38 @@ export default function CreateScreen() {
                     />
                   </View>
                 )}
+
+                <View style={styles.divider} />
+
+                <SectionLabel>Event Ends</SectionLabel>
+                <DatePickerRow
+                  value={expiresAtLabel}
+                  placeholder="Select an end date & time"
+                  onPress={() => setDatePickerOpen("expires_at")}
+                />
+
+                <View style={styles.divider} />
+
+                <SectionLabel>Who can see the photos</SectionLabel>
+                <View style={styles.toggleRow}>
+                  <Switch
+                    value={formData.publicGallery}
+                    onValueChange={(v) =>
+                      setFormData({ ...formData, publicGallery: v })
+                    }
+                    trackColor={{
+                      false: "rgba(30,24,16,0.12)",
+                      true: colors.accent,
+                    }}
+                    thumbColor="#fff"
+                    ios_backgroundColor="rgba(30,24,16,0.12)"
+                  />
+                  <Text style={styles.toggleText}>
+                    {formData.publicGallery
+                      ? "Everyone can see every photo."
+                      : "Guests only see the photos they took."}
+                  </Text>
+                </View>
               </View>
             )}
 
@@ -1090,7 +1666,7 @@ export default function CreateScreen() {
                   onChangeText={(text) =>
                     setFormData({ ...formData, shotLimit: text })
                   }
-                  autoFocus
+                  autoFocus={isFocused}
                 />
                 <HintText>
                   Max photos each guest can upload. Leave blank for unlimited.
@@ -1291,24 +1867,6 @@ export default function CreateScreen() {
         }}
         pointerEvents="box-none"
       >
-        {(step === 1 || step === 4) && (
-          <TouchableOpacity
-            onPress={goNext}
-            activeOpacity={0.7}
-            style={{ marginBottom: 12, alignItems: "center" }}
-          >
-            <Text
-              style={{
-                fontFamily: "Inter-Regular",
-                fontSize: 13,
-                color: colors.textSecondary,
-                textDecorationLine: "underline",
-              }}
-            >
-              Skip
-            </Text>
-          </TouchableOpacity>
-        )}
         <TouchableOpacity
           onPress={goNext}
           disabled={!canContinue() || isCreating}

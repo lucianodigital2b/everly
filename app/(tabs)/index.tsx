@@ -135,7 +135,7 @@ export default function EventsScreen() {
     <EventCard
       title={item.name}
       date={formatDate(item.expires_at)}
-      participantCount={item.participant_limit ?? 0}
+      participantCount={item.participant_limit}
       status={mapStatus(item)}
       thumbnailUrl={eventCover(item.cover_image_url)}
       onPress={() => router.push(`/event/${item.id}`)}

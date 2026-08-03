@@ -19,9 +19,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Updates from "expo-updates";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { revenueCat } from "../services/revenuecat";
+import { appsFlyerService } from "../services/appsflyer";
+import { useAppleCredentialWatch } from "../hooks/useAppleCredentialWatch";
+import { SlideFromRight } from "../constants/transitions";
 import ThemeProvider from "../components/ThemeProvider";
 import GlobalNotifications from "../components/GlobalNotifications";
-import "../localization/i18n";
 import { PostHogProvider } from "posthog-react-native";
 
 SplashScreen.preventAutoHideAsync();
@@ -46,8 +48,18 @@ export default function RootLayout() {
     Script: Sacramento_400Regular,
   });
 
+  // Signs the user out if they revoke Sign in with Apple from iOS Settings.
+  useAppleCredentialWatch();
+
   useEffect(() => {
-    revenueCat.configure();
+    (async () => {
+      await revenueCat.configure();
+      appsFlyerService.configure();
+      // Hand the AppsFlyer device id to RevenueCat so its server-side integration
+      // can attribute and forward purchase events to AppsFlyer.
+      const afUid = await appsFlyerService.getUID();
+      await revenueCat.linkAppsFlyer(afUid);
+    })();
   }, []);
 
   useEffect(() => {
@@ -87,10 +99,18 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="onboarding" />
+              {/* Roots of the app — nothing to swipe back to. */}
+              <Stack.Screen name="index" options={{ gestureEnabled: false }} />
+              <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
+              <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
+
+              {/* Pushed screens: iOS push in, left-edge swipe back out. */}
+              <Stack.Screen name="onboarding" options={SlideFromRight()} />
+              <Stack.Screen name="camera" options={SlideFromRight()} />
+              <Stack.Screen name="qr" options={SlideFromRight()} />
+              <Stack.Screen name="photo" options={SlideFromRight()} />
+              <Stack.Screen name="scan" options={SlideFromRight()} />
+              <Stack.Screen name="upload/[token]" options={SlideFromRight()} />
               <Stack.Screen
                 name="event/[id]"
                 options={({ route }: any) => {
@@ -105,9 +125,10 @@ export default function RootLayout() {
                       }),
                     };
                   }
-                  return {
-                    ...Transition.Presets.SlideFromBottom(),
-                  };
+                  // No shared element to fly from (opened from the list or
+                  // straight after creating) — plain push, so the left-edge
+                  // swipe goes back the way the chevron does.
+                  return SlideFromRight();
                 }}
               />
               <Stack.Screen

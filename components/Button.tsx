@@ -21,7 +21,9 @@ export const Button: React.FC<ButtonProps> = ({
   className = "",
   icon,
 }) => {
-  const baseStyle = "h-16 rounded-3xl items-center justify-center w-full";
+  // px-8 so the button still reads as a button if `w-full` can't resolve (a
+  // shrink-to-fit parent), instead of shrink-wrapping the label edge to edge.
+  const baseStyle = "h-16 rounded-3xl items-center justify-center w-full px-8";
   const variantStyles = {
     primary: "bg-accent",
     secondary: "bg-surface2",
