@@ -2,9 +2,7 @@ import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Animated,
   Dimensions,
-  Easing,
   Image,
   Keyboard,
   Platform,
@@ -19,9 +17,22 @@ import * as ImagePicker from "expo-image-picker";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import Reanimated, {
+  Easing as ReEasing,
+  LinearTransition,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import { useQueryClient } from "@tanstack/react-query";
 import { ScreenWrapper } from "../../components/ScreenWrapper";
-import { EventPreviewCard } from "../../components/EventPreviewCard";
+import { PhonePreview } from "../../components/PhonePreview";
+import { ShotsPerPerson } from "../../components/ShotsPerPerson";
+import { CoverPicker } from "../../components/CoverPicker";
 import { Input } from "../../components/Input";
 import { useIsFocused, useRouter } from "expo-router";
 import { colors } from "../../constants/colors";
@@ -32,14 +43,18 @@ import { revenueCat } from "../../services/revenuecat";
 import { appsFlyerService } from "../../services/appsflyer";
 import { captureStore } from "../../zustand/capture-store";
 import { authStore } from "../../zustand/auth-store";
-import { unsplash } from "../../constants/sampleImages";
+import {
+  COVER_PRESETS,
+  isHostedCover,
+  unsplash,
+} from "../../constants/sampleImages";
+import { suggestEventNames } from "../../constants/nameSuggestions";
 import {
   ArrowLeft,
   ArrowRight,
   Calendar,
   CalendarClock,
   Hourglass,
-  ImageUp,
   Lock,
   Minus,
   Plus,
@@ -78,12 +93,23 @@ const STEPS = [
   },
 ];
 
+// Ordered roughly by how often people actually create them. Every entry needs a
+// photo in EVENT_TYPE_IMAGE and, ideally, a suggestion pack in
+// constants/nameSuggestions.ts — a type with neither still works, it just falls
+// back to a blank card and the generic names.
 const EVENT_TYPES = [
   "Wedding",
   "Birthday",
+  "Party",
   "Trip",
   "Anniversary",
-  "Party",
+  "Graduation",
+  "Engagement",
+  "Baby Shower",
+  "Sweet 15",
+  "Reunion",
+  "Corporate",
+  "Holiday",
   "Other",
 ];
 // `mode` is sent to the API as `reveal_time`, so those strings are fixed.
@@ -103,6 +129,49 @@ const REVEAL_COPY: Record<string, string> = {
     "Photos stay hidden until the event ends. Then the whole gallery opens at once.",
   Scheduled:
     "Photos stay hidden until the time you set. Then the whole gallery opens at once.",
+};
+
+// ─── Name-idea motion ─────────────────────────────────────────────────────────
+
+const IDEA_EASE = ReEasing.bezier(0.23, 1, 0.32, 1);
+/** The row sits just under the name field, so it comes from and leaves upward. */
+const IDEA_SLIDE = 14;
+
+// Taking a suggestion fills the field and the row has no reason to exist any
+// more — but vanishing on the same frame as the tap reads as a glitch. It slides
+// back up behind the field instead.
+const ideasIn = (reduced: boolean) => () => {
+  "worklet";
+  return {
+    initialValues: {
+      opacity: 0,
+      transform: [{ translateY: reduced ? 0 : -IDEA_SLIDE }],
+    },
+    animations: {
+      opacity: withTiming(1, { duration: 200, easing: IDEA_EASE }),
+      transform: [
+        { translateY: withSpring(0, { duration: 400, dampingRatio: 0.85 }) },
+      ],
+    },
+  };
+};
+
+const ideasOut = (reduced: boolean) => () => {
+  "worklet";
+  return {
+    initialValues: { opacity: 1, transform: [{ translateY: 0 }] },
+    animations: {
+      opacity: withTiming(0, { duration: 160, easing: IDEA_EASE }),
+      transform: [
+        {
+          translateY: withTiming(reduced ? 0 : -IDEA_SLIDE, {
+            duration: 200,
+            easing: IDEA_EASE,
+          }),
+        },
+      ],
+    },
+  };
 };
 
 // ─── Reusable sub-components ──────────────────────────────────────────────────
@@ -194,55 +263,52 @@ const RevealPreview = ({ mode }: { mode: string }) => {
 
   // 0 = photos open, 1 = withheld. Both layers stay mounted and cross-fade, so
   // the frost lands on the photo instead of replacing it.
-  const veil = useRef(new Animated.Value(hidden ? 1 : 0)).current;
+  const veil = useSharedValue(hidden ? 1 : 0);
   // Fires on every mode change — including one hidden mode to another, where
   // the frost doesn't move — so a tap always registers on the photos.
-  const pulse = useRef(new Animated.Value(1)).current;
+  const pulse = useSharedValue(1);
 
   React.useEffect(() => {
-    Animated.timing(veil, {
-      toValue: hidden ? 1 : 0,
-      duration: 340,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [hidden]);
+    veil.set(
+      withTiming(hidden ? 1 : 0, { duration: 340, easing: IDEA_EASE })
+    );
+  }, [hidden, veil]);
 
   React.useEffect(() => {
-    pulse.setValue(0.97);
-    Animated.spring(pulse, {
-      toValue: 1,
-      useNativeDriver: true,
-      damping: 11,
-      stiffness: 220,
-    }).start();
-  }, [mode]);
+    pulse.set(0.97);
+    pulse.set(withSpring(1, { duration: 350, dampingRatio: 0.6 }));
+  }, [mode, pulse]);
 
-  const openOpacity = veil.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0],
-  });
-  const lockScale = veil.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.55, 1],
-  });
+  // One animated style object per role, created once and shared by all three
+  // preview cards. Because these are stable across renders, the wizard
+  // re-rendering on every keystroke no longer re-attaches the animated nodes —
+  // that re-attach was the flicker.
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse.get() }],
+  }));
+  const openStyle = useAnimatedStyle(() => ({ opacity: 1 - veil.get() }));
+  const veilStyle = useAnimatedStyle(() => ({ opacity: veil.get() }));
+  const lockStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 0.55 + veil.get() * 0.45 }],
+  }));
 
   return (
     <View style={{ flexDirection: "row", gap: 12, marginBottom: 26 }}>
       {REVEAL_PREVIEW.map((p) => (
-        <Animated.View
+        <Reanimated.View
           key={p.name}
-          style={[previewStyles.card, { transform: [{ scale: pulse }] }]}
+          style={[previewStyles.card, pulseStyle]}
         >
           <Image
             source={{ uri: p.uri }}
             style={StyleSheet.absoluteFill}
             resizeMode="cover"
+            fadeDuration={0}
           />
 
           {/* Open: scrim under the name */}
-          <Animated.View
-            style={[StyleSheet.absoluteFill, { opacity: openOpacity }]}
+          <Reanimated.View
+            style={[StyleSheet.absoluteFill, openStyle]}
             pointerEvents="none"
           >
             <LinearGradient
@@ -250,11 +316,11 @@ const RevealPreview = ({ mode }: { mode: string }) => {
               locations={[0.55, 1]}
               style={StyleSheet.absoluteFill}
             />
-          </Animated.View>
+          </Reanimated.View>
 
           {/* Withheld: frost + lock */}
-          <Animated.View
-            style={[StyleSheet.absoluteFill, { opacity: veil }]}
+          <Reanimated.View
+            style={[StyleSheet.absoluteFill, veilStyle]}
             pointerEvents="none"
           >
             <BlurView
@@ -270,33 +336,23 @@ const RevealPreview = ({ mode }: { mode: string }) => {
                 { backgroundColor: "rgba(251,248,245,0.42)" },
               ]}
             />
-            <Animated.View
-              style={[previewStyles.lock, { transform: [{ scale: lockScale }] }]}
-            >
+            <Reanimated.View style={[previewStyles.lock, lockStyle]}>
               <Lock size={15} color={colors.accentDeep} strokeWidth={2.2} />
-            </Animated.View>
-          </Animated.View>
+            </Reanimated.View>
+          </Reanimated.View>
 
           {/* Two colourways of the name, cross-faded with the frost. */}
-          <Animated.Text
-            style={[
-              previewStyles.name,
-              previewStyles.nameOpen,
-              { opacity: openOpacity },
-            ]}
+          <Reanimated.Text
+            style={[previewStyles.name, previewStyles.nameOpen, openStyle]}
           >
             {p.name}
-          </Animated.Text>
-          <Animated.Text
-            style={[
-              previewStyles.name,
-              previewStyles.nameHidden,
-              { opacity: veil },
-            ]}
+          </Reanimated.Text>
+          <Reanimated.Text
+            style={[previewStyles.name, previewStyles.nameHidden, veilStyle]}
           >
             {p.name}
-          </Animated.Text>
-        </Animated.View>
+          </Reanimated.Text>
+        </Reanimated.View>
       ))}
     </View>
   );
@@ -345,25 +401,28 @@ const RevealTile = ({
   onPress: () => void;
 }) => {
   const Icon = option.icon;
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale = useSharedValue(1);
+  const animated = useAnimatedStyle(() => ({
+    flex: 1,
+    transform: [{ scale: scale.get() }],
+  }));
 
-  const handlePress = () => {
-    Animated.sequence([
-      Animated.spring(scale, {
-        toValue: 0.94,
-        useNativeDriver: true,
-        speed: 50,
-      }),
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 26 }),
-    ]).start();
-    onPress();
+  // Press-in dents it, press-out springs it home — the feedback lands on the
+  // touch instead of after it, and there is no two-stage sequence to interrupt.
+  const pressIn = () => {
+    scale.set(withTiming(0.94, { duration: 110, easing: IDEA_EASE }));
+  };
+  const pressOut = () => {
+    scale.set(withSpring(1, { duration: 350, dampingRatio: 0.7 }));
   };
 
   return (
-    <Animated.View style={{ flex: 1, transform: [{ scale }] }}>
+    <Reanimated.View style={animated}>
       <TouchableOpacity
         activeOpacity={0.85}
-        onPress={handlePress}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+        onPress={onPress}
         style={[tileStyles.tile, selected && tileStyles.tileOn]}
       >
         <Icon
@@ -377,7 +436,7 @@ const RevealTile = ({
           {option.line2}
         </Text>
       </TouchableOpacity>
-    </Animated.View>
+    </Reanimated.View>
   );
 };
 
@@ -407,6 +466,26 @@ const tileStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  ideaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: -14,
+    marginBottom: 24,
+  },
+  idea: {
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: "rgba(46,36,41,0.06)",
+  },
+  ideaText: {
+    fontFamily: "Inter-Medium",
+    fontSize: 13,
+    color: colors.accentDeep,
+  },
   divider: {
     height: 1,
     backgroundColor: "rgba(30,24,16,0.07)",
@@ -477,47 +556,6 @@ const FilterCard = ({
     </Text>
   </TouchableOpacity>
 );
-
-// ─── Progress bar ─────────────────────────────────────────────────────────────
-
-const ProgressBar = ({ step, total }: { step: number; total: number }) => {
-  const progress = useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    Animated.spring(progress, {
-      toValue: (step + 1) / total,
-      useNativeDriver: false,
-      damping: 20,
-      stiffness: 90,
-    }).start();
-  }, [step]);
-
-  const width = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0%", "100%"],
-  });
-
-  return (
-    <View
-      style={{
-        height: 2,
-        backgroundColor: "rgba(30,24,16,0.08)",
-        borderRadius: 2,
-        overflow: "hidden",
-        marginBottom: 32,
-      }}
-    >
-      <Animated.View
-        style={{
-          width,
-          height: "100%",
-          backgroundColor: colors.accent,
-          borderRadius: 2,
-        }}
-      />
-    </View>
-  );
-};
 
 // ─── Guest tiers (stepper) ────────────────────────────────────────────────────
 
@@ -610,10 +648,14 @@ const emptyForm = (): WizardForm => ({
   expires_at: null,
   revealMode: "",
   revealDate: null,
-  shotLimit: "",
+  // A roll of 10 — enough for a night out, few enough that guests aim. "" is
+  // unlimited, so the default has to be spelled out.
+  shotLimit: "10",
   participantLimit: "",
   filter: "none",
-  coverImage: null,
+  // The mock is never shown empty: it opens on the first stock cover so the
+  // step reads as "swap this photo" rather than "figure out what goes here".
+  coverImage: COVER_PRESETS[0].uri,
   publicGallery: true,
 });
 
@@ -658,67 +700,47 @@ const GuestStepper = ({
   const canDec = index > 0;
   const canInc = index < GUEST_TIERS.length - 1;
 
-  // Animated values
-  const titleOpacity = useRef(new Animated.Value(1)).current;
-  const titleTranslate = useRef(new Animated.Value(0)).current;
-  const priceScale = useRef(new Animated.Value(1)).current;
-  const trackAnim = useRef(new Animated.Value(index)).current;
+  const reduced = useReducedMotion();
+
+  // All four values live on the UI thread. The old version swapped the tier in
+  // the *completion callback* of a 100ms fade-out, so the parent re-rendered
+  // mid-flight and the whole block flashed. The tier now changes on the tap and
+  // the new number simply slides in — instant feedback, one animation, no
+  // render racing it.
+  const titleOpacity = useSharedValue(1);
+  const titleTranslate = useSharedValue(0);
+  const priceScale = useSharedValue(1);
+  const track = useSharedValue(index);
 
   const animateChange = (nextIndex: number, direction: 1 | -1) => {
-    Animated.parallel([
-      Animated.timing(titleOpacity, {
-        toValue: 0,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(titleTranslate, {
-        toValue: direction * -12,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onChange(nextIndex, GUEST_TIERS[nextIndex]);
-      titleTranslate.setValue(direction * 12);
-      Animated.parallel([
-        Animated.timing(titleOpacity, {
-          toValue: 1,
-          duration: 140,
-          useNativeDriver: true,
-        }),
-        Animated.spring(titleTranslate, {
-          toValue: 0,
-          useNativeDriver: true,
-          damping: 16,
-          stiffness: 120,
-        }),
-        Animated.sequence([
-          Animated.spring(priceScale, {
-            toValue: 1.12,
-            useNativeDriver: true,
-            damping: 10,
-            stiffness: 200,
-          }),
-          Animated.spring(priceScale, {
-            toValue: 1,
-            useNativeDriver: true,
-            damping: 12,
-            stiffness: 150,
-          }),
-        ]),
-      ]).start();
-    });
-    Animated.spring(trackAnim, {
-      toValue: nextIndex,
-      useNativeDriver: false,
-      damping: 18,
-      stiffness: 100,
-    }).start();
+    onChange(nextIndex, GUEST_TIERS[nextIndex]);
+
+    if (!reduced) {
+      titleTranslate.set(direction * 12);
+      titleTranslate.set(withSpring(0, { duration: 400, dampingRatio: 0.8 }));
+      priceScale.set(1.08);
+      priceScale.set(withSpring(1, { duration: 400, dampingRatio: 0.55 }));
+    }
+    titleOpacity.set(0);
+    titleOpacity.set(withTiming(1, { duration: 180, easing: IDEA_EASE }));
+
+    track.set(withSpring(nextIndex, { duration: 500, dampingRatio: 0.9 }));
   };
 
-  const trackWidth = trackAnim.interpolate({
-    inputRange: [0, GUEST_TIERS.length - 1],
-    outputRange: ["0%", "100%"],
-    extrapolate: "clamp",
+  const titleStyle = useAnimatedStyle(() => ({
+    opacity: titleOpacity.get(),
+    transform: [{ translateY: titleTranslate.get() }],
+  }));
+  const priceStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: priceScale.get() }],
+  }));
+  // The fill is a childless view inside an `overflow: hidden` track, so nothing
+  // else re-lays-out — and animating width rather than scaleX keeps the rounded
+  // cap from smearing. On the UI thread it costs nothing; the old version drove
+  // it from JS with `useNativeDriver: false`, one React frame at a time.
+  const trackStyle = useAnimatedStyle(() => {
+    const p = Math.min(Math.max(track.get() / (GUEST_TIERS.length - 1), 0), 1);
+    return { width: `${p * 100}%` };
   });
 
   return (
@@ -758,14 +780,11 @@ const GuestStepper = ({
         </TouchableOpacity>
 
         {/* Center display */}
-        <Animated.View
-          style={{
-            flex: 1,
-            alignItems: "center",
-            opacity: titleOpacity,
-            transform: [{ translateY: titleTranslate }],
-            marginHorizontal: 16,
-          }}
+        <Reanimated.View
+          style={[
+            { flex: 1, alignItems: "center", marginHorizontal: 16 },
+            titleStyle,
+          ]}
         >
           <Text
             style={{
@@ -800,7 +819,7 @@ const GuestStepper = ({
           >
             {tier.participants === "custom" ? "custom guests" : "guests"}
           </Text>
-        </Animated.View>
+        </Reanimated.View>
 
         {/* Increment */}
         <TouchableOpacity
@@ -841,13 +860,11 @@ const GuestStepper = ({
           overflow: "hidden",
         }}
       >
-        <Animated.View
-          style={{
-            width: trackWidth,
-            height: "100%",
-            backgroundColor: colors.accent,
-            borderRadius: 2,
-          }}
+        <Reanimated.View
+          style={[
+            { height: "100%", backgroundColor: colors.accent, borderRadius: 2 },
+            trackStyle,
+          ]}
         />
       </View>
 
@@ -875,18 +892,24 @@ const GuestStepper = ({
       </View>
 
       {/* Price pill */}
-      <Animated.View
-        style={{
-          transform: [{ scale: priceScale }],
-          backgroundColor:
-            tier.price === 0 ? "rgba(30,24,16,0.05)" : "rgba(198,169,107,0.12)",
-          borderRadius: 100,
-          paddingHorizontal: 20,
-          paddingVertical: 10,
-          borderWidth: 1,
-          borderColor:
-            tier.price === 0 ? "rgba(30,24,16,0.08)" : "rgba(198,169,107,0.3)",
-        }}
+      <Reanimated.View
+        style={[
+          {
+            backgroundColor:
+              tier.price === 0
+                ? "rgba(30,24,16,0.05)"
+                : "rgba(198,169,107,0.12)",
+            borderRadius: 100,
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+            borderWidth: 1,
+            borderColor:
+              tier.price === 0
+                ? "rgba(30,24,16,0.08)"
+                : "rgba(198,169,107,0.3)",
+          },
+          priceStyle,
+        ]}
       >
         <Text
           style={{
@@ -898,7 +921,7 @@ const GuestStepper = ({
         >
           {tier.price === 0 ? "Free" : `$${tier.price.toFixed(2)} one-time`}
         </Text>
-      </Animated.View>
+      </Reanimated.View>
     </View>
   );
 };
@@ -954,9 +977,29 @@ export default function CreateScreen() {
     "expires_at" | "reveal" | null
   >(null);
 
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const headerAnim = useRef(new Animated.Value(0)).current;
+  const reducedMotion = useReducedMotion();
+
+  const slideAnim = useSharedValue(0);
+  const fadeAnim = useSharedValue(1);
+  const headerAnim = useSharedValue(0);
+  // Which way the incoming step should fly in from, handed to the effect that
+  // runs once React has actually committed that step.
+  const enterDir = useRef(1);
+  const firstStepRender = useRef(true);
+
+  const stepContentStyle = useAnimatedStyle(() => ({
+    flexGrow: 1,
+    opacity: fadeAnim.get(),
+    transform: [{ translateX: slideAnim.get() }],
+  }));
+  const headerStyle = useAnimatedStyle(() => ({
+    opacity: headerAnim.get(),
+    transform: [{ translateY: (1 - headerAnim.get()) * -8 }],
+  }));
+  const ctaStyle = useAnimatedStyle(() => ({
+    opacity: headerAnim.get(),
+    transform: [{ translateY: (1 - headerAnim.get()) * 16 }],
+  }));
 
   // Dev-only. If the wizard ever appears to "reset itself", this says whether
   // the screen was torn down (draft restores it) or something called resetForm.
@@ -968,14 +1011,10 @@ export default function CreateScreen() {
   }, []);
 
   React.useEffect(() => {
-    Animated.spring(headerAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      damping: 18,
-      stiffness: 80,
-      delay: 100,
-    } as any).start();
-  }, []);
+    headerAnim.set(
+      withDelay(100, withSpring(1, { duration: 600, dampingRatio: 0.9 }))
+    );
+  }, [headerAnim]);
 
   // Track the keyboard so the floating CTA never hides behind it.
   React.useEffect(() => {
@@ -997,37 +1036,53 @@ export default function CreateScreen() {
 
   // ─── Navigation ─────────────────────────────────────────────────────────────
 
+  const commitStep = (nextStep: number, direction: number) => {
+    enterDir.current = direction;
+    setStep(nextStep);
+  };
+
   const animateToStep = (nextStep: number) => {
     const direction = nextStep > step ? 1 : -1;
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 160,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: direction * -SCREEN_WIDTH * 0.25,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setStep(nextStep);
-      slideAnim.setValue(direction * SCREEN_WIDTH * 0.25);
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 220,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          useNativeDriver: true,
-          damping: 18,
-          stiffness: 100,
-        }),
-      ]).start();
-    });
+
+    if (reducedMotion) {
+      commitStep(nextStep, direction);
+      return;
+    }
+
+    slideAnim.set(
+      withTiming(direction * -SCREEN_WIDTH * 0.25, {
+        duration: 180,
+        easing: IDEA_EASE,
+      })
+    );
+    fadeAnim.set(
+      withTiming(0, { duration: 150, easing: IDEA_EASE }, (finished) => {
+        "worklet";
+        if (finished) scheduleOnRN(commitStep, nextStep, direction);
+      })
+    );
   };
+
+  // The step swap is a heavy re-render — a whole new form, its images and the
+  // tilted card row. Starting the entrance from the fade-out's completion
+  // callback meant it ran *while* React was still rendering that tree, and the
+  // first frames were simply dropped: the step appeared to blink in.
+  // Driving it from an effect instead starts the motion after the commit, with
+  // the incoming content already laid out behind an opacity of 0.
+  React.useEffect(() => {
+    if (firstStepRender.current) {
+      firstStepRender.current = false;
+      return;
+    }
+    if (reducedMotion) {
+      slideAnim.set(0);
+      fadeAnim.set(withTiming(1, { duration: 150 }));
+      return;
+    }
+    slideAnim.set(enterDir.current * SCREEN_WIDTH * 0.25);
+    slideAnim.set(withSpring(0, { duration: 420, dampingRatio: 0.85 }));
+    fadeAnim.set(withTiming(1, { duration: 220, easing: IDEA_EASE }));
+  }, [step, reducedMotion, slideAnim, fadeAnim]);
 
   const goNext = () => {
     if (step < STEPS.length - 1) animateToStep(step + 1);
@@ -1041,6 +1096,12 @@ export default function CreateScreen() {
       else router.replace("/(tabs)");
     } else animateToStep(step - 1);
   };
+
+  // Rebuilt only when the account name or the chosen type changes.
+  const nameIdeas = React.useMemo(
+    () => suggestEventNames(user?.name, formData.type),
+    [user?.name, formData.type]
+  );
 
   const canContinue = () => {
     if (step === 0)
@@ -1059,10 +1120,12 @@ export default function CreateScreen() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) return;
 
+    // Portrait 9:16 — the cover fills a phone screen (in the step-4 mock and in
+    // the guest's event view), so a landscape crop would be letterboxed away.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsEditing: true,
-      aspect: [16, 9],
+      aspect: [9, 16],
       quality: 0.85,
     });
 
@@ -1177,6 +1240,11 @@ export default function CreateScreen() {
       ? parseInt(formData.shotLimit, 10)
       : undefined,
     public: formData.publicGallery,
+    // A stock cover is already hosted, so it rides along in the JSON body. A
+    // photo from the picker is a local file and goes up as an upload instead.
+    cover_image_url: isHostedCover(formData.coverImage)
+      ? formData.coverImage ?? undefined
+      : undefined,
     // participant_limit is NOT sent from the client — it's the paid entitlement
     // and would be forgeable here. The server sets it: free baseline (5) on
     // create, then the verified guest-pack purchase credits the tier total via
@@ -1189,9 +1257,10 @@ export default function CreateScreen() {
   // The event must exist *before* the guest pack can be bought — the purchase is
   // attributed to its id. A cancelled purchase leaves the user on this screen to
   // retry, so pressing Create again has to land on the same event instead of
-  // spawning a duplicate. Edits made in between are PATCHed onto it — except the
-  // cover photo, which PATCH can't carry (it takes a hosted URL, not a file), and
-  // fields the user *cleared*, since an omitted key leaves the old value.
+  // spawning a duplicate. Edits made in between are PATCHed onto it — except
+  // fields the user *cleared*, since an omitted key leaves the old value. An
+  // uploaded cover is the one thing PATCH can't carry (it takes a hosted URL,
+  // not a file) — a stock cover is a URL, so that one does survive a retry.
   const ensureEvent = async () => {
     const body = buildEventBody();
     const signature = JSON.stringify(body);
@@ -1212,9 +1281,9 @@ export default function CreateScreen() {
 
     const created = await eventsApi.store(
       body,
-      // The cover is a local picker URI, not a hosted URL — send it as a raw
-      // file so the backend can upload to R2 and return cover_image_url.
-      formData.coverImage
+      // Only a picker URI needs uploading — a stock cover is already a hosted
+      // URL and travelled in the body above.
+      formData.coverImage && !isHostedCover(formData.coverImage)
         ? { uri: formData.coverImage, name: "cover.jpg", type: "image/jpeg" }
         : undefined,
     );
@@ -1458,25 +1527,13 @@ export default function CreateScreen() {
     <ScreenWrapper>
       <View style={{ flex: 1 }}>
         {/* Top bar */}
-        <Animated.View
-          style={{
-            opacity: headerAnim,
-            transform: [
-              {
-                translateY: headerAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-8, 0],
-                }),
-              },
-            ],
-          }}
-        >
+        <Reanimated.View style={headerStyle}>
           <View
             style={{
               flexDirection: "row",
               alignItems: "center",
               marginTop: 24,
-              marginBottom: 24,
+              marginBottom: 34,
             }}
           >
             <TouchableOpacity
@@ -1523,28 +1580,20 @@ export default function CreateScreen() {
               {step + 1} / {STEPS.length}
             </Text>
           </View>
-
-          <ProgressBar step={step} total={STEPS.length} />
-        </Animated.View>
+        </Reanimated.View>
 
         {/* Step content — scrolls instead of being squeezed by the keyboard */}
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
             flexGrow: 1,
-            paddingBottom: keyboardOverlap + 140,
+            paddingBottom: keyboardOverlap + 96,
           }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
-          <Animated.View
-            style={{
-              flexGrow: 1,
-              opacity: fadeAnim,
-              transform: [{ translateX: slideAnim }],
-            }}
-          >
+          <Reanimated.View style={stepContentStyle}>
             {/* Heading */}
             <Text
               style={{
@@ -1580,15 +1629,46 @@ export default function CreateScreen() {
                   onChangeText={(text) =>
                     setFormData({ ...formData, name: text })
                   }
+                  onClear={() => setFormData({ ...formData, name: "" })}
                   containerStyle="mb-6"
                   autoFocus={isFocused}
                 />
-                <SectionLabel>Event Type</SectionLabel>
-                <TiltedEventTypeCards
-                  types={EVENT_TYPES}
-                  selected={formData.type}
-                  onSelect={(type) => setFormData({ ...formData, type })}
-                />
+
+                {/* Starter names, in the phone's language. They sharpen once a
+                    type is picked, and step aside the moment anything is typed. */}
+                {formData.name.trim().length === 0 && nameIdeas.length > 0 && (
+                  <Reanimated.View
+                    style={styles.ideaRow}
+                    entering={ideasIn(reducedMotion)}
+                    exiting={ideasOut(reducedMotion)}
+                  >
+                    {nameIdeas.map((idea) => (
+                      <TouchableOpacity
+                        key={idea}
+                        activeOpacity={0.75}
+                        onPress={() => setFormData({ ...formData, name: idea })}
+                        style={styles.idea}
+                      >
+                        <Text style={styles.ideaText}>{idea}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </Reanimated.View>
+                )}
+
+                {/* Closes the gap the row leaves behind, instead of snapping up
+                    the moment it's gone. */}
+                <Reanimated.View
+                  layout={
+                    reducedMotion ? undefined : LinearTransition.duration(260)
+                  }
+                >
+                  <SectionLabel>Event Type</SectionLabel>
+                  <TiltedEventTypeCards
+                    types={EVENT_TYPES}
+                    selected={formData.type}
+                    onSelect={(type) => setFormData({ ...formData, type })}
+                  />
+                </Reanimated.View>
               </View>
             )}
 
@@ -1658,18 +1738,17 @@ export default function CreateScreen() {
             {/* ── Step 2: Shot limit ── */}
             {step === 2 && (
               <View>
-                <Input
-                  label="Shot Limit"
-                  placeholder="Unlimited"
-                  keyboardType="numeric"
+                <SectionLabel>Shots per person</SectionLabel>
+                <ShotsPerPerson
                   value={formData.shotLimit}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, shotLimit: text })
+                  onChange={(shotLimit) =>
+                    setFormData({ ...formData, shotLimit })
                   }
-                  autoFocus={isFocused}
                 />
                 <HintText>
-                  Max photos each guest can upload. Leave blank for unlimited.
+                  {formData.shotLimit
+                    ? `Every guest gets ${formData.shotLimit} shots. Scarcity is the point — they'll make each one count.`
+                    : "Guests can shoot as much as they like. Pick a limit if you'd rather they made each frame count."}
                 </HintText>
               </View>
             )}
@@ -1703,78 +1782,33 @@ export default function CreateScreen() {
             )}
 
             {/* ── Step 4: Cover photo + Preview ── */}
+            {/* The picker and the preview are the same object: the device mock
+                *is* the tap target, so the photo lands where it will live. */}
             {step === 4 && (
-              <View>
-                {/* Image picker */}
-                <TouchableOpacity
-                  onPress={pickCoverImage}
-                  activeOpacity={0.8}
-                  style={{
-                    height: 180,
-                    borderRadius: 20,
-                    overflow: "hidden",
-                    backgroundColor: colors.backgroundSecondary,
-                    borderWidth: formData.coverImage ? 0 : 1.5,
-                    borderColor: "rgba(30,24,16,0.1)",
-                    borderStyle: "dashed",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: 20,
-                  }}
-                >
-                  {formData.coverImage ? (
-                    <Image
-                      source={{ uri: formData.coverImage }}
-                      style={{ width: "100%", height: "100%" }}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={{ alignItems: "center", gap: 10 }}>
-                      <View
-                        style={{
-                          width: 52,
-                          height: 52,
-                          borderRadius: 26,
-                          backgroundColor: "rgba(30,24,16,0.06)",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <ImageUp size={24} color={colors.textSecondary} />
-                      </View>
-                      <Text
-                        style={{
-                          fontFamily: "Inter-Regular",
-                          fontSize: 14,
-                          color: colors.textSecondary,
-                        }}
-                      >
-                        Tap to add a cover photo
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                {/* Live preview */}
-                <SectionLabel>Preview</SectionLabel>
-                <EventPreviewCard
+              <View style={{ flex: 1, justifyContent: "center" }}>
+                <PhonePreview
                   title={formData.name}
                   date={
                     formData.expires_at
                       ? formData.expires_at.toLocaleString("en-US", {
                           month: "short",
                           day: "numeric",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
                         })
                       : ""
                   }
-                  participants={formData.participantLimit}
-                  shots={formData.shotLimit}
                   coverUri={formData.coverImage}
                   filter={formData.filter}
+                  onPress={pickCoverImage}
                 />
+                <View style={{ marginTop: 22 }}>
+                  <CoverPicker
+                    value={formData.coverImage}
+                    onSelect={(coverImage) =>
+                      setFormData({ ...formData, coverImage })
+                    }
+                    onPickOwn={pickCoverImage}
+                  />
+                </View>
               </View>
             )}
 
@@ -1803,7 +1837,7 @@ export default function CreateScreen() {
                 </HintText>
               </View>
             )}
-          </Animated.View>
+          </Reanimated.View>
         </ScrollView>
 
         {/* Date pickers */}
@@ -1850,21 +1884,16 @@ export default function CreateScreen() {
       </View>
 
       {/* Floating CTA */}
-      <Animated.View
-        style={{
-          position: "absolute",
-          bottom: keyboardOverlap > 0 ? keyboardOverlap + 20 : 130,
-          right: 24,
-          opacity: headerAnim,
-          transform: [
-            {
-              translateY: headerAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [16, 0],
-              }),
-            },
-          ],
-        }}
+      <Reanimated.View
+        style={[
+          {
+            position: "absolute",
+            // No tab bar on this screen, so the CTA sits just above the safe area.
+            bottom: keyboardOverlap > 0 ? keyboardOverlap + 20 : 28,
+            right: 24,
+          },
+          ctaStyle,
+        ]}
         pointerEvents="box-none"
       >
         <TouchableOpacity
@@ -1909,7 +1938,7 @@ export default function CreateScreen() {
             </>
           )}
         </TouchableOpacity>
-      </Animated.View>
+      </Reanimated.View>
     </ScreenWrapper>
   );
 }

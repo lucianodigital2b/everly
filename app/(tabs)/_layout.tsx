@@ -1,4 +1,5 @@
 import { Tabs, TabList, TabTrigger, TabSlot } from "expo-router/ui";
+import { usePathname } from "expo-router";
 import type { TabTriggerSlotProps } from "expo-router/ui";
 import { View, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -49,6 +50,11 @@ const CreateButton = forwardRef<View, TabTriggerSlotProps>(({ onPress }, ref) =>
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  // The create wizard is a full-screen flow with its own back button and CTA —
+  // the nav pill only competes with them there. Hidden with `display: "none"`
+  // rather than unmounted: expo-router registers TabTriggers by walking
+  // TabList's children, so dropping them would silently kill navigation.
+  const hideBar = usePathname() === "/create";
   return (
     <Tabs>
       <TabSlot />
@@ -56,7 +62,13 @@ export default function TabLayout() {
           parser only descends into Fragments and TabList, so wrapping them in a
           View silently unregisters them and their onPress becomes a no-op.
           The glass pill is therefore a backdrop behind the first two slots. */}
-      <TabList style={[styles.bar, { bottom: insets.bottom + 14 }]}>
+      <TabList
+        style={[
+          styles.bar,
+          { bottom: insets.bottom + 14 },
+          hideBar && styles.barHidden,
+        ]}
+      >
         <View style={styles.pill} pointerEvents="none">
           <GlassSurface
             shape="capsule"
@@ -108,6 +120,7 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     borderWidth: 0,
   },
+  barHidden: { display: "none" },
   // Backdrop only — the two nav slots sit on top of it as siblings.
   pill: {
     position: "absolute",

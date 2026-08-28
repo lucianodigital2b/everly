@@ -56,7 +56,9 @@ export default function SettingsScreen() {
         style: 'destructive',
         onPress: async () => {
           await logout();
-          router.replace('/(auth)/sign-in');
+          // Root index re-reads the (now cleared) token and routes to welcome;
+          // sending straight to sign-in skips that gate and hides the guest path.
+          router.replace('/');
         },
       },
     ]);
@@ -85,7 +87,7 @@ export default function SettingsScreen() {
             try {
               await authApi.deleteAccount();
               await logout();
-              router.replace('/(auth)/welcome');
+              router.replace('/');
             } catch (e: any) {
               Alert.alert(
                 "Couldn't delete account",

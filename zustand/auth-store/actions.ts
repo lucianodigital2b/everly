@@ -9,6 +9,23 @@ import { appleAuth } from "../../services/appleAuth";
 import { appsFlyerService } from "../../services/appsflyer";
 import { StorageHelper } from "../../utils";
 
+/**
+ * A dismissed Apple sheet. Which code comes back depends on the iOS version and
+ * how the sheet was closed — expo-apple-authentication surfaces
+ * `ERR_REQUEST_CANCELED`, but the underlying ASAuthorizationError 1001 also
+ * reaches us as `ERR_CANCELED` on some builds. Any of them mean "the user
+ * changed their mind", and an error toast for that is just wrong.
+ */
+const isAppleCancel = (error: any) => {
+  const code = String(error?.code ?? "");
+  return (
+    code === "ERR_REQUEST_CANCELED" ||
+    code === "ERR_CANCELED" ||
+    code === "1001" ||
+    /cancel/i.test(String(error?.message ?? ""))
+  );
+};
+
 const actions = (dispatch: any) => ({
   changeFields: (payload: { key: "email" | "password"; value: string }) => {
     dispatch({ type: Types.AUTH_CHANGE_FIELDS, payload });
@@ -62,67 +79,6 @@ const actions = (dispatch: any) => ({
     }
   },
 
-  googleSignIn: async () => {
-    const notifications = notificationsStore.getState();
-    const { notificationsShow } = notificationsActions(notifications.dispatch);
-
-    dispatch({ type: Types.AUTH_LOGIN_REQUEST });
-
-    try {
-      const {
-        GoogleSignin,
-      } = require("@react-native-google-signin/google-signin");
-      const authConfig = require("../../config/auth.js").authConfig;
-
-      GoogleSignin.configure({
-        webClientId: authConfig.google.webClientId,
-        iosClientId: authConfig.google.iosClientId,
-        offlineAccess: true,
-        forceCodeForRefreshToken: true,
-      });
-
-      await GoogleSignin.hasPlayServices();
-      const userInfo = await GoogleSignin.signIn();
-
-      if (userInfo?.data?.idToken) {
-        const data = await authApi.googleLogin({
-          id_token: userInfo.data.idToken,
-          access_token: userInfo.data.accessToken,
-        });
-
-        if (data?.token) {
-          await StorageHelper.saveAccessToken(data.token);
-          dispatch({ type: Types.AUTH_LOGIN_FULFILLED, payload: data });
-          appsFlyerService.setUserId(data.user?.id);
-        } else {
-          throw new Error("Invalid response from server");
-        }
-      } else {
-        dispatch({ type: Types.AUTH_LOGIN_REJECTED, payload: "" });
-      }
-    } catch (error: any) {
-      let errorMessage = "Google Sign-In failed";
-
-      if (error.code === "SIGN_IN_CANCELLED") {
-        errorMessage = "Sign-in was cancelled";
-      } else if (error.code === "IN_PROGRESS") {
-        errorMessage = "Sign-in is already in progress";
-      } else if (error.code === "PLAY_SERVICES_NOT_AVAILABLE") {
-        errorMessage = "Google Play Services not available";
-      } else {
-        errorMessage = error?.response?.data?.error || "Google Sign-In failed";
-      }
-
-      notificationsShow({
-        message: errorMessage,
-        title: "Google Sign-In Failed",
-        type: "error",
-      });
-
-      dispatch({ type: Types.AUTH_LOGIN_REJECTED, payload: errorMessage });
-    }
-  },
-
   appleSignIn: async () => {
     const notifications = notificationsStore.getState();
     const { notificationsShow } = notificationsActions(notifications.dispatch);
@@ -157,21 +113,32 @@ const actions = (dispatch: any) => ({
         throw new Error("Invalid response from server");
       }
 
+      // Both of these run before the store flips to signed-in: the moment
+      // AUTH_LOGIN_FULFILLED lands, the welcome screen navigates away, and the
+      // token has to already be on disk for the request interceptor to find.
       await StorageHelper.saveAccessToken(data.token);
+      await appleAuth.rememberSession(credential.user);
+
       dispatch({ type: Types.AUTH_LOGIN_FULFILLED, payload: data });
       appsFlyerService.setUserId(data.user?.id);
-      await appleAuth.rememberSession(credential.user);
     } catch (error: any) {
       // Dismissing the Apple sheet is not a failure — reset quietly, no toast.
-      if (error?.code === "ERR_REQUEST_CANCELED") {
+      if (isAppleCancel(error)) {
         dispatch({ type: Types.AUTH_LOGIN_REJECTED, payload: "" });
         return;
       }
 
+      // Order matters. A server answer is the most specific thing we have; below
+      // that, an error with no `response` never reached the backend at all, and
+      // its own message (a dead/unset API URL, a refused connection) says far
+      // more than "Apple Sign-In failed" — which is what every misconfigured
+      // build used to report.
       const errorMessage =
         error?.response?.data?.error ||
         error?.response?.data?.message ||
-        "Apple Sign-In failed";
+        (error?.message === "Network Error"
+          ? "Couldn't reach Everly. Check your connection and try again."
+          : error?.message || "Apple Sign-In failed");
 
       notificationsShow({
         message: errorMessage,

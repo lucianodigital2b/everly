@@ -21,6 +21,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { colors } from "../../constants/colors";
 import { eventCover } from "../../constants/sampleImages";
 import { eventsApi } from "../../services/api";
+import { useEventLiveActivity } from "../../hooks/useEventLiveActivity";
 import {
   QrCode,
   Clock,
@@ -49,26 +50,19 @@ const EVENT_SCREEN_OPTIONS = {
 const CARD_W = SCREEN_WIDTH - H_PAD * 2;
 const CARD_H = Math.min(Math.round(SCREEN_HEIGHT * 0.46), Math.round(CARD_W * 1.2));
 
-// Every guest shoots the event's filter, so the card credits it like a film
-// stock. Codes are decorative; the label and blurb are the real information.
-const FILTER_TAG = {
-  none: { code: "N0", label: "Natural", blurb: "No filter — true colours." },
-  warm: { code: "W2", label: "Warm", blurb: "Every guest shoots this look." },
-  film: { code: "F4", label: "Film", blurb: "Every guest shoots this look." },
-  mono: { code: "M1", label: "Mono", blurb: "Every guest shoots this look." },
-};
-
 const REVEAL_TAG = {
   Instant: "REVEALS AS THEY SHOOT",
   "End of Event": "REVEALS WHEN IT ENDS",
   Scheduled: "REVEALS AT A SET TIME",
 };
 
+// Only the two states worth announcing. A not-yet-active event shows no pill —
+// "Draft" was noise on a screen the owner just created.
 const statusConfig = (event) => {
   if (event.is_revealed) return { label: "Revealed", color: colors.accent };
   if (event.status === "active")
     return { label: "Live", color: colors.success };
-  return { label: "Draft", color: "rgba(255,255,255,0.8)" };
+  return null;
 };
 
 export default function EventDetailScreen() {
@@ -94,6 +88,10 @@ export default function EventDetailScreen() {
 
   const event = data?.event;
   const photos = photosData?.photos ?? [];
+
+  // Lock Screen / Dynamic Island card, but only for an event that has actually
+  // started — it ends itself the moment the event closes.
+  useEventLiveActivity(event, data?.uploadCount ?? 0);
 
   // The hero fills the screen; "View gallery" scrolls the sheet below into view.
   const scrollRef = React.useRef(null);
@@ -260,7 +258,6 @@ export default function EventDetailScreen() {
   // the wrong noun.
   const guestLabel = `${event.participant_limit ?? "∞"} guests`;
 
-  const filterTag = FILTER_TAG[event.filter] ?? FILTER_TAG.none;
   const revealTag = REVEAL_TAG[event.reveal_time] ?? "REVEALS WHEN IT ENDS";
 
   return (
@@ -363,38 +360,30 @@ export default function EventDetailScreen() {
                 <Text style={styles.cardEyebrow}>{revealTag}</Text>
               </View>
 
-              {/* Bottom: the look every guest shoots in */}
-              <View style={styles.cardBottom}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <View style={styles.cardBadge}>
-                    <Text style={styles.cardBadgeText}>{filterTag.code}</Text>
-                  </View>
-                  <Text style={styles.cardBadgeLabel}>{filterTag.label}</Text>
-                </View>
-                <Text style={styles.cardFine}>{filterTag.blurb}</Text>
-              </View>
             </TouchableOpacity>
           </View>
 
           {/* Title block + actions, anchored to the bottom */}
           <View>
-            <GlassSurface
-              tint="dark"
-              shape="capsule"
-              cornerRadius={999}
-              style={styles.statusPill}
-            >
-              <View
-                className="w-1.5 h-1.5 rounded-full mr-2"
-                style={{ backgroundColor: status.color }}
-              />
-              <SansSemiText
-                className="text-xs tracking-widest"
-                style={{ color: status.color }}
+            {status && (
+              <GlassSurface
+                tint="dark"
+                shape="capsule"
+                cornerRadius={999}
+                style={styles.statusPill}
               >
-                {status.label}
-              </SansSemiText>
-            </GlassSurface>
+                <View
+                  className="w-1.5 h-1.5 rounded-full mr-2"
+                  style={{ backgroundColor: status.color }}
+                />
+                <SansSemiText
+                  className="text-xs tracking-widest"
+                  style={{ color: status.color }}
+                >
+                  {status.label}
+                </SansSemiText>
+              </GlassSurface>
+            )}
 
             <SerifBoldText
               className="text-white"
@@ -578,36 +567,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 1.6,
     color: "rgba(255,255,255,0.72)",
-  },
-  cardBottom: {
-    position: "absolute",
-    left: 20,
-    right: 20,
-    bottom: 18,
-  },
-  cardBadge: {
-    backgroundColor: colors.accent,
-    borderRadius: 5,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    marginRight: 9,
-  },
-  cardBadgeText: {
-    fontFamily: "Inter-ExtraBold",
-    fontSize: 14,
-    color: "#2E2429",
-  },
-  cardBadgeLabel: {
-    fontFamily: "Inter-ExtraBold",
-    fontSize: 22,
-    letterSpacing: -0.5,
-    color: "#fff",
-  },
-  cardFine: {
-    marginTop: 5,
-    fontFamily: "Inter-Medium",
-    fontSize: 12.5,
-    color: "rgba(255,255,255,0.75)",
   },
   statusPill: {
     flexDirection: "row",

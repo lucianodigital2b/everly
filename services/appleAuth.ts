@@ -20,6 +20,14 @@ const readJSON = async <T>(key: string): Promise<T | null> => {
   }
 };
 
+/** A name object is only worth keeping if it actually carries a name. */
+const nameOrNull = (
+  name: AppleAuthentication.AppleAuthenticationFullName | null | undefined
+): AppleProfile["fullName"] =>
+  name && (name.givenName || name.familyName)
+    ? { givenName: name.givenName, familyName: name.familyName }
+    : null;
+
 /**
  * Local state that Sign in with Apple needs but neither Apple nor our backend
  * will hand back a second time.
@@ -40,9 +48,11 @@ export const appleAuth = {
     const stored = await readJSON<AppleProfile>(PROFILE_KEY(credential.user));
 
     const merged: AppleProfile = {
-      fullName: credential.fullName?.givenName
-        ? credential.fullName
-        : stored?.fullName ?? credential.fullName ?? null,
+      // On repeat sign-ins Apple hands back a *populated object with null
+      // fields*, not null — `{ givenName: null, familyName: null, … }`. Left
+      // as-is it is truthy, so it would get cached as if it were a real name and
+      // then replayed forever, permanently shadowing the one good value.
+      fullName: nameOrNull(credential.fullName) ?? stored?.fullName ?? null,
       email: credential.email ?? stored?.email ?? null,
     };
 
@@ -75,7 +85,7 @@ export const appleAuth = {
   /** The Apple user identifier of the current session, if it came from Apple. */
   getUserIdentifier: () => readJSON<string>(USER_ID_KEY),
 
-  /** Cleared on logout so a later Google/email session isn't watched as Apple's. */
+  /** Cleared on logout so a later email session isn't watched as Apple's. */
   forgetSession: async () => {
     try {
       await StorageHelper.removeItem(USER_ID_KEY);

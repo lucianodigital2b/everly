@@ -24,9 +24,18 @@ Required in `.env.local`:
 
 - `EXPO_PUBLIC_RC_IOS` — RevenueCat API key for iOS
 - `EXPO_PUBLIC_RC_ANDROID` — RevenueCat API key for Android
-- `EXPO_PUBLIC_API_URL` — Backend base URL (e.g. `https://your-domain.com/api`)
 - `EXPO_PUBLIC_AF_DEV_KEY` — AppsFlyer dev key (Settings → App details), shared across platforms
 - `EXPO_PUBLIC_AF_APPLE_APP_ID` — Numeric Apple App Store id (iOS attribution only; Android keys off the package name)
+
+**The backend URL is not an env var.** It is hardcoded in `services/api.ts` as
+`DEV_BASE_URL` / `PROD_BASE_URL`, picked by `__DEV__`. This is deliberate: Metro
+inlines `EXPO_PUBLIC_*` at *bundle* time and caches the result, so editing
+`.env.local` with the dev server already running silently changes nothing until a
+restart with `--clear` — the app keeps calling the previous ngrok tunnel and every
+failure looks like a broken feature rather than a stale bundle. `.env*.local` is
+gitignored too, so EAS builds never received it at all. Editing the constant
+invalidates the module and forces a real rebuild. When the ngrok tunnel restarts,
+paste the new URL into `DEV_BASE_URL`.
 
 ## Architecture
 
@@ -106,7 +115,11 @@ Store product IDs are `com.get.everly.guests.<n>`. The `price` field is a displa
 
 ### Auth
 
-Sign-in lives in `zustand/auth-store/actions.ts` (`login`, `register`, `googleSignIn`, `appleSignIn`); the buttons are on `app/(auth)/welcome.tsx`. Every path ends the same way: save the token via `StorageHelper`, dispatch `AUTH_LOGIN_FULFILLED`, then `appsFlyerService.setUserId(user.id)` so AppsFlyer/RevenueCat/backend share one id.
+Sign-in lives in `zustand/auth-store/actions.ts` (`login`, `register`, `appleSignIn`); the buttons are on `app/(auth)/welcome.tsx`. Every path ends the same way: save the token via `StorageHelper`, dispatch `AUTH_LOGIN_FULFILLED`, then `appsFlyerService.setUserId(user.id)` so AppsFlyer/RevenueCat/backend share one id.
+
+**There is no Google sign-in.** It was removed — the app offers Sign in with Apple (iOS) and email/password (`app/(auth)/sign-in.tsx`, reachable from welcome), plus a no-account guest path via QR. `POST /auth/google/callback` still exists server-side but nothing calls it; don't re-add a client for it without a decision to bring the provider back.
+
+**The session endpoints go out unauthenticated.** `PUBLIC_AUTH_PATHS` in `services/api.ts` strips the `Authorization` header from `/auth/login`, `/auth/register`, `/auth/forgot-password` and `/auth/apple/callback`, and exempts them from the 401 interceptor. A stale token left in storage would otherwise make Sanctum reject a perfectly good sign-in *and* trigger the session wipe, which reads as a random logout.
 
 **Sign in with Apple** (`usesAppleSignIn` + the `expo-apple-authentication` plugin in `app.json`; iOS-only, the button hides elsewhere). Three things are easy to get wrong:
 
@@ -122,11 +135,19 @@ Each bundle id (`com.get.everly`, `.dev`, `.preview`) needs the Sign In with App
 
 NativeWind (Tailwind CSS for React Native) — use `className` props. Custom design tokens:
 
-- Accent color: `#C6A96B` (gold)
-- Fonts: Playfair Display (serif, headings) + Inter (sans, body)
-- See `tailwind.config.js` for full custom palette and `constants/` for spacing/typography scales
+- Accent: `#E6A9B4` (blush rose), with `#F4CED5` (light tint) and `#C77E8D` (deep, for text/icons on light)
+- Grounds: `#FBF8F5` page, `#FFFFFF` cards, `#F5EDEA` blush-tinted wells/chips
+- Ink: `#2E2429` primary, `#8B7C82` secondary, `#B9AAB0` tertiary
+- Fonts: **Inter only** (ExtraLight 200 → ExtraBold 800) for all UI, plus **Sacramento** (registered as `Script`) for the `everly` wordmark
+- See `tailwind.config.js` / `constants/colors.ts` for the full palette and `constants/` for spacing/typography scales
 
-Design language: soft, romantic, editorial, Apple-like, minimal, premium. Avoid bright gradients, gamification elements, or tech startup aesthetics.
+The accent is a pastel, so it can't carry white text — pair blush fills with dark ink, and use `accentDeep` when the accent itself must be readable on a light ground.
+
+The signature typographic gesture is a **stacked weight contrast**: one word in `Inter-ExtraLight`, the next in `Inter-ExtraBold`, at the same size with negative letter-spacing (−1 to −1.5). See the home greeting ("Good" / "**evening,**") and the welcome title ("beautiful" / "**moments**").
+
+The `serif`/`serifBold` Tailwind keys are legacy names repointed to `Inter-Bold`/`Inter-ExtraBold` so existing `className` usages kept working — **nothing in the app is actually serif**. Prefer the `inter*` keys in new code.
+
+Design language: soft, romantic, editorial, Apple-like, minimal, premium — generous corner radii (26–28 cards, 999 pills), long soft shadows, hairline borders, frosted glass over photos. Avoid bright gradients, gamification elements, or tech startup aesthetics.
 
 ### Key Tech
 

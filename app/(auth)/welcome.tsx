@@ -1,17 +1,28 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Animated,
   View,
   Text,
   Image,
   Dimensions,
   StyleSheet,
   Platform,
-  Easing,
+  type ViewStyle,
 } from "react-native";
+import Animated, {
+  Easing,
+  cancelAnimation,
+  interpolate,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withTiming,
+  type SharedValue,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { QrCode } from "lucide-react-native";
+import { Mail, QrCode } from "lucide-react-native";
 import Svg, { Path } from "react-native-svg";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { router } from "expo-router";
@@ -20,7 +31,7 @@ import { colors } from "../../constants/colors";
 import { authStore } from "../../zustand/auth-store";
 import actions from "../../zustand/auth-store/actions";
 
-// Brand marks for the auth buttons (lucide has no Google logo).
+// Apple's mark, which lucide doesn't carry.
 const AppleIcon = ({ color = "#000" }: { color?: string }) => (
   <Svg width={19} height={22} viewBox="0 0 384 512">
     <Path
@@ -30,14 +41,6 @@ const AppleIcon = ({ color = "#000" }: { color?: string }) => (
   </Svg>
 );
 
-const GoogleIcon = () => (
-  <Svg width={19} height={19} viewBox="0 0 48 48">
-    <Path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-    <Path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-    <Path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-    <Path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-  </Svg>
-);
 import {
   WELCOME_HERO_IMAGES,
   VINTAGE_FILTER,
@@ -77,67 +80,155 @@ const ENTRY = { x: -SCREEN_W * 0.5, y: -CARD_H * 0.35, rot: -18 };
 const EXIT = { x: SCREEN_W * 1.15, y: ARC_H + CARD_H * 0.2, rot: 30 };
 
 // One period of the path as keyframes (u ∈ [0,1]); the trailing entry keyframe
-// at u = 1 closes the loop. Both ENTRY and EXIT sit fully off-screen, so the
-// exit→entry hop is never seen and the cards stay fully opaque the whole way —
-// they slide in and out like a carousel rather than fading. Each card reads this
-// path offset by its phase.
-const U_BASE = [0, 0.08, 0.28, 0.48, 0.68, 0.86, 0.999, 1];
-const PATH = {
-  x: [ENTRY.x, SLOTS[0].x, SLOTS[1].x, SLOTS[2].x, SLOTS[3].x, SLOTS[4].x, EXIT.x, ENTRY.x],
-  y: [ENTRY.y, SLOTS[0].y, SLOTS[1].y, SLOTS[2].y, SLOTS[3].y, SLOTS[4].y, EXIT.y, ENTRY.y],
-  rot: [ENTRY.rot, SLOTS[0].rot, SLOTS[1].rot, SLOTS[2].rot, SLOTS[3].rot, SLOTS[4].rot, EXIT.rot, ENTRY.rot],
-  scale: [0.82, 1, 1, 1, 1, 1, 0.82, 0.82],
-};
-// Double each array over u ∈ [0,2]. The second copy repeats the first, so
-// f(u) === f(u + 1): when the shared driver resets 1→0 the output is unchanged,
-// making the loop seamless while every card keeps a strictly-ordered depth.
-const dbl = (a: number[]) => [...a, ...a.slice(1)];
-const U2 = [...U_BASE, ...U_BASE.slice(1).map((u) => u + 1)];
-const PATH2 = {
-  x: dbl(PATH.x),
-  y: dbl(PATH.y),
-  rot: dbl(PATH.rot).map((r) => `${r}deg`),
-  scale: dbl(PATH.scale),
-};
+// at u = 1 closes the loop, so f(1) === f(0). Both ENTRY and EXIT sit fully
+// off-screen, so the exit→entry hop is never seen and the cards stay fully
+// opaque the whole way — they slide in and out like a carousel rather than
+// fading. Each card samples the path at `(driver + its own phase) mod 1`;
+// because the path closes on itself, that wrap is invisible. The modulo is what
+// the old core-Animated version had to fake by doubling every keyframe array —
+// a worklet can just do the arithmetic.
+const U = [0, 0.08, 0.28, 0.48, 0.68, 0.86, 0.999, 1];
+const PATH_X = [ENTRY.x, SLOTS[0].x, SLOTS[1].x, SLOTS[2].x, SLOTS[3].x, SLOTS[4].x, EXIT.x, ENTRY.x];
+const PATH_Y = [ENTRY.y, SLOTS[0].y, SLOTS[1].y, SLOTS[2].y, SLOTS[3].y, SLOTS[4].y, EXIT.y, ENTRY.y];
+const PATH_ROT = [ENTRY.rot, SLOTS[0].rot, SLOTS[1].rot, SLOTS[2].rot, SLOTS[3].rot, SLOTS[4].rot, EXIT.rot, ENTRY.rot];
+const PATH_SCALE = [0.82, 1, 1, 1, 1, 1, 0.82, 0.82];
+
 const CARD_COUNT = WELCOME_HERO_IMAGES.length; // phases evenly spaced → conveyor
+
+// One card on the conveyor. Memoised and driven entirely from the UI thread, so
+// nothing in this subtree re-renders while the loop runs — which is what keeps
+// the photos from flickering when the text above them updates.
+const HeroCard = React.memo(function HeroCard({
+  uri,
+  phase,
+  driver,
+  frozen,
+}: {
+  uri: string;
+  phase: number;
+  driver: SharedValue<number>;
+  frozen: { x: number; y: number; rot: number } | null;
+}) {
+  const animated = useAnimatedStyle<ViewStyle>(() => {
+    if (frozen) {
+      return {
+        transform: [
+          { translateX: frozen.x },
+          { translateY: frozen.y },
+          { rotate: `${frozen.rot}deg` },
+          { scale: 1 },
+        ] as ViewStyle["transform"],
+      };
+    }
+    const u = (driver.get() + phase) % 1;
+    return {
+      transform: [
+        { translateX: interpolate(u, U, PATH_X) },
+        { translateY: interpolate(u, U, PATH_Y) },
+        { rotate: `${interpolate(u, U, PATH_ROT)}deg` },
+        { scale: interpolate(u, U, PATH_SCALE) },
+      ] as ViewStyle["transform"],
+    };
+  });
+
+  return (
+    <Animated.View
+      style={[styles.arcCard, animated]}
+      renderToHardwareTextureAndroid
+      shouldRasterizeIOS
+    >
+      <Image
+        source={{ uri }}
+        style={[StyleSheet.absoluteFill, { filter: VINTAGE_FILTER } as any]}
+        resizeMode="cover"
+        // Android cross-fades a decoded image in over 300ms by default; on a
+        // card that is already moving, that reads as a flicker.
+        fadeDuration={0}
+      />
+      <View style={styles.wash} />
+    </Animated.View>
+  );
+});
 
 // Typewriter title
 const LINE1 = "beautiful";
 const LINE2 = "moments";
 const TOTAL = LINE1.length + 1 + LINE2.length; // +1 for the space
 
-export default function Welcome() {
-  // Single shared driver (0 → 1, looping) powers the conveyor; subtitle fade.
-  const t = useRef(new Animated.Value(0)).current;
-  const subA = useRef(new Animated.Value(0)).current;
+// The reveal ticks ~19 times in the first 1.3s. It lives in its own component so
+// those re-renders stop here and never reach the conveyor above — a parent
+// re-render rebuilds every card's style array, and that was the flicker.
+const TypewriterTitle = React.memo(function TypewriterTitle() {
+  const reduced = useReducedMotion();
+  const [count, setCount] = useState(reduced ? TOTAL : 0);
 
-  // Each card reads the path offset by its evenly-spaced phase, so together they
-  // fill the arc and flow through it continuously.
-  const cards = React.useMemo(
-    () =>
-      WELCOME_HERO_IMAGES.map((uri, k) => {
-        const u = Animated.add(t, k / CARD_COUNT);
-        const at = (outputRange: any) => u.interpolate({ inputRange: U2, outputRange });
-        return {
-          uri,
-          translateX: at(PATH2.x),
-          translateY: at(PATH2.y),
-          rotate: at(PATH2.rot),
-          scale: at(PATH2.scale),
-        };
-      }),
-    [t]
+  useEffect(() => {
+    if (reduced) {
+      setCount(TOTAL);
+      return;
+    }
+    const type = setInterval(() => {
+      setCount((v) => {
+        if (v >= TOTAL) {
+          clearInterval(type);
+          return v;
+        }
+        return v + 1;
+      });
+    }, 68);
+    return () => clearInterval(type);
+  }, [reduced]);
+
+  // Every character stays mounted and is revealed by opacity alone, so the line
+  // never re-measures and the centring never jitters.
+  const chars = (word: string, offset: number) =>
+    [...word].map((ch, i) => (
+      <Text key={i} style={{ opacity: count > offset + i ? 1 : 0 }}>
+        {ch}
+      </Text>
+    ));
+
+  return (
+    <Text style={styles.title}>
+      <Text style={styles.titleThin}>{chars(LINE1, 0)}</Text>
+      <Text> </Text>
+      <Text style={styles.titleBold}>{chars(LINE2, LINE1.length + 1)}</Text>
+    </Text>
   );
+});
 
-  // Typewriter
-  const [count, setCount] = useState(0);
+export default function Welcome() {
+  const reduced = useReducedMotion();
+
+  // Single shared driver (0 → 1, looping) powers the conveyor, on the UI thread.
+  const t = useSharedValue(0);
+  const sub = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduced) return;
+    t.set(
+      withRepeat(
+        withTiming(1, { duration: LOOP_MS, easing: Easing.linear }),
+        -1,
+        false
+      )
+    );
+    return () => cancelAnimation(t);
+  }, [reduced, t]);
+
+  useEffect(() => {
+    sub.set(withDelay(900, withTiming(1, { duration: 600 })));
+    return () => cancelAnimation(sub);
+  }, [sub]);
+
+  const subtitleStyle = useAnimatedStyle(() => ({ opacity: sub.get() }));
 
   // Social auth — handlers already live in the auth store.
   const dispatch = authStore((s) => s.dispatch);
-  const { appleSignIn, googleSignIn } = actions(dispatch);
+  const { appleSignIn } = actions(dispatch);
   const isLoading = authStore((s) => s.isLoading);
   const token = authStore((s) => s.data?.token);
-  const [pending, setPending] = useState<null | "apple" | "google">(null);
+  const [signingIn, setSigningIn] = useState(false);
   // Apple Sign In is iOS-only; hide the button where it isn't offered.
   const [appleAvailable, setAppleAvailable] = useState(Platform.OS === "ios");
 
@@ -153,62 +244,13 @@ export default function Welcome() {
   }, [token]);
 
   const handleApple = async () => {
-    setPending("apple");
+    setSigningIn(true);
     try {
       await appleSignIn();
     } finally {
-      setPending(null);
+      setSigningIn(false);
     }
   };
-
-  const handleGoogle = async () => {
-    setPending("google");
-    try {
-      await googleSignIn();
-    } finally {
-      setPending(null);
-    }
-  };
-
-  useEffect(() => {
-    const type = setInterval(() => {
-      setCount((v) => {
-        if (v >= TOTAL) {
-          clearInterval(type);
-          return v;
-        }
-        return v + 1;
-      });
-    }, 68);
-    return () => clearInterval(type);
-  }, []);
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(t, {
-        toValue: 1,
-        duration: LOOP_MS,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-    loop.start();
-    Animated.timing(subA, {
-      toValue: 1,
-      delay: 900,
-      duration: 600,
-      useNativeDriver: true,
-    }).start();
-    return () => loop.stop();
-  }, [t, subA]);
-
-  // Render each character, reserving full width so centering never jitters.
-  const chars = (word: string, offset: number) =>
-    [...word].map((ch, i) => (
-      <Text key={i} style={{ opacity: count > offset + i ? 1 : 0 }}>
-        {ch}
-      </Text>
-    ));
 
   return (
     <SafeAreaView className="flex-1 bg-backgroundPrimary" edges={["top", "bottom"]}>
@@ -222,41 +264,24 @@ export default function Welcome() {
           </Text>
         </View>
 
-        {/* Card stage: photos ride an endless conveyor through the arc */}
+        {/* Card stage: photos ride an endless conveyor through the arc.
+            Under Reduce Motion the arc simply sits still, filled. */}
         <View style={styles.arcStage} pointerEvents="none">
-          {cards.map((c, i) => (
-            <Animated.View
-              key={i}
-              style={[
-                styles.arcCard,
-                {
-                  transform: [
-                    { translateX: c.translateX },
-                    { translateY: c.translateY },
-                    { rotate: c.rotate },
-                    { scale: c.scale },
-                  ],
-                },
-              ]}
-            >
-              <Image
-                source={{ uri: c.uri }}
-                style={[StyleSheet.absoluteFill, { filter: VINTAGE_FILTER } as any]}
-                resizeMode="cover"
-              />
-              <View style={styles.wash} />
-            </Animated.View>
+          {WELCOME_HERO_IMAGES.map((uri, i) => (
+            <HeroCard
+              key={uri}
+              uri={uri}
+              phase={i / CARD_COUNT}
+              driver={t}
+              frozen={reduced ? SLOTS[i % SLOTS.length] : null}
+            />
           ))}
         </View>
 
         {/* Title + subtitle — below the cards */}
         <View style={styles.textBlock}>
-          <Text style={styles.title}>
-            <Text style={styles.titleThin}>{chars(LINE1, 0)}</Text>
-            <Text> </Text>
-            <Text style={styles.titleBold}>{chars(LINE2, LINE1.length + 1)}</Text>
-          </Text>
-          <Animated.Text style={[styles.subtitle, { opacity: subA }]}>
+          <TypewriterTitle />
+          <Animated.Text style={[styles.subtitle, subtitleStyle]}>
             Create an event, gather everyone's photos, and reveal the album
             together.
           </Animated.Text>
@@ -272,19 +297,19 @@ export default function Welcome() {
               title="Continue with Apple"
               variant="secondary"
               icon={<AppleIcon color={colors.textPrimary} />}
-              isLoading={pending === "apple"}
-              disabled={isLoading && pending !== "apple"}
+              isLoading={signingIn}
+              disabled={isLoading && !signingIn}
               onPress={handleApple}
             />
           )}
 
+          {/* Apple is iOS-only, so email is the account path everywhere else. */}
           <Button
-            title="Continue with Google"
+            title="Continue with email"
             variant="outline"
-            icon={<GoogleIcon />}
-            isLoading={pending === "google"}
-            disabled={isLoading && pending !== "google"}
-            onPress={handleGoogle}
+            icon={<Mail size={20} color={colors.accentDeep} strokeWidth={2.2} />}
+            disabled={isLoading}
+            onPress={() => router.push("/(auth)/sign-in")}
           />
 
           {/* Divider */}

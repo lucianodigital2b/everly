@@ -1,12 +1,14 @@
 import React, { forwardRef, useState } from 'react';
 import { TextInput, View, Text, TextInputProps, Pressable } from 'react-native';
-import { Eye, EyeOff } from 'lucide-react-native';
+import { Eye, EyeOff, X } from 'lucide-react-native';
 import { colors } from '../constants/colors';
 
 interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   containerStyle?: string;
+  /** Shows an X at the end of the field once there's something to clear. */
+  onClear?: () => void;
 }
 
 // The ref lands on the inner TextInput, so callers can drive focus() — that's
@@ -17,10 +19,13 @@ export const Input = forwardRef<TextInput, InputProps>(({
   containerStyle = '',
   className = '',
   secureTextEntry,
+  onClear,
   ...props
 }, ref) => {
   const [revealed, setRevealed] = useState(false);
   const isPassword = !!secureTextEntry;
+  // Nothing typed, nothing to clear — an always-on X is just noise.
+  const canClear = !!onClear && !!props.value;
 
   return (
     <View className={`w-full ${containerStyle}`}>
@@ -39,6 +44,18 @@ export const Input = forwardRef<TextInput, InputProps>(({
           secureTextEntry={isPassword && !revealed}
           {...props}
         />
+        {canClear && (
+          <Pressable
+            onPress={onClear}
+            // The glyph is small; the tap target has to be finger-sized.
+            hitSlop={12}
+            className="pl-3"
+            accessibilityRole="button"
+            accessibilityLabel="Clear"
+          >
+            <X size={18} color={colors.textTertiary} />
+          </Pressable>
+        )}
         {isPassword && (
           <Pressable
             onPress={() => setRevealed((v) => !v)}

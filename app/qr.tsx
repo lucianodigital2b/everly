@@ -1,13 +1,18 @@
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import {
   View,
   Text,
   Pressable,
   StyleSheet,
-  Animated,
   Clipboard,
   Dimensions,
 } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
@@ -15,6 +20,8 @@ import QRCode from "react-native-qrcode-svg";
 import { X, Copy, Check } from "lucide-react-native";
 import { colors } from "../constants/colors";
 import { joinLink } from "../constants/links";
+
+const COPY_EASE = Easing.bezier(0.23, 1, 0.32, 1);
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 // Big enough that a phone camera locks on from a comfortable distance.
@@ -26,9 +33,14 @@ export default function QrScreen() {
     name?: string;
   }>();
 
-  const [copied, setCopied] = useState(false);
-  const copiedAnim = useRef(new Animated.Value(0)).current;
+  // Both labels stay mounted and cross-fade. Swapping them on a `copied` flag
+  // meant the button was empty for the frame between the state change and the
+  // fade starting, and the way back was an instant pop.
+  const copiedAnim = useSharedValue(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const copyStyle = useAnimatedStyle(() => ({ opacity: 1 - copiedAnim.get() }));
+  const copiedStyle = useAnimatedStyle(() => ({ opacity: copiedAnim.get() }));
 
   React.useEffect(
     () => () => {
@@ -42,22 +54,14 @@ export default function QrScreen() {
   const handleCopy = () => {
     if (!link) return;
     Clipboard.setString(link);
-    setCopied(true);
 
     if (timer.current) clearTimeout(timer.current);
-    Animated.spring(copiedAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      damping: 14,
-      stiffness: 180,
-    }).start();
+    // Timing, not a spring: a spring overshoots past 1 and the clamp reads as a
+    // flash on an opacity.
+    copiedAnim.set(withTiming(1, { duration: 160, easing: COPY_EASE }));
 
     timer.current = setTimeout(() => {
-      Animated.timing(copiedAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => setCopied(false));
+      copiedAnim.set(withTiming(0, { duration: 220, easing: COPY_EASE }));
     }, 1800);
   };
 
@@ -104,17 +108,34 @@ export default function QrScreen() {
             pressed && { opacity: 0.75 },
           ]}
         >
-          {copied ? (
-            <Animated.View style={[styles.copyInner, { opacity: copiedAnim }]}>
+          <View>
+            {/* Invisible sizer: holds the wider of the two labels so the pill
+                keeps one width through the swap. */}
+            <View style={[styles.copyInner, { opacity: 0 }]} pointerEvents="none">
               <Check size={16} color={colors.accentDeep} strokeWidth={3} />
-              <Text style={styles.copyText}>Link copied</Text>
-            </Animated.View>
-          ) : (
-            <View style={styles.copyInner}>
-              <Copy size={16} color={colors.accentDeep} />
-              <Text style={styles.copyText}>Copy link</Text>
+              <Text style={styles.copyText} numberOfLines={1}>
+                Link copied
+              </Text>
             </View>
-          )}
+            <Animated.View
+              style={[styles.copyInner, styles.copyOverlay, copyStyle]}
+              pointerEvents="none"
+            >
+              <Copy size={16} color={colors.accentDeep} />
+              <Text style={styles.copyText} numberOfLines={1}>
+                Copy link
+              </Text>
+            </Animated.View>
+            <Animated.View
+              style={[styles.copyInner, styles.copyOverlay, copiedStyle]}
+              pointerEvents="none"
+            >
+              <Check size={16} color={colors.accentDeep} strokeWidth={3} />
+              <Text style={styles.copyText} numberOfLines={1}>
+                Link copied
+              </Text>
+            </Animated.View>
+          </View>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -179,6 +200,11 @@ const styles = StyleSheet.create({
     borderColor: "rgba(230,169,180,0.3)",
   },
   copyInner: { flexDirection: "row", alignItems: "center", gap: 8 },
+  // Sits exactly on top of the sizer so the two labels cross-fade in place.
+  copyOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+  },
   copyText: {
     fontFamily: "Inter-SemiBold",
     fontSize: 14,

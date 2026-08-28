@@ -31,7 +31,9 @@ export function useAppleCredentialWatch() {
       if (cancelled) return;
       const { logout } = actions(authStore.getState().dispatch);
       await logout();
-      router.replace("/(auth)/welcome");
+      // Root index re-reads the cleared token and routes to welcome; see the
+      // same handoff in settings' sign-out.
+      router.replace("/");
     };
 
     (async () => {
@@ -54,8 +56,14 @@ export function useAppleCredentialWatch() {
       }
     })();
 
-    const subscription = AppleAuthentication.addRevokeListener(() => {
-      if (authStore.getState().data?.token) signOut();
+    // Gated on the stored Apple identifier as well as the token: the listener
+    // fires for the app's Apple grant regardless of how the current session was
+    // created, and signing an email user out of their own account because
+    // someone revoked an unrelated Apple link is not the intent.
+    const subscription = AppleAuthentication.addRevokeListener(async () => {
+      if (!authStore.getState().data?.token) return;
+      if (!(await appleAuth.getUserIdentifier())) return;
+      signOut();
     });
 
     return () => {

@@ -27,6 +27,7 @@
     "@nozbe/watermelondb": "^0.28.0",
     "@react-native-async-storage/async-storage": "^3.0.1",
     "@react-native-community/datetimepicker": "8.6.0",
+    "@react-native-masked-view/masked-view": "0.3.2",
     "@shopify/react-native-skia": "2.4.18",
     "@tanstack/react-query": "^5.95.2",
     "axios": "^1.13.6",
@@ -81,6 +82,7 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-decorators": "^7.29.0",
+    "@bacons/apple-targets": "^5.0.0",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "~55.0.0",
     "cross-env": "^10.1.0",

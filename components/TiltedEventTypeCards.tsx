@@ -1,13 +1,22 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import {
-  Animated,
   ScrollView,
   Pressable,
   View,
   Text,
   Image,
   StyleSheet,
+  type ViewStyle,
 } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { colors } from "../constants/colors";
 import {
   EVENT_TYPE_IMAGE,
@@ -19,6 +28,14 @@ import {
 // card springs up straight. Pressable is the OUTER element with a stable
 // rectangular hit area so taps register reliably on Android (transforms live
 // on the inner Animated.View, visual only).
+//
+// Reanimated, not core Animated, for one reason: this list lives inside the
+// create wizard, which re-renders on every keystroke. A core Animated style
+// array is rebuilt on each of those renders and the native node re-attaches,
+// which is what made the cards flicker. A `useAnimatedStyle` object is stable
+// across renders and the motion never leaves the UI thread.
+
+const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 
 interface TiltCardProps {
   type: string;
@@ -27,72 +44,77 @@ interface TiltCardProps {
   onPress: () => void;
 }
 
-const TiltCard: React.FC<TiltCardProps> = ({ type, index, selected, onPress }) => {
-  const tilt = index % 2 === 0 ? -6 : 6;
-  const sel = useRef(new Animated.Value(selected ? 1 : 0)).current;
-  const enter = useRef(new Animated.Value(0)).current;
+const TiltCard: React.FC<TiltCardProps> = React.memo(
+  ({ type, index, selected, onPress }) => {
+    const tilt = index % 2 === 0 ? -6 : 6;
+    const reduced = useReducedMotion();
 
-  useEffect(() => {
-    Animated.spring(enter, {
-      toValue: 1,
-      useNativeDriver: true,
-      delay: index * 70,
-      damping: 14,
-      stiffness: 120,
-      mass: 0.8,
-    }).start();
-  }, [enter, index]);
+    // Split on purpose: opacity rides a timing curve (a spring overshoots past
+    // 1 and dips below 0, and the clamp reads as a flash), the transform rides
+    // a spring.
+    const fade = useSharedValue(reduced ? 1 : 0);
+    const enter = useSharedValue(reduced ? 1 : 0);
+    const sel = useSharedValue(selected ? 1 : 0);
 
-  useEffect(() => {
-    Animated.spring(sel, {
-      toValue: selected ? 1 : 0,
-      useNativeDriver: true,
-      damping: 13,
-      stiffness: 160,
-    }).start();
-  }, [sel, selected]);
+    useEffect(() => {
+      if (reduced) return;
+      // Capped: the list is long enough that an uncapped stagger would leave
+      // the last card arriving a second after the first.
+      const delay = Math.min(index, 6) * 70;
+      fade.set(
+        withDelay(delay, withTiming(1, { duration: 260, easing: EASE_OUT }))
+      );
+      enter.set(
+        withDelay(delay, withSpring(1, { duration: 500, dampingRatio: 0.75 }))
+      );
+    }, [enter, fade, index, reduced]);
 
-  const rotate = sel.interpolate({
-    inputRange: [0, 1],
-    outputRange: [`${tilt}deg`, "0deg"],
-  });
-  const translateY = Animated.add(
-    sel.interpolate({ inputRange: [0, 1], outputRange: [0, -12] }),
-    enter.interpolate({ inputRange: [0, 1], outputRange: [24, 0] })
-  );
-  const scale = Animated.multiply(
-    sel.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }),
-    enter.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] })
-  );
+    useEffect(() => {
+      sel.set(
+        withSpring(selected ? 1 : 0, { duration: 400, dampingRatio: 0.7 })
+      );
+    }, [sel, selected]);
 
-  return (
-    <Pressable onPress={onPress} style={styles.slot} hitSlop={6}>
-      <Animated.View
-        style={[
-          styles.cardAnim,
-          {
-            opacity: enter,
-            transform: [{ perspective: 800 }, { translateY }, { rotate }, { scale }],
-          },
-        ]}
-      >
-        <View style={[styles.card, selected && styles.cardSelected]}>
-          <Image
-            source={{ uri: EVENT_TYPE_IMAGE[type] }}
-            style={[StyleSheet.absoluteFill, { filter: VINTAGE_FILTER } as any]}
-            resizeMode="cover"
-          />
-          <View style={styles.wash} />
-          <View style={styles.scrim} />
-          <Text style={styles.label} numberOfLines={1}>
-            {type}
-          </Text>
-          {selected && <View style={styles.check} />}
-        </View>
-      </Animated.View>
-    </Pressable>
-  );
-};
+    const animated = useAnimatedStyle<ViewStyle>(() => {
+      const s = sel.get();
+      const e = enter.get();
+      return {
+        opacity: fade.get(),
+        transform: [
+          { perspective: 800 },
+          { translateY: s * -12 + (1 - e) * 24 },
+          { rotate: `${tilt * (1 - s)}deg` },
+          { scale: (1 + s * 0.06) * (0.9 + e * 0.1) },
+        ] as ViewStyle["transform"],
+      };
+    });
+
+    return (
+      <Pressable onPress={onPress} style={styles.slot} hitSlop={6}>
+        <Animated.View style={[styles.cardAnim, animated]}>
+          <View style={[styles.card, selected && styles.cardSelected]}>
+            <Image
+              source={{ uri: EVENT_TYPE_IMAGE[type] }}
+              style={[StyleSheet.absoluteFill, { filter: VINTAGE_FILTER } as any]}
+              resizeMode="cover"
+              // Android's default 300ms image cross-fade lands mid-entrance and
+              // reads as a flicker.
+              fadeDuration={0}
+            />
+            <View style={styles.wash} />
+            <View style={styles.scrim} />
+            <Text style={styles.label} numberOfLines={1}>
+              {type}
+            </Text>
+            {selected && <View style={styles.check} />}
+          </View>
+        </Animated.View>
+      </Pressable>
+    );
+  }
+);
+
+TiltCard.displayName = "TiltCard";
 
 interface TiltedEventTypeCardsProps {
   types: string[];

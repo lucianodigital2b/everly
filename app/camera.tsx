@@ -1,13 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Animated,
-  Easing,
   Image,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
@@ -147,9 +152,18 @@ export default function CameraScreen() {
   const done = remaining <= 0;
 
   // Shutter press feedback on the dial.
-  const dialScale = useRef(new Animated.Value(1)).current;
+  const dialScale = useSharedValue(1);
   // Full-screen white flash when a frame is taken.
-  const frameFlash = useRef(new Animated.Value(0)).current;
+  const frameFlash = useSharedValue(0);
+
+  // Both live on the UI thread. The countdown re-renders this screen once a
+  // second and every capture re-renders it again; a core Animated value in an
+  // inline style array is re-attached on each of those renders, which is what
+  // made the flash and the dial stutter over the live preview.
+  const dialStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: dialScale.get() }],
+  }));
+  const flashStyle = useAnimatedStyle(() => ({ opacity: frameFlash.get() }));
 
   const capture = async () => {
     if (done || busy || !cameraRef.current) return;
@@ -159,13 +173,10 @@ export default function CameraScreen() {
       if (pic?.uri) {
         setCaptured((c) => [pic.uri, ...c]);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        frameFlash.setValue(0.9);
-        Animated.timing(frameFlash, {
-          toValue: 0,
-          duration: 260,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }).start();
+        frameFlash.set(0.9);
+        frameFlash.set(
+          withTiming(0, { duration: 260, easing: Easing.bezier(0.23, 1, 0.32, 1) })
+        );
       }
     } catch {
       // ignore transient capture errors
@@ -178,14 +189,8 @@ export default function CameraScreen() {
   // does nothing (busy guard) so we don't stack timers.
   const onShutter = () => {
     if (done || busy || countdown !== null) return;
-    Animated.sequence([
-      Animated.spring(dialScale, {
-        toValue: 0.9,
-        useNativeDriver: true,
-        speed: 60,
-      }),
-      Animated.spring(dialScale, { toValue: 1, useNativeDriver: true, speed: 20 }),
-    ]).start();
+    dialScale.set(0.9);
+    dialScale.set(withSpring(1, { duration: 400, dampingRatio: 0.6 }));
 
     if (timerSecs === 0) {
       capture();
@@ -282,7 +287,8 @@ export default function CameraScreen() {
             pointerEvents="none"
             style={[
               StyleSheet.absoluteFill,
-              { backgroundColor: "#fff", opacity: frameFlash },
+              { backgroundColor: "#fff" },
+              flashStyle,
             ]}
           />
 
@@ -402,7 +408,7 @@ export default function CameraScreen() {
             </Pressable>
 
             {/* Shutter dial */}
-            <Animated.View style={{ transform: [{ scale: dialScale }] }}>
+            <Animated.View style={dialStyle}>
               <Pressable
                 onPress={onShutter}
                 disabled={done || busy || countdown !== null}

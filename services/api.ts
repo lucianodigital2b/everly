@@ -7,10 +7,30 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // Trailing slashes are stripped: uploadApi builds `${BASE_URL}/upload/...`, and a
 // double slash makes Laravel fail to match the route at all (404 before it ever
 // looks the event up).
-const BASE_URL = (
-  process.env.EXPO_PUBLIC_API_URL ||
-  "https://4e82-2804-56c-a41f-7100-b08e-ef3c-f971-472e.ngrok-free.app/everly/public/api"
-).replace(/\/+$/, "");
+//
+// The URL is hardcoded here on purpose rather than read from
+// `EXPO_PUBLIC_API_URL`. Metro inlines env vars at *bundle* time and caches the
+// result, so editing `.env.local` while the dev server is up changes nothing
+// until a restart with `--clear` — the app keeps calling the previous tunnel
+// and every failure, sign-in included, looks like a broken feature instead of a
+// stale bundle. `.env*.local` is also gitignored, so EAS builds never receive it
+// at all. Editing the constant below invalidates the module and forces a real
+// rebuild, which is the behaviour we actually want.
+
+/** Local backend (Laragon) exposed over an ngrok tunnel. Changes on every
+ *  `ngrok http` restart — paste the new URL here when it does. */
+const DEV_BASE_URL =
+  "https://73d8-2804-56c-a5da-6600-351a-eeb1-ed9d-947f.ngrok-free.app/everly/public/api";
+
+/** Production backend. Used by every release build. */
+const PROD_BASE_URL = "https://api.everly.app/api";
+
+export const API_BASE_URL = (__DEV__ ? DEV_BASE_URL : PROD_BASE_URL).replace(
+  /\/+$/,
+  ""
+);
+
+const BASE_URL = API_BASE_URL;
 
 const client = axios.create({
   baseURL: BASE_URL,
@@ -21,8 +41,27 @@ const client = axios.create({
   },
 });
 
-// Attach Bearer token to every request
+// Endpoints that establish a session. A leftover token in storage — an expired
+// one, or one the server has already revoked — must never ride along on these:
+// Sanctum rejects the dead credential before the request body is ever read, so a
+// perfectly good Apple sign-in fails with a 401, and the response interceptor
+// below then wipes storage and makes it look like a random logout.
+const PUBLIC_AUTH_PATHS = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/forgot-password",
+  "/auth/apple/callback",
+];
+
+const isPublicAuthPath = (url?: string) =>
+  !!url && PUBLIC_AUTH_PATHS.some((p) => url.startsWith(p));
+
+// Attach Bearer token to every authenticated request
 client.interceptors.request.use(async (config) => {
+  if (isPublicAuthPath(config.url)) {
+    delete config.headers.Authorization;
+    return config;
+  }
   const token = await StorageHelper.getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -37,7 +76,12 @@ client.interceptors.request.use(async (config) => {
 client.interceptors.response.use(
   (res) => res,
   async (error) => {
-    if (error.response?.status === 401) {
+    // A 401 from a sign-in attempt means "those credentials are wrong", not
+    // "this session died" — clearing storage there would be wrong.
+    if (
+      error.response?.status === 401 &&
+      !isPublicAuthPath(error.config?.url)
+    ) {
       try {
         // Both halves of the session: the persisted zustand store and the
         // Bearer token the request interceptor reads. Dropping only the store
@@ -54,10 +98,8 @@ client.interceptors.response.use(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const auth = <T = any>(config: AxiosRequestConfig) => {
-  console.log(client);
-  return client.request<T>(config).then((r) => r.data);
-};
+const auth = <T = any>(config: AxiosRequestConfig) =>
+  client.request<T>(config).then((r) => r.data);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -198,13 +240,6 @@ export const authApi = {
   deleteAccount: () =>
     auth<{ message: string }>({ method: "DELETE", url: "/auth/user" }),
 
-  googleLogin: (body: { id_token: string; access_token?: string }) =>
-    auth<{ user: User; token: string }>({
-      method: "POST",
-      url: "/auth/google/callback",
-      data: body,
-    }),
-
   /**
    * `full_name` / `email` only arrive on a user's *first* authorization — every
    * later sign-in sends them as null, so the backend must persist what it gets
@@ -336,6 +371,7 @@ export const uploadApi = {
 
   /** Upload a photo as a guest (no auth — uses X-Guest-Token header) */
   store: async (token: string, formData: FormData, guestToken?: string) => {
+    const url = `${BASE_URL}/upload/${token}`;
     const headers: Record<string, string> = {
       "Content-Type": "multipart/form-data",
       Accept: "application/json",
@@ -344,7 +380,7 @@ export const uploadApi = {
     return axios
       .post<{
         guest_token: string;
-      }>(`${BASE_URL}/upload/${token}`, formData, { headers })
+      }>(url, formData, { headers })
       .then((r) => r.data);
   },
 };

@@ -1,0 +1,7 @@
+{
+  "name": "everly-live-activity",
+  "version": "1.0.0",
+  "description": "ActivityKit Live Activity for a running Everly event",
+  "main": "index.ts",
+  "private": true
+}
