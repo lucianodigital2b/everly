@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  BackHandler,
   Image,
   Pressable,
   StyleSheet,
@@ -32,11 +33,11 @@ import {
 import { Button } from "../components/Button";
 import { colors } from "../constants/colors";
 import { captureStore } from "../zustand/capture-store";
-
-const finishWith = (photos: string[]) => {
-  if (photos.length) captureStore.getState().setPhotos([...photos].reverse());
-  router.back();
-};
+import {
+  enqueueUpload,
+  startUploadSession,
+} from "../zustand/capture-store/uploader";
+import { authStore } from "../zustand/auth-store";
 
 // ── Control cycles ──────────────────────────────────────────────────────────
 type Flash = "off" | "on" | "auto";
@@ -84,31 +85,6 @@ const Bracket = ({
   );
 };
 
-// A bracketed readout tile in the top status strip. Display-only — it mirrors
-// the state the buttons below actually drive.
-const Readout = ({
-  icon,
-  value,
-  active,
-}: {
-  icon: React.ReactNode;
-  value: string;
-  active?: boolean;
-}) => (
-  <View style={styles.readout}>
-    <Bracket corner="tl" size={9} thickness={1.5} color="rgba(255,255,255,0.3)" />
-    <Bracket corner="tr" size={9} thickness={1.5} color="rgba(255,255,255,0.3)" />
-    <Bracket corner="bl" size={9} thickness={1.5} color="rgba(255,255,255,0.3)" />
-    <Bracket corner="br" size={9} thickness={1.5} color="rgba(255,255,255,0.3)" />
-    <View style={{ height: 22, justifyContent: "center" }}>{icon}</View>
-    <Text
-      style={[styles.readoutValue, active && { color: colors.accentBright }]}
-    >
-      {value}
-    </Text>
-  </View>
-);
-
 // A round, brushed-metal control button.
 const MetalButton = ({
   children,
@@ -151,6 +127,77 @@ export default function CameraScreen() {
   const remaining = total - captured.length;
   const done = remaining <= 0;
 
+  // ── Handing the roll back ───────────────────────────────────────────
+  //
+  // The captures only exist on this screen — once it pops, the URIs are gone
+  // and nothing can recover them. So *every* way out delivers them: the Done
+  // chip, the thumbnail, and the X, which used to `router.back()` and silently
+  // throw a full roll away. The left-edge swipe is disabled for this route in
+  // `app/_layout.tsx` for the same reason; Android's back button is caught
+  // below. Delivering an empty roll is a no-op, so backing out before shooting
+  // anything still behaves like a cancel.
+  //
+  // When the camera is opened with an upload target set (the create wizard,
+  // right after the event is made), each shot goes up in the background as
+  // it's taken — see `capture-store/uploader` — so "Done" has nothing left to
+  // wait for. Without a target (the guest flow, which reviews and filters each
+  // photo before sending it) the roll is handed back through the store exactly
+  // as before.
+  const uploads = captureStore((s) => s.uploads);
+
+  // Latched once, on mount, rather than tracked from the store. Two things
+  // would otherwise restart the session in the middle of a roll — discarding
+  // its `guest_token` and its progress: a late auth hydration changing the
+  // name, and the wizard clearing the handoff the moment it navigates away,
+  // which would also flip this screen back into hand-the-roll-back mode during
+  // teardown and leave a duplicate roll in the store.
+  const uploadsLiveRef = useRef(false);
+  useEffect(() => {
+    const target = captureStore.getState().target;
+    if (!target) return;
+    uploadsLiveRef.current = true;
+    startUploadSession({
+      token: target.token,
+      eventId: target.eventId,
+      name: authStore.getState().data?.user?.name,
+    });
+  }, []);
+
+  // Mirrored during render rather than in an effect: `deliver` runs from a tap
+  // and from teardown, and must never see a roll one commit out of date.
+  const capturedRef = useRef<string[]>(captured);
+  capturedRef.current = captured;
+
+  const delivered = useRef(false);
+  const deliver = useCallback(() => {
+    if (delivered.current) return;
+    delivered.current = true;
+    // Already uploaded, or still uploading. Handing the URIs back as well
+    // would make the wizard queue the very same roll a second time.
+    if (uploadsLiveRef.current) return;
+    const photos = capturedRef.current;
+    // Shots are prepended as they're taken, so reverse back to the order they
+    // were actually shot in.
+    if (photos.length) captureStore.getState().setPhotos([...photos].reverse());
+  }, []);
+
+  const finish = useCallback(() => {
+    deliver();
+    router.back();
+  }, [deliver]);
+
+  // Last resort: any teardown that didn't go through `finish` still hands the
+  // roll over rather than dropping it.
+  useEffect(() => deliver, [deliver]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      finish();
+      return true;
+    });
+    return () => sub.remove();
+  }, [finish]);
+
   // Shutter press feedback on the dial.
   const dialScale = useSharedValue(1);
   // Full-screen white flash when a frame is taken.
@@ -172,6 +219,9 @@ export default function CameraScreen() {
       const pic = await cameraRef.current.takePictureAsync({ quality: 0.9 });
       if (pic?.uri) {
         setCaptured((c) => [pic.uri, ...c]);
+        // Straight onto the wire. The shutter stays responsive because the
+        // queue drains on its own — nothing here is awaited.
+        if (uploadsLiveRef.current) enqueueUpload(pic.uri);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         frameFlash.set(0.9);
         frameFlash.set(
@@ -226,53 +276,20 @@ export default function CameraScreen() {
         </Text>
         <View style={{ width: "100%", marginTop: 20, gap: 10 }}>
           <Button title="Allow camera" onPress={requestPermission} />
-          <Button title="Not now" variant="outline" onPress={() => router.back()} />
+          <Button title="Not now" variant="outline" onPress={finish} />
         </View>
       </SafeAreaView>
     );
   }
 
   const lastShot = captured[0];
+  const uploadingCount = uploads.filter((u) => u.status === "pending").length;
 
   return (
     <View style={styles.black}>
       <StatusBar style="light" />
 
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-        {/* ── Top status strip ── */}
-        <View style={styles.topStrip}>
-          <Readout
-            icon={
-              flash === "off" ? (
-                <ZapOff size={16} color="#fff" strokeWidth={2} />
-              ) : (
-                <Zap
-                  size={16}
-                  color={colors.accentBright}
-                  strokeWidth={2}
-                  fill={colors.accentBright}
-                />
-              )
-            }
-            value={FLASH_LABEL[flash]}
-            active={flash !== "off"}
-          />
-          <Readout
-            icon={<Timer size={16} color="#fff" strokeWidth={2} />}
-            value={timerSecs === 0 ? "Off" : `${timerSecs}s`}
-            active={timerSecs !== 0}
-          />
-          <Readout
-            icon={<Grid3x3 size={16} color="#fff" strokeWidth={2} />}
-            value={grid ? "On" : "Off"}
-            active={grid}
-          />
-          <Readout
-            icon={<RefreshCw size={16} color="#fff" strokeWidth={2} />}
-            value={facing === "back" ? "Rear" : "Front"}
-          />
-        </View>
-
         {/* ── Viewfinder ── */}
         <View style={styles.finder}>
           <CameraView
@@ -323,14 +340,47 @@ export default function CameraScreen() {
             </View>
           )}
 
-          {/* Close */}
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={10}
-            style={styles.closeBtn}
-          >
-            <X size={20} color="#fff" strokeWidth={2.2} />
-          </Pressable>
+          {/* Close, and a status pill that appears only for non-default modes —
+              everything else is already legible from the buttons below. */}
+          <View style={styles.finderTop} pointerEvents="box-none">
+            <Pressable onPress={finish} hitSlop={10} style={styles.closeBtn}>
+              <X size={20} color="#fff" strokeWidth={2.2} />
+            </Pressable>
+
+            {(flash !== "off" || timerSecs !== 0) && (
+              <View style={styles.statusPill} pointerEvents="none">
+                {flash !== "off" && (
+                  <>
+                    <Zap
+                      size={13}
+                      color={colors.accentBright}
+                      strokeWidth={2}
+                      fill={colors.accentBright}
+                    />
+                    <Text style={styles.statusText}>{FLASH_LABEL[flash]}</Text>
+                  </>
+                )}
+                {flash !== "off" && timerSecs !== 0 && (
+                  <View style={styles.statusDivider} />
+                )}
+                {timerSecs !== 0 && (
+                  <>
+                    <Timer size={13} color={colors.accentBright} strokeWidth={2} />
+                    <Text style={styles.statusText}>{timerSecs}s</Text>
+                  </>
+                )}
+              </View>
+            )}
+          </View>
+
+          {uploadingCount > 0 && (
+            <View style={styles.uploadPill} pointerEvents="none">
+              <View style={styles.uploadDot} />
+              <Text style={styles.uploadText}>
+                Uploading {uploadingCount}
+              </Text>
+            </View>
+          )}
 
           {done && (
             <View style={styles.noShots}>
@@ -394,7 +444,7 @@ export default function CameraScreen() {
           <View style={styles.deck}>
             {/* Done / finish */}
             <Pressable
-              onPress={() => finishWith(captured)}
+              onPress={finish}
               disabled={captured.length === 0}
               style={[
                 styles.doneChip,
@@ -434,7 +484,7 @@ export default function CameraScreen() {
 
             {/* Last-shot thumbnail / counter */}
             <Pressable
-              onPress={() => captured.length > 0 && finishWith(captured)}
+              onPress={() => captured.length > 0 && finish()}
               style={styles.thumbSlot}
             >
               {lastShot ? (
@@ -481,40 +531,20 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // Top strip
-  topStrip: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 12,
-  },
-  readout: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 3,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-  },
-  readoutValue: {
-    fontFamily: "Inter-SemiBold",
-    fontSize: 12,
-    color: "rgba(255,255,255,0.85)",
-  },
-
   // Viewfinder
   finder: {
     flex: 1,
-    borderRadius: 14,
+    borderRadius: 28,
     overflow: "hidden",
     marginHorizontal: 12,
+    marginTop: 10,
     backgroundColor: "#000",
   },
+  // Pushed clear of the corner radius so the L brackets read as a frame
+  // inside the curve rather than colliding with it.
   finderFrame: {
     ...StyleSheet.absoluteFillObject,
-    margin: 12,
+    margin: 18,
   },
   reticle: {
     position: "absolute",
@@ -564,16 +594,66 @@ const styles = StyleSheet.create({
     fontSize: 96,
     color: "#fff",
   },
-  closeBtn: {
+  finderTop: {
     position: "absolute",
-    top: 14,
-    left: 14,
+    top: 16,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  closeBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: "rgba(0,0,0,0.35)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    height: 28,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  statusText: {
+    fontFamily: "Inter-SemiBold",
+    fontSize: 12,
+    color: "#fff",
+  },
+  statusDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 12,
+    marginHorizontal: 2,
+    backgroundColor: "rgba(255,255,255,0.3)",
+  },
+  // Sits opposite the "all shots used" pill so the two never collide.
+  uploadPill: {
+    position: "absolute",
+    bottom: 16,
+    left: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  uploadDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accentBright,
+  },
+  uploadText: {
+    fontFamily: "Inter-SemiBold",
+    fontSize: 12,
+    color: "#fff",
   },
   noShots: {
     position: "absolute",

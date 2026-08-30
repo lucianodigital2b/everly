@@ -38,6 +38,7 @@ export default function QrScreen() {
   // fade starting, and the way back was an instant pop.
   const copiedAnim = useSharedValue(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pressing, setPressing] = React.useState(false);
 
   const copyStyle = useAnimatedStyle(() => ({ opacity: 1 - copiedAnim.get() }));
   const copiedStyle = useAnimatedStyle(() => ({ opacity: copiedAnim.get() }));
@@ -103,10 +104,13 @@ export default function QrScreen() {
         <Pressable
           onPress={handleCopy}
           disabled={!link}
-          style={({ pressed }) => [
-            styles.copyBtn,
-            pressed && { opacity: 0.75 },
-          ]}
+          onPressIn={() => setPressing(true)}
+          onPressOut={() => setPressing(false)}
+          // Object styles, not Pressable's function form: that form renders the
+          // button completely unstyled here (same failure as SuccessSheet's
+          // link row), which costs the pill its shape rather than just its
+          // press feedback.
+          style={[styles.copyBtn, pressing && styles.copyBtnPressed]}
         >
           <View>
             {/* Invisible sizer: holds the wider of the two labels so the pill
@@ -199,6 +203,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(230,169,180,0.3)",
   },
+  copyBtnPressed: { opacity: 0.75 },
   copyInner: { flexDirection: "row", alignItems: "center", gap: 8 },
   // Sits exactly on top of the sizer so the two labels cross-fade in place.
   copyOverlay: {

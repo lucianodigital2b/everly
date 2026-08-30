@@ -33,10 +33,19 @@ import { eventCover, VINTAGE_FILTER } from "../../constants/sampleImages";
 // memory print is a fraction of an active card on purpose.
 
 const SCREEN_PAD = 24; // ScreenWrapper's px-6, undone so carousels bleed edge to edge
-const CARD_GAP = 14;
+// Wide enough that one card's deck cannot touch its neighbour's — the backing
+// cards throw ~22px past the cover on each side.
+const CARD_GAP = 46;
 const CARD_ASPECT = 0.72; // width ÷ height of an active card
 const PRINT_W = 76;
 const PRINT_H = 100;
+// The deck behind an active card. Each backing card is inset, then rotated —
+// the inset eats part of the rotation's overhang, and what survives is the
+// edge that shows past the cover. Front of the list sits furthest back.
+const DECK = [
+  { rotate: -9, inset: 7 },
+  { rotate: 6, inset: 3 },
+];
 
 const formatDate = (dateStr: string | null): string => {
   if (!dateStr) return "No date set";
@@ -76,7 +85,62 @@ const isPast = (e: Event): boolean => {
 const eventTime = (e: Event): number =>
   new Date(e.event_date ?? e.expires_at ?? e.created_at).getTime();
 
-// ─── Active: 9:16 hero card ─────────────────────────────────────────────────
+// A deck of photos stacked behind the active card — the event's own shots,
+// showing only a sliver of corner past the cover. Decorative: not tappable,
+// and an event with nothing uploaded still gets blank backing cards so the
+// stack never pops in mid-scroll.
+const CardDeck = ({
+  eventId,
+  width,
+  height,
+}: {
+  eventId: number;
+  width: number;
+  height: number;
+}) => {
+  const { data } = useQuery({
+    queryKey: ["event-photos", eventId],
+    queryFn: () => eventsApi.photos(eventId),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const photos = data?.photos ?? [];
+
+  return (
+    <>
+      {DECK.map((layer, i) => {
+        const photo: EventPhoto | undefined = photos[DECK.length - 1 - i];
+        return (
+          <View
+            key={layer.rotate}
+            pointerEvents="none"
+            style={[
+              styles.deckCard,
+              {
+                width: width - layer.inset * 2,
+                height: height - layer.inset * 2,
+                left: layer.inset,
+                top: layer.inset,
+                transform: [{ rotate: `${layer.rotate}deg` }],
+              },
+            ]}
+          >
+            {photo && (
+              <Image
+                source={{ uri: photo.thumbnail_url ?? photo.url }}
+                style={[StyleSheet.absoluteFill, { filter: VINTAGE_FILTER } as any]}
+                resizeMode="cover"
+                fadeDuration={0}
+              />
+            )}
+          </View>
+        );
+      })}
+    </>
+  );
+};
+
+// ─── Active: hero card over its deck ──────────────────────────────────
 const ActiveCard = ({
   event,
   width,
@@ -91,51 +155,54 @@ const ActiveCard = ({
   const left = timeLeft(event.expires_at);
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.92}
-      onPress={onPress}
-      style={[styles.card, { width, height }]}
-    >
-      <Image
-        source={{ uri: eventCover(event.cover_image_url) }}
-        style={StyleSheet.absoluteFill}
-        resizeMode="cover"
-      />
-      <LinearGradient
-        colors={["rgba(20,12,8,0.02)", "rgba(20,12,8,0.74)"]}
-        locations={[0.42, 1]}
-        style={StyleSheet.absoluteFill}
-      />
+    <View style={{ width, height }}>
+      <CardDeck eventId={event.id} width={width} height={height} />
+      <TouchableOpacity
+        activeOpacity={0.92}
+        onPress={onPress}
+        style={[styles.card, { width, height }]}
+      >
+        <Image
+          source={{ uri: eventCover(event.cover_image_url) }}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
+        <LinearGradient
+          colors={["rgba(20,12,8,0.02)", "rgba(20,12,8,0.74)"]}
+          locations={[0.42, 1]}
+          style={StyleSheet.absoluteFill}
+        />
 
-      {left && (
-        <GlassSurface
-          tint="dark"
-          shape="capsule"
-          cornerRadius={999}
-          style={styles.cardPill}
-        >
-          <Clock size={12} color="#fff" strokeWidth={2.2} />
-          <Text style={styles.cardPillText}>{left}</Text>
-        </GlassSurface>
-      )}
+        {left && (
+          <GlassSurface
+            tint="dark"
+            shape="capsule"
+            cornerRadius={999}
+            style={styles.cardPill}
+          >
+            <Clock size={12} color="#fff" strokeWidth={2.2} />
+            <Text style={styles.cardPillText}>{left}</Text>
+          </GlassSurface>
+        )}
 
-      <View style={styles.cardBody}>
-        <Text style={styles.cardTitle} numberOfLines={2}>
-          {event.name}
-        </Text>
-        {/* Icon + count only — no labels. */}
-        <View style={styles.statRow}>
-          <View style={styles.stat}>
-            <Users size={13} color="rgba(255,255,255,0.9)" strokeWidth={2.2} />
-            <Text style={styles.statText}>{event.participant_limit ?? "∞"}</Text>
-          </View>
-          <View style={styles.stat}>
-            <ImagesIcon size={13} color="rgba(255,255,255,0.9)" strokeWidth={2.2} />
-            <Text style={styles.statText}>{event.shot_limit ?? "∞"}</Text>
+        <View style={styles.cardBody}>
+          <Text style={styles.cardTitle} numberOfLines={2}>
+            {event.name}
+          </Text>
+          {/* Icon + count only — no labels. */}
+          <View style={styles.statRow}>
+            <View style={styles.stat}>
+              <Users size={13} color="rgba(255,255,255,0.9)" strokeWidth={2.2} />
+              <Text style={styles.statText}>{event.participant_limit ?? "∞"}</Text>
+            </View>
+            <View style={styles.stat}>
+              <ImagesIcon size={13} color="rgba(255,255,255,0.9)" strokeWidth={2.2} />
+              <Text style={styles.statText}>{event.shot_limit ?? "∞"}</Text>
+            </View>
           </View>
         </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
   );
 };
 
@@ -380,22 +447,25 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   greetThin: {
-    fontFamily: "Inter-ExtraLight",
+    fontFamily: "Lora-Medium",
     fontSize: 40,
-    lineHeight: 42,
-    letterSpacing: -1.5,
+    lineHeight: 46,
+    letterSpacing: -0.8,
     color: colors.textPrimary,
   },
   greetBold: {
-    fontFamily: "Inter-ExtraBold",
+    fontFamily: "Lora-Bold",
     fontSize: 40,
-    lineHeight: 44,
-    letterSpacing: -1.5,
+    lineHeight: 48,
+    letterSpacing: -0.8,
     color: colors.textPrimary,
   },
+  // Amiri's Latin is a companion to its Arabic and sets small for its point
+  // size, so every description runs ~2px larger than the Inter it replaces.
   greetSub: {
-    fontFamily: "Inter-Regular",
-    fontSize: 15,
+    fontFamily: "Amiri-Regular",
+    fontSize: 17,
+    lineHeight: 24,
     color: colors.textSecondary,
     marginTop: 10,
   },
@@ -450,10 +520,10 @@ const styles = StyleSheet.create({
     bottom: 18,
   },
   cardTitle: {
-    fontFamily: "Inter-ExtraBold",
-    fontSize: 22,
-    lineHeight: 26,
-    letterSpacing: -0.7,
+    fontFamily: "Lora-Bold",
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.3,
     color: "#fff",
   },
   statRow: {
@@ -481,14 +551,16 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   memoryTitle: {
-    fontFamily: "Inter-Bold",
-    fontSize: 18,
-    letterSpacing: -0.4,
+    fontFamily: "Lora-Bold",
+    fontSize: 20,
+    lineHeight: 26,
+    letterSpacing: -0.2,
     color: colors.textPrimary,
   },
   memoryDate: {
-    fontFamily: "Inter-Regular",
-    fontSize: 13,
+    fontFamily: "Amiri-Regular",
+    fontSize: 15,
+    lineHeight: 20,
     color: colors.textSecondary,
     marginTop: 2,
   },
@@ -515,9 +587,22 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   printSkeleton: { borderColor: colors.border },
+  deckCard: {
+    position: "absolute",
+    borderRadius: 26,
+    overflow: "hidden",
+    backgroundColor: colors.surface2,
+    borderWidth: 2,
+    borderColor: colors.white,
+    shadowColor: "#3A2E33",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 3,
+  },
   stripEmpty: {
-    fontFamily: "Inter-Regular",
-    fontSize: 13,
+    fontFamily: "Amiri-Regular",
+    fontSize: 15,
     color: colors.textTertiary,
     marginTop: 12,
   },

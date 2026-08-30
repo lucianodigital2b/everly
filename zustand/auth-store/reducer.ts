@@ -3,25 +3,6 @@ import { initialState } from './initialState';
 
 const reducer = (state: any, { type, payload }: any) => {
   switch (type) {
-    case Types.AUTH_CHANGE_FIELDS:
-
-      console.log(payload);
-      
-      return {
-        ...state,
-        fields: {
-          ...state.fields,
-          [payload.key]: payload.value
-        }
-      }
-    case Types.AUTH_CHANGE_REGISTER_FIELDS:
-      return {
-        ...state,
-        registerFields: {
-          ...state.registerFields,
-          [payload.key]: payload.value
-        }
-      }
     case Types.AUTH_LOGIN_REQUEST:
       return {
         ...state,
@@ -42,25 +23,6 @@ const reducer = (state: any, { type, payload }: any) => {
         isLoading: false,
       }
 
-    case Types.AUTH_REGISTER_REQUEST:
-      return {
-        ...state,
-        isCreating: true,
-      }
-
-    case Types.AUTH_REGISTER_FULFILLED:
-      return {
-        ...state,
-        isCreating: false,
-        data: payload,
-        errors: null
-      }
-
-    case Types.AUTH_REGISTER_REJECTED:
-      return {
-        ...state,
-        isCreating: false,
-      }
     case Types.AUTH_SET_ERRORS:
       return {
         ...state,
@@ -90,8 +52,6 @@ const reducer = (state: any, { type, payload }: any) => {
     case 'RESET_STATE':
       return initialState;
   }
-
-
 }
 
 export default reducer;

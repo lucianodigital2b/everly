@@ -16,7 +16,9 @@
     "prebuild:prod": "expo prebuild --clean"
   },
   "dependencies": {
+    "@expo-google-fonts/amiri": "^0.4.1",
     "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/lora": "^0.4.2",
     "@expo-google-fonts/outfit": "^0.4.3",
     "@expo-google-fonts/playfair-display": "^0.4.2",
     "@expo-google-fonts/poppins": "^0.4.1",

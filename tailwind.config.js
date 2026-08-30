@@ -23,11 +23,12 @@ module.exports = {
         success: "#7FA88C",
       },
       fontFamily: {
-        // Legacy keys repointed to Inter so existing className usages migrate as-is.
-        // ("serif" no longer means serif — it's the heading weight now.)
-        serif: ["Inter-Bold"],
-        serifBold: ["Inter-ExtraBold"],
-        sans: ["Inter-Regular"],
+        // Editorial pair on trial: Lora titles, Amiri descriptions. The legacy
+        // "serif" keys mean serif again, so every DisplayText/TitleText in the
+        // app picks Lora up with no edits; "sans" carries the body copy.
+        serif: ["Lora-SemiBold"],
+        serifBold: ["Lora-Bold"],
+        sans: ["Amiri-Regular"],
         sansLight: ["Inter-ExtraLight"],
         sansMedium: ["Inter-Medium"],
         sansSemiBold: ["Inter-SemiBold"],
@@ -39,6 +40,14 @@ module.exports = {
         interSemibold: ["Inter-SemiBold"],
         interBold: ["Inter-Bold"],
         interExtrabold: ["Inter-ExtraBold"],
+        // Sacramento — the wordmark hand only.
+        script: ["Script"],
+        // Lora / Amiri, addressable directly.
+        loraMedium: ["Lora-Medium"],
+        loraSemibold: ["Lora-SemiBold"],
+        loraBold: ["Lora-Bold"],
+        amiri: ["Amiri-Regular"],
+        amiriBold: ["Amiri-Bold"],
       },
     },
   },

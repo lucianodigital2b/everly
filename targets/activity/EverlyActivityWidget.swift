@@ -84,9 +84,9 @@ private struct LockScreenView: View {
       HStack(alignment: .center) {
         Text("everly")
           .font(EverlyFont.wordmark(26))
-          .foregroundStyle(Everly.accentDeep)
+          .foregroundStyle(Everly.accent)
         Spacer(minLength: 8)
-        PhotoPill(count: context.state.photoCount, fill: Everly.well, tint: Everly.ink)
+        PhotoPill(count: context.state.photoCount, fill: Everly.nightWell, tint: .white)
       }
 
       HStack(alignment: .bottom, spacing: 12) {
@@ -94,9 +94,9 @@ private struct LockScreenView: View {
           Text(context.attributes.eventName)
             .font(EverlyFont.extraBold(20))
             .tracking(-0.5)
-            .foregroundStyle(Everly.ink)
+            .foregroundStyle(.white)
             .lineLimit(1)
-          Countdown(endsAt: context.state.endsAt, tint: Everly.inkSoft)
+          Countdown(endsAt: context.state.endsAt, tint: Everly.nightSoft)
         }
         Spacer(minLength: 8)
         CaptureButton(url: URL(string: context.attributes.captureURL))
@@ -104,6 +104,11 @@ private struct LockScreenView: View {
     }
     .padding(.horizontal, 18)
     .padding(.vertical, 16)
+    // The tint paints the card, but the system draws its own chrome (the
+    // app-name row, the permission prompt) on the same ground, so the whole
+    // container has to be told it is dark — otherwise that chrome keeps
+    // rendering dark-on-dark.
+    .environment(\.colorScheme, .dark)
   }
 }
 
@@ -114,8 +119,8 @@ struct EverlyEventActivity: Widget {
     ActivityConfiguration(for: EverlyEventAttributes.self) { context in
       LockScreenView(context: context)
         .widgetURL(URL(string: context.attributes.eventURL))
-        .activityBackgroundTint(Everly.ground)
-        .activitySystemActionForegroundColor(Everly.ink)
+        .activityBackgroundTint(Everly.night)
+        .activitySystemActionForegroundColor(Everly.accent)
     } dynamicIsland: { context in
       DynamicIsland {
         DynamicIslandExpandedRegion(.leading) {

@@ -105,7 +105,7 @@ Store product IDs are `com.get.everly.guests.<n>`. The `price` field is a displa
 ### API
 
 `services/api.ts` — real implementation of the CasamentoApp API (Laravel Sanctum, Bearer token). Exports:
-- `authApi` — register, login, logout, user
+- `authApi` — appleLogin, logout, user, deleteAccount
 - `plansApi` — index
 - `eventsApi` — CRUD
 - `checkoutApi` — PIX checkout + payment status
@@ -115,11 +115,13 @@ Store product IDs are `com.get.everly.guests.<n>`. The `price` field is a displa
 
 ### Auth
 
-Sign-in lives in `zustand/auth-store/actions.ts` (`login`, `register`, `appleSignIn`); the buttons are on `app/(auth)/welcome.tsx`. Every path ends the same way: save the token via `StorageHelper`, dispatch `AUTH_LOGIN_FULFILLED`, then `appsFlyerService.setUserId(user.id)` so AppsFlyer/RevenueCat/backend share one id.
+Sign-in lives in `zustand/auth-store/actions.ts` (`appleSignIn`); the buttons are on `app/(auth)/welcome.tsx`. It ends by saving the token via `StorageHelper`, dispatching `AUTH_LOGIN_FULFILLED`, then `appsFlyerService.setUserId(user.id)` so AppsFlyer/RevenueCat/backend share one id.
 
-**There is no Google sign-in.** It was removed — the app offers Sign in with Apple (iOS) and email/password (`app/(auth)/sign-in.tsx`, reachable from welcome), plus a no-account guest path via QR. `POST /auth/google/callback` still exists server-side but nothing calls it; don't re-add a client for it without a decision to bring the provider back.
+**Sign in with Apple is the only account path, and QR is the only other way in.** Email/password and Google were both removed: there is no sign-in, sign-up or forgot-password screen, `authApi` has no `login`/`register`/`forgotPassword`, and the auth store has no `fields`/`registerFields` or `login`/`register` actions. `POST /auth/login`, `/auth/register` and `/auth/google/callback` still exist server-side but nothing calls them; don't re-add a client for any of them without a decision to bring that path back.
 
-**The session endpoints go out unauthenticated.** `PUBLIC_AUTH_PATHS` in `services/api.ts` strips the `Authorization` header from `/auth/login`, `/auth/register`, `/auth/forgot-password` and `/auth/apple/callback`, and exempts them from the 401 interceptor. A stale token left in storage would otherwise make Sanctum reject a perfectly good sign-in *and* trigger the session wipe, which reads as a random logout.
+A consequence worth knowing: **off iOS there is no way to create an account.** `welcome.tsx` hides the Apple button (and the `or` divider with it) where Apple sign-in isn't available, leaving only "Scan a QR to join" — Android users can join an event as a guest but can't host one. Bringing hosting back to Android means adding a provider, not restoring email.
+
+**The session endpoint goes out unauthenticated.** `PUBLIC_AUTH_PATHS` in `services/api.ts` strips the `Authorization` header from `/auth/apple/callback` and exempts it from the 401 interceptor. A stale token left in storage would otherwise make Sanctum reject a perfectly good sign-in *and* trigger the session wipe, which reads as a random logout.
 
 **Sign in with Apple** (`usesAppleSignIn` + the `expo-apple-authentication` plugin in `app.json`; iOS-only, the button hides elsewhere). Three things are easy to get wrong:
 

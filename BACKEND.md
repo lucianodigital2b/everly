@@ -110,6 +110,7 @@ Represents an anonymous uploader tied to one event via the QR token.
 | id          | bigint PK |                                                |
 | event_id    | FK events |                                                |
 | guest_token | string    | unique; returned to the client, resent as header |
+| name        | string?   | credit shown on their photos; from `guest_name` |
 | upload_count| int       | to enforce `shot_limit` per guest              |
 | created_at  | timestamp |                                                |
 
@@ -214,7 +215,22 @@ Without them sign-in still works — only revocation is lost.
 ```
 Only `name` and `plan_id` are required; the rest are optional.
 
+**Covers go up as a file, not a URL.** Stock covers ship inside the app bundle
+and a picked photo lives on the device, so neither has a URL to hand over. When
+the user sets a cover, the request goes out as `multipart/form-data` with the
+image as a **`cover_image`** file part alongside the other fields; the server
+stores it on the media disk and puts the resulting absolute URL on
+`cover_image_url`. `cover_image_url` itself is only sent for a cover that is
+already hosted.
+
+A multipart body does not parse on a real `PATCH` — PHP populates neither
+`$_POST` nor `$_FILES` for one — so an update that carries a cover is sent as
+`POST /events/{id}` with a `_method=PATCH` part. Without a cover it stays a
+plain JSON `PATCH`.
+
 **`EventUpdateBody`** = any subset of `EventStoreBody` plus `public: boolean`.
+An omitted key leaves the stored value alone, so clearing a nullable field
+(`shot_limit`, say) means sending an explicit `null`, not omitting it.
 
 **`Event`** (full object, always includes the nested `plan`)
 ```json
@@ -271,10 +287,22 @@ Only `name` and `plan_id` are required; the rest are optional.
   "duration_seconds": null,
   "width": 900,
   "height": 675,
+  "guest_name": "Marina",
   "created_at": "2026-09-13T00:00:00Z"
 }
 ```
 > The app only renders gallery photos when `event.is_revealed === true`.
+
+> `guest_name` is the uploader's own name, taken from the nullable `name` column
+> on `guests` and filled from the `guest_name` part the client sends on every
+> upload (see §2.5). It is `null` when that guest never named themselves, and the
+> tile then reads simply "Guest". A nested
+> `"guest": { "id": 4, "name": "Marina" }` is read too, if that's ever easier.
+>
+> The gallery is a two-column masonry that credits each photo with its uploader
+> in the bottom-left corner, and `width`/`height` decide the tile's proportions —
+> send them whenever you have them, or every tile falls back to one default
+> ratio.
 
 ### 2.4 Checkout  (PIX)
 
@@ -316,6 +344,12 @@ create).
 the server issues a `guest_token`; the client stores it and resends it as the
 `X-Guest-Token` header on subsequent uploads so the same guest is tracked (and
 `shot_limit` enforced). Response: `{ "guest_token": "..." }`.
+
+An optional **`guest_name`** text part rides along (≤40 chars) — the credit the
+gallery prints on the photo. It is sent on *every* upload, not just the first:
+the guest can name themselves after already sending a shot, so store the latest
+non-empty value on the guest row rather than only writing it once. It is absent
+when the guest never filled the field in.
 
 > ⚠️ The client currently appends the file under the field name **`photo`**
 > (`app/upload/[token].tsx`). Match that field name, or tell me to change it.

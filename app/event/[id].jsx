@@ -22,6 +22,7 @@ import { colors } from "../../constants/colors";
 import { eventCover } from "../../constants/sampleImages";
 import { eventsApi } from "../../services/api";
 import { useEventLiveActivity } from "../../hooks/useEventLiveActivity";
+import { EventSettingsSheet } from "../../components/EventSettingsSheet";
 import {
   QrCode,
   Clock,
@@ -29,18 +30,36 @@ import {
   Play,
   Images,
   ArrowUpRight,
+  Settings2,
 } from "lucide-react-native";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const H_PAD = 24; // matches ScreenWrapper px-6
 const GAP = 6;
-// Bento layout: a wide/tall feature tile beside two stacked small tiles.
+// Two-column masonry: each tile keeps its own aspect ratio, and every photo
+// lands in whichever column is currently shorter.
 const CONTENT_W = SCREEN_WIDTH - H_PAD * 2;
-const BENTO_BIG_W = Math.round((CONTENT_W - GAP) * 0.6);
-const BENTO_SMALL_W = CONTENT_W - GAP - BENTO_BIG_W;
-const BENTO_ROW_H = 232;
-const BENTO_SMALL_H = (BENTO_ROW_H - GAP) / 2;
-const BENTO_HALF_W = (CONTENT_W - GAP) / 2;
+const COL_W = (CONTENT_W - GAP) / 2;
+// Ratios are clamped so one panorama (or one very tall shot) can't leave the
+// other column stranded metres behind.
+const MIN_RATIO = 0.7;
+const MAX_RATIO = 1.6;
+const DEFAULT_RATIO = 1.25; // what a photo with no stored size gets
+// A photo carries its own dimensions when the backend stored them; anything
+// missing or extreme falls back to a portrait-ish tile.
+const tileRatio = (photo) => {
+  const w = photo.width;
+  const h = photo.height;
+  if (!w || !h) return DEFAULT_RATIO;
+  return Math.min(MAX_RATIO, Math.max(MIN_RATIO, h / w));
+};
+
+// Who took the shot. Every photo reaches an event through the guest upload
+// route — the host's own shots included — so an unnamed uploader is still
+// truthfully credited as a guest.
+const photoCredit = (photo) =>
+  photo.guest_name?.trim() || photo.guest?.name?.trim() || "Guest";
+
 const EVENT_SCREEN_OPTIONS = {
   headerShown: false,
 };
@@ -54,15 +73,6 @@ const REVEAL_TAG = {
   Instant: "REVEALS AS THEY SHOOT",
   "End of Event": "REVEALS WHEN IT ENDS",
   Scheduled: "REVEALS AT A SET TIME",
-};
-
-// Only the two states worth announcing. A not-yet-active event shows no pill —
-// "Draft" was noise on a screen the owner just created.
-const statusConfig = (event) => {
-  if (event.is_revealed) return { label: "Revealed", color: colors.accent };
-  if (event.status === "active")
-    return { label: "Live", color: colors.success };
-  return null;
 };
 
 export default function EventDetailScreen() {
@@ -88,6 +98,8 @@ export default function EventDetailScreen() {
 
   const event = data?.event;
   const photos = photosData?.photos ?? [];
+
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
 
   // Lock Screen / Dynamic Island card, but only for an event that has actually
   // started — it ends itself the moment the event closes.
@@ -154,10 +166,9 @@ export default function EventDetailScreen() {
     );
   }
 
-  const status = statusConfig(event);
-
   const PhotoTile = ({ photo, width, height }) => {
     const duration = formatDuration(photo.duration_seconds);
+    const credit = photoCredit(photo);
     return (
       <TouchableOpacity
         activeOpacity={0.9}
@@ -177,6 +188,24 @@ export default function EventDetailScreen() {
           className="w-full h-full"
           resizeMode="cover"
         />
+
+        {/* The credit sits directly on the photo, so it needs its own ground:
+            a scrim rather than a pill, which would read as a second control
+            next to the duration badge. */}
+        {credit ? (
+          <>
+            <LinearGradient
+              colors={["transparent", "rgba(12,8,6,0.62)"]}
+              locations={[0.45, 1]}
+              style={styles.creditScrim}
+              pointerEvents="none"
+            />
+            <SansSemiText style={styles.creditText} numberOfLines={1}>
+              {credit}
+            </SansSemiText>
+          </>
+        ) : null}
+
         {duration && (
           <View className="absolute bottom-2 right-2 flex-row items-center gap-1 bg-black/60 rounded-full px-2 py-1">
             <SansSemiText className="text-white text-xs">
@@ -189,68 +218,30 @@ export default function EventDetailScreen() {
     );
   };
 
-  // Lay photos into a bento: groups of 3 (feature + two stacked, alternating
-  // sides), with graceful fallbacks for 1–2 leftover photos.
-  const renderBento = (all) => {
-    const rows = [];
-    let i = 0;
-    let g = 0;
-    while (i < all.length) {
-      const remaining = all.length - i;
-      if (remaining >= 3) {
-        const a = all[i];
-        const b = all[i + 1];
-        const c = all[i + 2];
-        const bigLeft = g % 2 === 0;
-        const big = (
-          <PhotoTile photo={a} width={BENTO_BIG_W} height={BENTO_ROW_H} />
-        );
-        const stack = (
-          <View style={{ gap: GAP }}>
-            <PhotoTile photo={b} width={BENTO_SMALL_W} height={BENTO_SMALL_H} />
-            <PhotoTile photo={c} width={BENTO_SMALL_W} height={BENTO_SMALL_H} />
-          </View>
-        );
-        rows.push(
-          <View
-            key={`row-${g}`}
-            style={{ flexDirection: "row", gap: GAP, marginBottom: GAP }}
-          >
-            {bigLeft ? big : stack}
-            {bigLeft ? stack : big}
-          </View>,
-        );
-        i += 3;
-      } else if (remaining === 2) {
-        rows.push(
-          <View
-            key={`row-${g}`}
-            style={{ flexDirection: "row", gap: GAP, marginBottom: GAP }}
-          >
-            <PhotoTile
-              photo={all[i]}
-              width={BENTO_HALF_W}
-              height={BENTO_HALF_W}
-            />
-            <PhotoTile
-              photo={all[i + 1]}
-              width={BENTO_HALF_W}
-              height={BENTO_HALF_W}
-            />
-          </View>,
-        );
-        i += 2;
-      } else {
-        rows.push(
-          <View key={`row-${g}`} style={{ marginBottom: GAP }}>
-            <PhotoTile photo={all[i]} width={CONTENT_W} height={200} />
-          </View>,
-        );
-        i += 1;
-      }
-      g += 1;
-    }
-    return <View>{rows}</View>;
+  // Two columns, Pinterest-style: each photo keeps its own proportions and goes
+  // to whichever column is shorter, so the two sides stay level without any
+  // measuring pass.
+  const renderMasonry = (all) => {
+    const cols = [[], []];
+    const heights = [0, 0];
+
+    all.forEach((photo, i) => {
+      const target = heights[0] <= heights[1] ? 0 : 1;
+      const height = Math.round(COL_W * tileRatio(photo));
+      cols[target].push(
+        <View key={photo.id ?? i} style={{ marginBottom: GAP }}>
+          <PhotoTile photo={photo} width={COL_W} height={height} />
+        </View>,
+      );
+      heights[target] += height + GAP;
+    });
+
+    return (
+      <View style={{ flexDirection: "row", gap: GAP }}>
+        <View style={{ width: COL_W }}>{cols[0]}</View>
+        <View style={{ width: COL_W }}>{cols[1]}</View>
+      </View>
+    );
   };
 
   // uploadCount is the *photo* count (BACKEND.md), which the card now states —
@@ -308,12 +299,26 @@ export default function EventDetailScreen() {
             paddingHorizontal: H_PAD,
           }}
         >
-          {/* Back only — the QR lives in the action row below */}
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.75}>
-            <GlassSurface tint="dark" shape="circle" style={styles.glassButton}>
-              <ChevronLeft size={24} color="#fff" />
-            </GlassSurface>
-          </TouchableOpacity>
+          {/* Back and settings frame the hero; the QR lives in the action row
+              below, where the invite actually belongs. */}
+          <View style={styles.topRow}>
+            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.75}>
+              <GlassSurface tint="dark" shape="circle" style={styles.glassButton}>
+                <ChevronLeft size={24} color="#fff" />
+              </GlassSurface>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setSettingsOpen(true)}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Event settings"
+            >
+              <GlassSurface tint="dark" shape="circle" style={styles.glassButton}>
+                <Settings2 size={22} color="#fff" />
+              </GlassSurface>
+            </TouchableOpacity>
+          </View>
 
           {/* ── The card: cover held sharp above its own frosted blow-up ── */}
           <View style={styles.cardWrap}>
@@ -365,33 +370,9 @@ export default function EventDetailScreen() {
 
           {/* Title block + actions, anchored to the bottom */}
           <View>
-            {status && (
-              <GlassSurface
-                tint="dark"
-                shape="capsule"
-                cornerRadius={999}
-                style={styles.statusPill}
-              >
-                <View
-                  className="w-1.5 h-1.5 rounded-full mr-2"
-                  style={{ backgroundColor: status.color }}
-                />
-                <SansSemiText
-                  className="text-xs tracking-widest"
-                  style={{ color: status.color }}
-                >
-                  {status.label}
-                </SansSemiText>
-              </GlassSurface>
-            )}
-
-            <SerifBoldText
-              className="text-white"
-              style={styles.heroTitle}
-              numberOfLines={2}
-            >
+            <Text style={styles.heroTitle} numberOfLines={2}>
               {event.name}
-            </SerifBoldText>
+            </Text>
             <SansText className="text-white/70" style={styles.heroSubtitle}>
               {formatDate(event.expires_at)} · {guestLabel}
             </SansText>
@@ -483,16 +464,55 @@ export default function EventDetailScreen() {
                 />
               </View>
             ) : (
-              renderBento(photos)
+              renderMasonry(photos)
             )}
           </View>
         </View>
       </ScrollView>
+
+      {/* Mounted only while open: the sheet seeds its drafts from the event on
+          mount, so a stale copy can never outlive an edit made elsewhere. */}
+      {settingsOpen ? (
+        <EventSettingsSheet
+          visible
+          event={event}
+          onClose={() => setSettingsOpen(false)}
+          onDeleted={() => {
+            setSettingsOpen(false);
+            router.back();
+          }}
+        />
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  creditScrim: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 56,
+  },
+  creditText: {
+    position: "absolute",
+    left: 10,
+    bottom: 8,
+    maxWidth: "72%",
+    fontSize: 12,
+    color: "#fff",
+    // The scrim carries most of the contrast; the shadow covers the rare shot
+    // that is bright all the way into its bottom corner.
+    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
   sheet: {
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
@@ -524,10 +544,10 @@ const styles = StyleSheet.create({
     // Wider than the screen so it runs off both edges, like a masthead.
     width: SCREEN_WIDTH * 2,
     textAlign: "center",
-    fontFamily: "Inter-ExtraBold",
+    fontFamily: "Lora-Bold",
     fontSize: 96,
-    lineHeight: 104,
-    letterSpacing: -4,
+    lineHeight: 108,
+    letterSpacing: -2,
     color: "rgba(255,255,255,0.07)",
   },
   card: {
@@ -556,9 +576,9 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   cardCaption: {
-    fontFamily: "Inter-Medium",
-    fontSize: 12,
-    lineHeight: 15,
+    fontFamily: "Amiri-Regular",
+    fontSize: 14,
+    lineHeight: 17,
     color: "rgba(255,255,255,0.82)",
   },
   cardEyebrow: {
@@ -568,24 +588,20 @@ const styles = StyleSheet.create({
     letterSpacing: 1.6,
     color: "rgba(255,255,255,0.72)",
   },
-  statusPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginBottom: 14,
-  },
   heroTitle: {
-    fontSize: 46,
-    lineHeight: 50,
-    letterSpacing: -1,
+    fontFamily: "Lora-Bold",
+    fontSize: 44,
+    lineHeight: 52,
+    letterSpacing: -0.6,
+    color: "#fff",
     marginBottom: 8,
   },
+  // Amiri's Latin sets small for its point size, so descriptions run ~2px
+  // larger than the Inter they replace.
   heroSubtitle: {
-    fontSize: 15,
-    lineHeight: 21,
+    fontFamily: "Amiri-Regular",
+    fontSize: 17,
+    lineHeight: 24,
   },
   actionRow: {
     flexDirection: "row",

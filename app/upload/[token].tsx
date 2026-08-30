@@ -15,6 +15,7 @@ import { File, Paths } from "expo-file-system";
 import { useImage, useCanvasRef, ImageFormat } from "@shopify/react-native-skia";
 import { Camera, Check, ImageUp, X, CalendarX } from "lucide-react-native";
 import { ScreenWrapper } from "../../components/ScreenWrapper";
+import { Input } from "../../components/Input";
 import { EmptyState } from "../../components/EmptyState";
 import { FilteredPhoto } from "../../components/FilteredPhoto";
 import { colors } from "../../constants/colors";
@@ -40,6 +41,10 @@ export default function GuestUploadScreen() {
   );
   const [tokenInfo, setTokenInfo] = useState<UploadToken | null>(null);
   const [guestToken, setGuestToken] = useState<string | undefined>();
+  // The credit shown under this guest's photos in the event gallery. Kept on
+  // the device (not per event) — the same person joining a second event
+  // shouldn't have to type their name again.
+  const [guestName, setGuestName] = useState("");
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoSize, setPhotoSize] = useState({ width: 0, height: 0 });
   const [filterKey, setFilterKey] = useState<AnalogFilterKey>("kodak");
@@ -87,6 +92,12 @@ export default function GuestUploadScreen() {
         if (stored) setGuestToken(JSON.parse(stored));
       } catch {
         // no stored guest token yet
+      }
+      try {
+        const storedName = await StorageHelper.getItem("guestName");
+        if (storedName) setGuestName(JSON.parse(storedName));
+      } catch {
+        // never named themselves — the gallery credits them as a guest
       }
       try {
         const info = await uploadApi.show(String(token));
@@ -154,7 +165,14 @@ export default function GuestUploadScreen() {
         type: "image/jpeg",
       } as any);
 
-      const res = await uploadApi.store(String(token), formData, guestToken);
+      const name = guestName.trim();
+      const res = await uploadApi.store(
+        String(token),
+        formData,
+        guestToken,
+        name,
+      );
+      if (name) await StorageHelper.setItem("guestName", name);
       if (res.guest_token && res.guest_token !== guestToken) {
         setGuestToken(res.guest_token);
         await StorageHelper.setItem(`guestToken:${token}`, res.guest_token);
@@ -210,8 +228,9 @@ export default function GuestUploadScreen() {
       <View style={{ paddingTop: 16, paddingBottom: 24, alignItems: "center" }}>
         <Text
           style={{
-            fontFamily: "Inter-ExtraBold",
-            fontSize: 20,
+            fontFamily: "Lora-Bold",
+            fontSize: 24,
+            lineHeight: 30,
             color: colors.textPrimary,
           }}
         >
@@ -231,6 +250,25 @@ export default function GuestUploadScreen() {
         )}
       </View>
 
+      {/* Only on the idle screen: once a photo is in review the whole screen is
+          about that one shot, and a text field there would pull focus (and the
+          keyboard) over the preview. The name is remembered, so a returning
+          guest only ever fills it once. */}
+      {!photoUri && (
+        <View style={{ paddingHorizontal: 8, marginBottom: 24 }}>
+          <Input
+            label="Your name"
+            placeholder="Shown under your photos"
+            value={guestName}
+            onChangeText={setGuestName}
+            autoCapitalize="words"
+            maxLength={40}
+            returnKeyType="done"
+            onClear={() => setGuestName("")}
+          />
+        </View>
+      )}
+
       {!photoUri ? (
         <View
           style={{
@@ -241,7 +279,14 @@ export default function GuestUploadScreen() {
           }}
         >
           <TouchableOpacity
-            onPress={() => router.push(`/camera?limit=${remaining}`)}
+            onPress={() => {
+              // This roll belongs to the guest flow, not to a create-wizard
+              // handoff. Clearing drops any target the wizard left behind, so
+              // the create screen (still mounted in the tabs) can't claim these
+              // photos and upload them to a different event.
+              captureStore.getState().clear();
+              router.push(`/camera?limit=${remaining}`);
+            }}
             activeOpacity={0.85}
             style={{
               width: 96,

@@ -22,7 +22,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { Mail, QrCode } from "lucide-react-native";
+import { QrCode } from "lucide-react-native";
 import Svg, { Path } from "react-native-svg";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { router } from "expo-router";
@@ -290,34 +290,28 @@ export default function Welcome() {
         {/* Push the actions to the bottom */}
         <View style={{ flex: 1 }} />
 
-        {/* Actions */}
+        {/* Actions — Apple is the only account path; QR joins without one. */}
         <View className="gap-3 pb-4">
           {appleAvailable && (
-            <Button
-              title="Continue with Apple"
-              variant="secondary"
-              icon={<AppleIcon color={colors.textPrimary} />}
-              isLoading={signingIn}
-              disabled={isLoading && !signingIn}
-              onPress={handleApple}
-            />
+            <>
+              <Button
+                title="Continue with Apple"
+                variant="secondary"
+                icon={<AppleIcon color={colors.textPrimary} />}
+                isLoading={signingIn}
+                disabled={isLoading && !signingIn}
+                onPress={handleApple}
+              />
+
+              {/* Divider. Hidden with the Apple button: off iOS there is nothing
+                  above the guest path for it to separate. */}
+              <View className="flex-row items-center gap-3 my-1">
+                <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+                <Text style={styles.orLabel}>or</Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+              </View>
+            </>
           )}
-
-          {/* Apple is iOS-only, so email is the account path everywhere else. */}
-          <Button
-            title="Continue with email"
-            variant="outline"
-            icon={<Mail size={20} color={colors.accentDeep} strokeWidth={2.2} />}
-            disabled={isLoading}
-            onPress={() => router.push("/(auth)/sign-in")}
-          />
-
-          {/* Divider */}
-          <View className="flex-row items-center gap-3 my-1">
-            <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-            <Text style={styles.orLabel}>or</Text>
-            <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-          </View>
 
           {/* Guest — scan a QR to join an event, no account needed */}
           <Button

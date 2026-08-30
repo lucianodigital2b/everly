@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- The app declares this through app.json's ios.infoPlist, but the
+	     extension is its own bundle and needs its own copy: without it the
+	     system creates the activity and then silently fails to render it,
+	     which reads as an empty card on the Lock Screen. -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>

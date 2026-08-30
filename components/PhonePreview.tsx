@@ -15,6 +15,7 @@ import Svg, { Defs, Ellipse, RadialGradient, Stop } from "react-native-svg";
 import { ImageUp } from "lucide-react-native";
 import { colors } from "../constants/colors";
 import { getFilterMatrix, type FilterKey } from "../constants/filters";
+import { FilteredImage } from "./FilteredImage";
 
 // ─── Geometry ─────────────────────────────────────────────────────────────────
 
@@ -312,13 +313,10 @@ export const PhonePreview = ({
           {/* Screen */}
           <View style={styles.screen}>
             {coverUri ? (
-              <Image
-                source={{ uri: coverUri }}
-                style={[
-                  StyleSheet.absoluteFillObject,
-                  matrix.length > 0 && ({ filter: matrix } as any),
-                ]}
-                resizeMode="cover"
+              <FilteredImage
+                uri={coverUri}
+                matrix={matrix}
+                style={StyleSheet.absoluteFillObject}
               />
             ) : (
               <View style={styles.empty}>
@@ -346,7 +344,11 @@ export const PhonePreview = ({
                   <Text style={styles.title} numberOfLines={2}>
                     {title || "Your Event"}
                   </Text>
-                  {!!date && <Text style={styles.date}>{date}</Text>}
+                  {!!date && (
+                    <Text style={styles.date} numberOfLines={1}>
+                      {date}
+                    </Text>
+                  )}
                 </View>
               </>
             )}
@@ -501,11 +503,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#fff",
   },
+  // A tracked-out uppercase caption — small and wide, so it reads as a plate
+  // under the title instead of competing with it. The tracking stays modest:
+  // the longest month has to hold one line at the mock's width.
   date: {
     fontFamily: "Inter-Medium",
-    fontSize: s(12),
-    lineHeight: s(16),
-    letterSpacing: s(0.6),
+    fontSize: s(11),
+    lineHeight: s(15),
+    letterSpacing: s(1),
     textAlign: "center",
     textTransform: "uppercase",
     color: "rgba(255,255,255,0.82)",

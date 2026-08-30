@@ -3,7 +3,7 @@ import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "rea
 import Svg, { Rect } from "react-native-svg";
 import { ImageUp } from "lucide-react-native";
 import { colors } from "../constants/colors";
-import { COVER_PRESETS, isHostedCover } from "../constants/sampleImages";
+import { COVER_PRESETS, isOwnCover } from "../constants/sampleImages";
 
 const TILE_W = 62;
 const TILE_H = 84;
@@ -91,9 +91,9 @@ interface CoverPickerProps {
 }
 
 export const CoverPicker = ({ value, onSelect, onPickOwn }: CoverPickerProps) => {
-  // Anything that isn't one of the hosted presets came from the picker, so it
+  // Anything that isn't one of the bundled presets came from the picker, so it
   // previews inside the last tile rather than being invisible.
-  const own = value && !isHostedCover(value) ? value : null;
+  const own = isOwnCover(value) ? value : null;
 
   return (
     <View>

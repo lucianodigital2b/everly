@@ -24,7 +24,7 @@ import Animated, {
 import { scheduleOnRN } from "react-native-worklets";
 import * as Haptics from "expo-haptics";
 import { colors } from "../constants/colors";
-import { unsplash } from "../constants/sampleImages";
+import { SAMPLE_SHOT_IMAGES } from "../constants/sampleImages";
 
 // ─── Stops ────────────────────────────────────────────────────────────────────
 
@@ -130,10 +130,7 @@ const rollOut = (dir: number, delay: number, reduced: boolean) => () => {
 
 // ─── Camera deck ──────────────────────────────────────────────────────────────
 
-const SAMPLE_SHOTS = [
-  unsplash("1533174072545-7a4b6ad7a6c3", 200),
-  unsplash("1519741497674-611481863552", 200),
-];
+const SAMPLE_SHOTS = SAMPLE_SHOT_IMAGES;
 
 /**
  * One digit in its window. `overflow: hidden` on the frame is what makes the

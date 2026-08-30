@@ -13,9 +13,15 @@ import {
   Inter_800ExtraBold,
 } from "@expo-google-fonts/inter";
 import { Sacramento_400Regular } from "@expo-google-fonts/sacramento";
+import {
+  Lora_500Medium,
+  Lora_600SemiBold,
+  Lora_700Bold,
+} from "@expo-google-fonts/lora";
+import { Amiri_400Regular, Amiri_700Bold } from "@expo-google-fonts/amiri";
 import "react-native-url-polyfill/auto";
 import "../assets/global.css";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import * as Updates from "expo-updates";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { revenueCat } from "../services/revenuecat";
@@ -25,10 +31,10 @@ import { SlideFromRight } from "../constants/transitions";
 import ThemeProvider from "../components/ThemeProvider";
 import GlobalNotifications from "../components/GlobalNotifications";
 import { PostHogProvider } from "posthog-react-native";
+import { queryClient } from "../services/queryClient";
 
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
 const Transition = require("react-native-screen-transitions").default;
 const {
   createBlankStackNavigator,
@@ -46,6 +52,14 @@ export default function RootLayout() {
     "Inter-ExtraBold": Inter_800ExtraBold,
     // Wordmark only — the cursive signature, never for UI text.
     Script: Sacramento_400Regular,
+    // Editorial pair on trial: Lora carries every title, Amiri every
+    // description. Inter stays for chrome — pills, counters, micro-labels —
+    // where a serif at 10–12px turns to mush.
+    "Lora-Medium": Lora_500Medium,
+    "Lora-SemiBold": Lora_600SemiBold,
+    "Lora-Bold": Lora_700Bold,
+    "Amiri-Regular": Amiri_400Regular,
+    "Amiri-Bold": Amiri_700Bold,
   });
 
   // Signs the user out if they revoke Sign in with Apple from iOS Settings.
@@ -106,7 +120,13 @@ export default function RootLayout() {
 
               {/* Pushed screens: iOS push in, left-edge swipe back out. */}
               <Stack.Screen name="onboarding" options={SlideFromRight()} />
-              <Stack.Screen name="camera" options={SlideFromRight()} />
+              {/* No swipe-back: the camera holds an unsaved roll of photos and
+                  a left-edge drag would pop it without ever handing them over.
+                  The X and Android's back button deliver the captures instead. */}
+              <Stack.Screen
+                name="camera"
+                options={SlideFromRight({ gestureEnabled: false })}
+              />
               <Stack.Screen name="qr" options={SlideFromRight()} />
               <Stack.Screen name="photo" options={SlideFromRight()} />
               <Stack.Screen name="scan" options={SlideFromRight()} />

@@ -1,6 +1,5 @@
 import { Types } from "./types";
 import notificationsActions from "../notifications/actions";
-import { authStore } from ".";
 import { notificationsStore } from "../notifications";
 import * as AppleAuthentication from "expo-apple-authentication";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -27,58 +26,6 @@ const isAppleCancel = (error: any) => {
 };
 
 const actions = (dispatch: any) => ({
-  changeFields: (payload: { key: "email" | "password"; value: string }) => {
-    dispatch({ type: Types.AUTH_CHANGE_FIELDS, payload });
-  },
-
-  changeRegisterFields: (payload: {
-    key: "name" | "email" | "password" | "password_confirmation";
-    value: string;
-  }) => {
-    dispatch({ type: Types.AUTH_CHANGE_REGISTER_FIELDS, payload });
-  },
-
-  login: async () => {
-    const { fields } = authStore.getState();
-    const notifications = notificationsStore.getState();
-    const { notificationsShow } = notificationsActions(notifications.dispatch);
-
-    dispatch({ type: Types.AUTH_LOGIN_REQUEST });
-
-    try {
-      const data = await authApi.login({
-        email: fields.email,
-        password: fields.password,
-      });
-
-      if (data?.token) {
-        await StorageHelper.saveAccessToken(data.token);
-        dispatch({ type: Types.AUTH_LOGIN_FULFILLED, payload: data });
-        appsFlyerService.setUserId(data.user?.id);
-      } else {
-        throw new Error("Invalid response from server");
-      }
-    } catch (e: any) {
-      const errorData = e?.response?.data;
-      const errorMessage =
-        errorData?.error ||
-        errorData?.message ||
-        "Invalid credentials or server error";
-
-      if (errorData?.errors) {
-        dispatch({ type: Types.AUTH_SET_ERRORS, payload: errorData.errors });
-      }
-
-      notificationsShow({
-        message: errorMessage,
-        title: "Login Failed",
-        type: "error",
-      });
-
-      dispatch({ type: Types.AUTH_LOGIN_REJECTED, payload: errorMessage });
-    }
-  },
-
   appleSignIn: async () => {
     const notifications = notificationsStore.getState();
     const { notificationsShow } = notificationsActions(notifications.dispatch);
@@ -147,47 +94,6 @@ const actions = (dispatch: any) => ({
       });
 
       dispatch({ type: Types.AUTH_LOGIN_REJECTED, payload: errorMessage });
-    }
-  },
-
-  register: async () => {
-    const { registerFields } = authStore.getState();
-    const notifications = notificationsStore.getState();
-    const { notificationsShow } = notificationsActions(notifications.dispatch);
-
-    dispatch({ type: Types.AUTH_REGISTER_REQUEST });
-
-    try {
-      const data = await authApi.register(registerFields);
-
-      if (data?.token) {
-        await StorageHelper.saveAccessToken(data.token);
-        dispatch({ type: Types.AUTH_REGISTER_FULFILLED, payload: data });
-        appsFlyerService.setUserId(data.user?.id);
-      } else {
-        throw new Error("Invalid response from server");
-      }
-    } catch (e: any) {
-      const errorData = e?.response?.data;
-
-      console.log(errorData);
-
-      const errorMessage =
-        errorData?.error ||
-        errorData?.message ||
-        "Registration failed or server error";
-
-      if (errorData?.errors) {
-        dispatch({ type: Types.AUTH_SET_ERRORS, payload: errorData.errors });
-      }
-
-      notificationsShow({
-        message: errorMessage,
-        title: "Registration Failed",
-        type: "error",
-      });
-
-      dispatch({ type: Types.AUTH_REGISTER_REJECTED, payload: errorMessage });
     }
   },
 

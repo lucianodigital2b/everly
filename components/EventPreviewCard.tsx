@@ -5,6 +5,7 @@ import { Calendar, Users, Camera } from 'lucide-react-native';
 import { colors } from '../constants/colors';
 import { eventCover } from '../constants/sampleImages';
 import { getFilterMatrix, type FilterKey } from '../constants/filters';
+import { FilteredImage } from './FilteredImage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,13 +49,10 @@ export const EventPreviewCard = ({
     <View style={styles.card}>
       {/* Cover image / placeholder */}
       <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: eventCover(coverUri) }}
-          style={[
-            styles.image,
-            matrix.length > 0 && ({ filter: matrix } as any),
-          ]}
-          resizeMode="cover"
+        <FilteredImage
+          uri={eventCover(coverUri)}
+          matrix={matrix}
+          style={styles.image}
         />
 
         {/* Bottom gradient */}

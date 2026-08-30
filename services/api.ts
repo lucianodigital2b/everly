@@ -41,17 +41,13 @@ const client = axios.create({
   },
 });
 
-// Endpoints that establish a session. A leftover token in storage — an expired
-// one, or one the server has already revoked — must never ride along on these:
-// Sanctum rejects the dead credential before the request body is ever read, so a
-// perfectly good Apple sign-in fails with a 401, and the response interceptor
-// below then wipes storage and makes it look like a random logout.
-const PUBLIC_AUTH_PATHS = [
-  "/auth/login",
-  "/auth/register",
-  "/auth/forgot-password",
-  "/auth/apple/callback",
-];
+// The endpoint that establishes a session — Sign in with Apple is the only
+// account path left. A leftover token in storage — an expired one, or one the
+// server has already revoked — must never ride along on it: Sanctum rejects the
+// dead credential before the request body is ever read, so a perfectly good
+// Apple sign-in fails with a 401, and the response interceptor below then wipes
+// storage and makes it look like a random logout.
+const PUBLIC_AUTH_PATHS = ["/auth/apple/callback"];
 
 const isPublicAuthPath = (url?: string) =>
   !!url && PUBLIC_AUTH_PATHS.some((p) => url.startsWith(p));
@@ -136,6 +132,8 @@ export interface Event {
   shot_limit: number | null;
   participant_limit: number | null;
   reveal_time: string | null;
+  /** Only meaningful when `reveal_time` is "Scheduled" — the moment it opens. */
+  reveal_at: string | null;
   filter: string | null;
   tier: string | null;
   is_revealed: boolean;
@@ -178,6 +176,11 @@ export interface EventPhoto {
   width: number | null;
   height: number | null;
   created_at: string;
+  /** Who uploaded it — the name the guest gave at upload time. The gallery
+   *  credits each tile with it; absent means the server hasn't stored one, and
+   *  the tile falls back to a plain "Guest". */
+  guest_name?: string | null;
+  guest?: { id: number; name: string | null } | null;
 }
 
 export interface UploadToken {
@@ -195,40 +198,8 @@ export interface UploadToken {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export const authApi = {
-  register: (body: {
-    name: string;
-    email: string;
-    password: string;
-    password_confirmation: string;
-  }) =>
-    auth<{ user: User; token: string }>({
-      method: "POST",
-      url: "/auth/register",
-      data: body,
-    }),
-
-  login: (body: { email: string; password: string; device_name?: string }) =>
-    auth<{ user: User; token: string }>({
-      method: "POST",
-      url: "/auth/login",
-      data: body,
-    }),
-
   logout: () =>
     auth<{ message: string }>({ method: "POST", url: "/auth/logout" }),
-
-  /**
-   * Sends a password-reset email. Returns 200 even for unknown addresses so the
-   * endpoint can't be used to probe which emails have accounts.
-   * NOTE: this route is not in BACKEND.md yet — the app is ready, the server
-   * still has to implement POST /auth/forgot-password.
-   */
-  forgotPassword: (body: { email: string }) =>
-    auth<{ message: string }>({
-      method: "POST",
-      url: "/auth/forgot-password",
-      data: body,
-    }),
 
   user: () => auth<User>({ method: "GET", url: "/auth/user" }),
 
@@ -278,9 +249,13 @@ export type EventStoreBody = {
   title?: string;
   event_date?: string;
   expires_at?: string;
-  shot_limit?: number;
+  /** `null` is "unlimited". Omitting the key leaves whatever the event has —
+   *  only an explicit null clears the limit on a PATCH. */
+  shot_limit?: number | null;
   participant_limit?: number;
   reveal_time?: string;
+  /** Required by the API whenever `reveal_time` is "Scheduled". */
+  reveal_at?: string;
   filter?: string;
   tier?: string;
   is_revealed?: boolean;
@@ -295,6 +270,28 @@ export type EventUpdateBody = Partial<EventStoreBody & { public: boolean }>;
 /** A local (device) image to upload — file:// or content:// URI from the picker. */
 export type CoverImageFile = { uri: string; name?: string; type?: string };
 
+/**
+ * A body plus a cover file, as multipart. Every scalar is stringified: a
+ * FormData part is text on the wire, and Laravel reads "1"/"0" as booleans and
+ * numeric strings as integers, so the validation rules still hold.
+ */
+const coverForm = (
+  body: EventStoreBody | EventUpdateBody,
+  coverImage: CoverImageFile,
+) => {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(body)) {
+    if (value === undefined || value === null) continue;
+    form.append(key, typeof value === "boolean" ? (value ? "1" : "0") : String(value));
+  }
+  form.append("cover_image", {
+    uri: coverImage.uri,
+    name: coverImage.name ?? "cover.jpg",
+    type: coverImage.type ?? "image/jpeg",
+  } as any);
+  return form;
+};
+
 export const eventsApi = {
   index: () => auth<Event[]>({ method: "GET", url: "/events" }),
 
@@ -308,20 +305,10 @@ export const eventsApi = {
     if (!coverImage) {
       return auth<Event>({ method: "POST", url: "/events", data: body });
     }
-    const form = new FormData();
-    for (const [key, value] of Object.entries(body)) {
-      if (value !== undefined && value !== null)
-        form.append(key, String(value));
-    }
-    form.append("cover_image", {
-      uri: coverImage.uri,
-      name: coverImage.name ?? "cover.jpg",
-      type: coverImage.type ?? "image/jpeg",
-    } as any);
     return auth<Event>({
       method: "POST",
       url: "/events",
-      data: form,
+      data: coverForm(body, coverImage),
       headers: { "Content-Type": "multipart/form-data" },
     });
   },
@@ -329,8 +316,34 @@ export const eventsApi = {
   show: (eventId: number | string) =>
     auth<EventDetail>({ method: "GET", url: `/events/${eventId}` }),
 
-  update: (eventId: number | string, body: EventUpdateBody) =>
-    auth<Event>({ method: "PATCH", url: `/events/${eventId}`, data: body }),
+  /**
+   * `coverImage` replaces the event's cover. It forces the request to go out as
+   * multipart, and multipart only parses on POST — PHP populates neither
+   * `$_POST` nor `$_FILES` for a PATCH body — so the method is spelled with
+   * Laravel's `_method` override instead. Without a cover it stays a plain
+   * JSON PATCH.
+   */
+  update: (
+    eventId: number | string,
+    body: EventUpdateBody,
+    coverImage?: CoverImageFile,
+  ) => {
+    if (!coverImage) {
+      return auth<Event>({
+        method: "PATCH",
+        url: `/events/${eventId}`,
+        data: body,
+      });
+    }
+    const form = coverForm(body, coverImage);
+    form.append("_method", "PATCH");
+    return auth<Event>({
+      method: "POST",
+      url: `/events/${eventId}`,
+      data: form,
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
 
   destroy: (eventId: number | string) =>
     client.delete(`/events/${eventId}`).then(() => undefined),
@@ -369,14 +382,27 @@ export const uploadApi = {
       })
       .then((r) => r.data),
 
-  /** Upload a photo as a guest (no auth — uses X-Guest-Token header) */
-  store: async (token: string, formData: FormData, guestToken?: string) => {
+  /**
+   * Upload a photo as a guest (no auth — uses X-Guest-Token header).
+   *
+   * `guestName` is the credit shown under the photo in the event gallery. It
+   * rides on every upload rather than only the first: the guest can fill their
+   * name in after already sending a shot, and the server keeps the latest.
+   */
+  store: async (
+    token: string,
+    formData: FormData,
+    guestToken?: string,
+    guestName?: string,
+  ) => {
     const url = `${BASE_URL}/upload/${token}`;
     const headers: Record<string, string> = {
       "Content-Type": "multipart/form-data",
       Accept: "application/json",
     };
     if (guestToken) headers["X-Guest-Token"] = guestToken;
+    const name = guestName?.trim();
+    if (name) formData.append("guest_name", name);
     return axios
       .post<{
         guest_token: string;

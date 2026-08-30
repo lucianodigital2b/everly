@@ -17,6 +17,12 @@ module.exports = () => ({
   colors: {
     // Blush rose — the tint iOS uses for system chrome around the activity.
     $accent: "#E6A9B4",
+    // Deliberately NOT Everly.night (#17121A). This colour only paints the
+    // container the system falls back to when the extension can't render; the
+    // card the widget draws itself is tinted in Swift. Keeping the two
+    // different is what makes an empty card diagnosable at a glance — a cream
+    // card means the SwiftUI body never ran, a dark one means it ran and drew
+    // nothing.
     $widgetBackground: "#FBF8F5",
   },
 });

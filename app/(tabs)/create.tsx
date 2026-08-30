@@ -33,22 +33,32 @@ import { ScreenWrapper } from "../../components/ScreenWrapper";
 import { PhonePreview } from "../../components/PhonePreview";
 import { ShotsPerPerson } from "../../components/ShotsPerPerson";
 import { CoverPicker } from "../../components/CoverPicker";
+import { SuccessSheet } from "../../components/SuccessSheet";
 import { Input } from "../../components/Input";
 import { useIsFocused, useRouter } from "expo-router";
 import { colors } from "../../constants/colors";
-import { FILTERS, type FilterKey } from "../../constants/filters";
+import { joinLink } from "../../constants/links";
+import { FILTERS, getFilterMatrix, type FilterKey } from "../../constants/filters";
+import { FilteredImage } from "../../components/FilteredImage";
 import { TiltedEventTypeCards } from "../../components/TiltedEventTypeCards";
-import { eventsApi, uploadApi } from "../../services/api";
+import { eventsApi } from "../../services/api";
 import { revenueCat } from "../../services/revenuecat";
 import { appsFlyerService } from "../../services/appsflyer";
 import { captureStore } from "../../zustand/capture-store";
+import { retryFailedUploads } from "../../zustand/capture-store/uploader";
 import { authStore } from "../../zustand/auth-store";
 import {
   COVER_PRESETS,
+  coverUploadFile,
+  FILTER_PREVIEW_IMAGE,
   isHostedCover,
-  unsplash,
+  REVEAL_PREVIEW_IMAGES,
 } from "../../constants/sampleImages";
 import { suggestEventNames } from "../../constants/nameSuggestions";
+import {
+  GUEST_TIERS,
+  type GuestTier as GuestTierShape,
+} from "../../constants/guestTiers";
 import {
   ArrowLeft,
   ArrowRight,
@@ -174,6 +184,23 @@ const ideasOut = (reduced: boolean) => () => {
   };
 };
 
+// A step block leaves the tree the instant the wizard commits the next step —
+// but any descendant still running an `exiting` animation (the shot counter's
+// rolling digits on step 2, the name-idea chips on step 0) makes Reanimated
+// hold the *whole* outgoing block in the tree until that finishes. The step
+// content all shares one animated container, so the incoming step's fade-in
+// then fades the leftover back in with it: the camera deck from "How many
+// shots?" reappears over "Set the mood" for a beat and pops away. Zeroing the
+// block's own opacity as it leaves makes that tail invisible no matter what its
+// children are still animating.
+const stepBlockOut = () => {
+  "worklet";
+  return {
+    initialValues: { opacity: 0 },
+    animations: { opacity: withTiming(0, { duration: 1 }) },
+  };
+};
+
 // ─── Reusable sub-components ──────────────────────────────────────────────────
 
 const SectionLabel = ({ children }: { children: string }) => (
@@ -253,8 +280,8 @@ const DatePickerRow = ({
 // Two stand-in guest shots. Showing the *effect* of the choice — frosted and
 // locked, or open — says more than three buttons ever could.
 const REVEAL_PREVIEW = [
-  { uri: unsplash("1533174072545-7a4b6ad7a6c3", 500), name: "Emma L." },
-  { uri: unsplash("1543269865-cbf427effbad", 500), name: "James W." },
+  { uri: REVEAL_PREVIEW_IMAGES[0], name: "Emma L." },
+  { uri: REVEAL_PREVIEW_IMAGES[1], name: "James W." },
 ];
 
 const RevealPreview = ({ mode }: { mode: string }) => {
@@ -465,6 +492,13 @@ const tileStyles = StyleSheet.create({
   labelOn: { color: colors.textPrimary },
 });
 
+// The mood step's photo is the subject of the step, so it gets the room: one
+// large centred card, with the presets reduced to swatches of that same photo
+// underneath. Declared here because `styles` below reads them at module init.
+const FILTER_HERO_W = Math.min(SCREEN_WIDTH - 88, 300);
+const FILTER_HERO_H = Math.round(FILTER_HERO_W * 1.24);
+const FILTER_THUMB = 60;
+
 const styles = StyleSheet.create({
   ideaRow: {
     flexDirection: "row",
@@ -504,51 +538,95 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textSecondary,
   },
+  filterHero: {
+    alignSelf: "center",
+    width: FILTER_HERO_W,
+    height: FILTER_HERO_H,
+    borderRadius: 28,
+    overflow: "hidden",
+    backgroundColor: colors.surface2,
+    shadowColor: "#7A4450",
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.18,
+    shadowRadius: 26,
+    elevation: 8,
+  },
+  filterThumbRing: {
+    padding: 3,
+    borderRadius: 19,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  filterThumb: {
+    width: FILTER_THUMB,
+    height: FILTER_THUMB,
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: colors.surface2,
+  },
 });
 
-// ─── Filter card ──────────────────────────────────────────────────────────────
+// ─── Filter hero + thumbnails ─────────────────────────────────────────────────
 
-const FILTER_PREVIEW_URI =
-  "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=400&auto=format&fit=crop";
+// Fallback for the rare case the cover has been cleared by the time the mood
+// step is reached — the step is about a photo, so it always needs one.
+const FILTER_PREVIEW_URI = FILTER_PREVIEW_IMAGE;
 
-const FilterCard = ({
+const FilterHero = ({
+  uri,
+  filter,
+}: {
+  uri: string;
+  filter: FilterKey;
+}) => {
+  return (
+    <View style={styles.filterHero}>
+      <FilteredImage
+        uri={uri}
+        matrix={getFilterMatrix(filter)}
+        style={{ width: "100%", height: "100%" }}
+      />
+    </View>
+  );
+};
+
+const FilterThumb = ({
   item,
+  uri,
   selected,
   onPress,
 }: {
   item: (typeof FILTERS)[number];
+  uri: string;
   selected: boolean;
   onPress: () => void;
 }) => (
   <TouchableOpacity
     onPress={onPress}
     activeOpacity={0.8}
-    style={{ alignItems: "center", marginRight: 14 }}
+    style={{ alignItems: "center" }}
   >
+    {/* The ring sits outside the thumbnail, so selecting never nudges the
+        image's own framing. */}
     <View
-      style={{
-        width: 88,
-        height: 112,
-        borderRadius: 16,
-        overflow: "hidden",
-        borderWidth: 2,
-        borderColor: selected ? colors.accent : "transparent",
-      }}
+      style={[
+        styles.filterThumbRing,
+        selected && { borderColor: colors.accent },
+      ]}
     >
-      <Image
-        source={{ uri: FILTER_PREVIEW_URI }}
-        style={[
-          { width: "100%", height: "100%" },
-          item.matrix.length > 0 && ({ filter: item.matrix } as any),
-        ]}
-        resizeMode="cover"
-      />
+      <View style={styles.filterThumb}>
+        <FilteredImage
+          uri={uri}
+          matrix={item.matrix}
+          style={{ width: "100%", height: "100%" }}
+        />
+      </View>
     </View>
     <Text
       style={{
-        marginTop: 8,
-        fontFamily: "Inter-ExtraBold",
-        fontSize: 13,
+        marginTop: 7,
+        fontFamily: selected ? "Inter-ExtraBold" : "Inter-Medium",
+        fontSize: 12,
         color: selected ? colors.accent : colors.textSecondary,
       }}
     >
@@ -557,64 +635,9 @@ const FilterCard = ({
   </TouchableOpacity>
 );
 
-// ─── Guest tiers (stepper) ────────────────────────────────────────────────────
-
-// `price` is a display fallback only — the charged amount comes from the store
-// via the RevenueCat package. `lookupKey` links the tier to that package;
-// null means no purchase (free tier).
-//
-// `planId` is sent as the event's `plan_id`, which the backend still requires.
-// It is listed explicitly rather than derived from the array index so that
-// adding or removing a tier can never silently remap existing events. The
-// values keep the original index+1 numbering, and 7 stays retired with the
-// removed 200-guest tier.
-const GUEST_TIERS = [
-  { title: "Starter", participants: 5, price: 0, lookupKey: null, planId: 1 },
-  {
-    title: "Small",
-    participants: 10,
-    price: 1.99,
-    lookupKey: "guests_10",
-    planId: 2,
-  },
-  {
-    title: "Medium",
-    participants: 25,
-    price: 4.99,
-    lookupKey: "guests_25",
-    planId: 3,
-  },
-  {
-    title: "Large",
-    participants: 50,
-    price: 14.99,
-    lookupKey: "guests_50",
-    planId: 4,
-  },
-  {
-    title: "XL",
-    participants: 100,
-    price: 25.99,
-    lookupKey: "guests_100",
-    planId: 5,
-  },
-  {
-    title: "XXL",
-    participants: 150,
-    price: 45.99,
-    lookupKey: "guests_150",
-    planId: 6,
-  },
-  {
-    title: "Enterprise",
-    participants: "custom",
-    price: 69.99,
-    lookupKey: "guests_unlimited",
-    planId: 8,
-  },
-] as const;
-
-type GuestTier = (typeof GUEST_TIERS)[number];
+// The tier table itself lives in constants/guestTiers so the event settings
+// sheet can sell the same packs against an event that already exists.
+type GuestTier = GuestTierShape;
 
 /** An event created by this wizard run, held until the flow actually finishes. */
 type PendingCreatedEvent = {
@@ -942,22 +965,30 @@ export default function CreateScreen() {
   const user = authStore((s) => s.data?.user);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  // The camera pops back here with its captures in the store. We hold on to the
-  // event we just created so we know where those photos belong.
-  const [pendingEvent, setPendingEvent] = useState<{
-    id: number;
-    token: string;
-  } | null>(null);
-  const [uploading, setUploading] = useState<{ done: number; total: number } | null>(
-    null,
-  );
-
+  // The camera pops back here with its captures in the store, and the event
+  // they belong to sits in that same store.
+  //
+  // It used to live in `useState` here, which is what lost the photos: this
+  // screen calls `resetForm()` the instant the camera is pushed and is free to
+  // be torn down while it's in the background, so the roll came back to a
+  // screen that no longer knew which event had just been created — the upload
+  // effect below simply never fired and the shots were dropped on the floor.
+  // The store outlives the component, so a remount picks the handoff back up.
+  const pendingEvent = captureStore((s) => s.target);
   // The event created by the current wizard run, if any. It exists before the
   // guest pack is bought (the purchase has to be attributed to its id), so when
   // a purchase is cancelled it lives here until the flow completes — a retry
   // reuses it rather than creating a duplicate. Cleared by resetForm().
   const createdEventRef = useRef<PendingCreatedEvent | null>(draft.createdEvent);
-  const capturedPhotos = captureStore((s) => s.photos);
+
+  // The event that just landed, held while its confirmation sheet is up.
+  const [successEvent, setSuccessEvent] = useState<PendingCreatedEvent | null>(
+    null,
+  );
+  // Progress of the roll the camera is uploading in the background. Read only
+  // to report failures — nothing in this screen waits on it.
+  const uploads = captureStore((s) => s.uploads);
+  const pendingUploads = uploads.filter((u) => u.status === "pending").length;
   const [formData, setFormData] = useState<WizardForm>(draft.form);
 
   // Mirror the answers into the draft on every change, so whatever the screen
@@ -1134,71 +1165,19 @@ export default function CreateScreen() {
     }
   };
 
-  // ─── Upload captured photos to the new event ─────────────────────────────────
+  // ─── Back from the camera ──────────────────────────────────
 
-  // The backend has no authed host-upload route — the only upload endpoint is the
-  // guest one, keyed by the event's qr_code_token. The owner uploads through it
-  // too, reusing the guest_token it hands back so every shot lands on one guest.
-  React.useEffect(() => {
-    if (!pendingEvent || capturedPhotos.length === 0 || uploading) return;
-
-    const photos = capturedPhotos;
-    let cancelled = false;
-
-    (async () => {
-      setUploading({ done: 0, total: photos.length });
-      let guestToken: string | undefined;
-      let failed = 0;
-
-      for (let i = 0; i < photos.length; i++) {
-        try {
-          const formData = new FormData();
-          formData.append("photo", {
-            uri: photos[i],
-            name: `everly-${Date.now()}-${i}.jpg`,
-            type: "image/jpeg",
-          } as any);
-
-          const res = await uploadApi.store(
-            pendingEvent.token,
-            formData,
-            guestToken,
-          );
-          if (res?.guest_token) guestToken = res.guest_token;
-        } catch {
-          failed += 1;
-        }
-        if (cancelled) return;
-        setUploading({ done: i + 1, total: photos.length });
-      }
-
-      captureStore.getState().clear();
-      setPendingEvent(null);
-      setUploading(null);
-
-      await queryClient.invalidateQueries({
-        queryKey: ["event-photos", String(pendingEvent.id)],
-      });
-      await queryClient.invalidateQueries({ queryKey: ["events"] });
-
-      if (failed > 0) {
-        Alert.alert(
-          "Some photos didn't upload",
-          `${failed} of ${photos.length} failed. You can add them again from the event.`,
-        );
-      }
-      router.push(`/event/${pendingEvent.id}`);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [capturedPhotos, pendingEvent]);
-
-  // The camera closed without handing back any shots — the X, or "Not now" on
-  // the permission prompt. Nothing to upload, but the event is real and the user
-  // was last looking at it being created, so open it. Landing back on a blank
-  // wizard reads as if the event was thrown away.
+  // Nothing is uploaded here any more. The camera queues each shot the moment
+  // it's taken (`capture-store/uploader`), so by the time the user is done the
+  // roll is usually already on the server — and whatever is left finishes in
+  // the background while they look at the event. That replaced a full-screen
+  // "Adding your photos" spinner that made the user wait, after the fact, for
+  // work that could have happened while they were shooting.
+  //
+  // So all this does is open the event. It runs for an empty roll too (the X,
+  // or "Not now" on the permission prompt): the event is real and the user was
+  // last watching it being created, so landing back on a blank wizard would
+  // read as if it had been thrown away.
   //
   // Only after this screen has actually been backgrounded: `pendingEvent` is set
   // in the same tick the camera is pushed, so without the flag this would fire
@@ -1213,12 +1192,43 @@ export default function CreateScreen() {
     if (!wentToCameraRef.current) return;
     wentToCameraRef.current = false;
 
-    if (!pendingEvent || capturedPhotos.length > 0 || uploading) return;
+    if (!pendingEvent) return;
 
-    const eventId = pendingEvent.id;
-    setPendingEvent(null);
+    const eventId = pendingEvent.eventId;
+    // Drops the handoff, not the upload progress — the queue holds its own
+    // copy of the destination and keeps going.
+    captureStore.getState().clear();
     router.push(`/event/${eventId}`);
-  }, [isFocused, pendingEvent, capturedPhotos, uploading]);
+  }, [isFocused, pendingEvent]);
+
+  // Report a roll that didn't fully make it. Deliberately *not* a blocking
+  // screen: the photos that did land are already visible in the event behind
+  // this, and the ones that didn't can be retried without reshooting them.
+  const failedUploads = uploads.filter((u) => u.status === "failed");
+  const reportedFailures = useRef(0);
+
+  React.useEffect(() => {
+    if (pendingUploads > 0) return;
+    if (failedUploads.length === 0) {
+      reportedFailures.current = 0;
+      return;
+    }
+    if (reportedFailures.current === failedUploads.length) return;
+    reportedFailures.current = failedUploads.length;
+
+    Alert.alert(
+      failedUploads.length === uploads.length
+        ? "Your photos didn't upload"
+        : "Some photos didn't upload",
+      `${failedUploads.length} of ${uploads.length} failed${
+        failedUploads[0]?.error ? ` — ${failedUploads[0].error}` : ""
+      }.`,
+      [
+        { text: "Not now", style: "cancel" },
+        { text: "Try again", onPress: () => retryFailedUploads() },
+      ],
+    );
+  }, [pendingUploads, failedUploads.length, uploads.length]);
 
   // ─── Submit ──────────────────────────────────────────────────────────────────
 
@@ -1240,8 +1250,9 @@ export default function CreateScreen() {
       ? parseInt(formData.shotLimit, 10)
       : undefined,
     public: formData.publicGallery,
-    // A stock cover is already hosted, so it rides along in the JSON body. A
-    // photo from the picker is a local file and goes up as an upload instead.
+    // Only a cover that's already a remote URL can ride along in the JSON body.
+    // Stock covers ship with the app and, like a photo from the picker, go up
+    // as an upload instead.
     cover_image_url: isHostedCover(formData.coverImage)
       ? formData.coverImage ?? undefined
       : undefined,
@@ -1259,8 +1270,9 @@ export default function CreateScreen() {
   // retry, so pressing Create again has to land on the same event instead of
   // spawning a duplicate. Edits made in between are PATCHed onto it — except
   // fields the user *cleared*, since an omitted key leaves the old value. An
-  // uploaded cover is the one thing PATCH can't carry (it takes a hosted URL,
-  // not a file) — a stock cover is a URL, so that one does survive a retry.
+  // cover is the one thing PATCH can't carry (it takes a hosted URL, not a
+  // file), and stock covers are bundled files too — so changing the cover
+  // between attempts doesn't stick to an event that already exists.
   const ensureEvent = async () => {
     const body = buildEventBody();
     const signature = JSON.stringify(body);
@@ -1281,11 +1293,9 @@ export default function CreateScreen() {
 
     const created = await eventsApi.store(
       body,
-      // Only a picker URI needs uploading — a stock cover is already a hosted
-      // URL and travelled in the body above.
-      formData.coverImage && !isHostedCover(formData.coverImage)
-        ? { uri: formData.coverImage, name: "cover.jpg", type: "image/jpeg" }
-        : undefined,
+      // Stock covers are bundled files now, so they upload just like a picture
+      // from the library — only a cover that's already hosted skips this.
+      await coverUploadFile(formData.coverImage),
     );
     // `public` is only documented on PATCH, so a store endpoint that validates
     // strictly would drop it and silently ignore the visibility toggle. Cheap to
@@ -1314,17 +1324,35 @@ export default function CreateScreen() {
     return event;
   };
 
-  // Done — hand the event over to the camera and clear the wizard for the next one.
+  // Done — confirm the event landed, then hand it over to the camera.
+  //
+  // The sheet is the only acknowledgement step: the wizard stays mounted behind
+  // it (it's a tab), so nothing is torn down while it's up, and dismissing it
+  // by any route — the button, the scrim, Android back — continues to the
+  // camera. Going straight there would give the user no sign the event was
+  // actually created.
   const proceedToCamera = (event: PendingCreatedEvent) => {
-    const limit = event.shotLimit;
-    captureStore.getState().clear();
-    setPendingEvent({ id: event.id, token: event.token });
     Keyboard.dismiss();
+    setSuccessEvent(event);
+  };
+
+  const goToCamera = (event: PendingCreatedEvent) => {
+    const limit = event.shotLimit;
+    // Clear first — `clear()` drops any stale target with the stale photos, so
+    // the order matters.
+    captureStore.getState().clear();
+    captureStore.getState().setTarget({ eventId: event.id, token: event.token });
     router.push(limit ? `/camera?limit=${limit}` : "/camera");
     // Rewind only once the camera is up. Resetting first re-mounts step 1's
     // autoFocus'd name field while this screen is still frontmost, and the
     // keyboard it raises then sits on top of the camera.
     requestAnimationFrame(resetForm);
+  };
+
+  const dismissSuccessSheet = () => {
+    const event = successEvent;
+    setSuccessEvent(null);
+    if (event) goToCamera(event);
   };
 
   // The user backed out of the store. Nothing was charged, so drop the event
@@ -1462,6 +1490,17 @@ export default function CreateScreen() {
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+  // The caption under the title on the cover mock. Always today's date, set
+  // like a plate — day, month spelled out, year, parted by hairline dots — and
+  // uppercased by the preview's own style. Stand-in dressing for the preview,
+  // the same way the mock's status bar wears the current time; the event's real
+  // dates are its own fields.
+  const coverDateLabel = React.useMemo(() => {
+    const now = new Date();
+    const month = now.toLocaleString("en-US", { month: "long" });
+    return `${now.getDate()} · ${month} · ${now.getFullYear()}`;
+  }, []);
+
   const expiresAtLabel = formData.expires_at
     ? formData.expires_at.toLocaleString("en-US", {
         weekday: "long",
@@ -1488,40 +1527,6 @@ export default function CreateScreen() {
   const keyboardOverlap = keyboardHeight;
 
   // ─── Render ──────────────────────────────────────────────────────────────────
-
-  // Uploading happens right after the camera pops back, so it needs to own the
-  // screen — otherwise the form flashes back up as if nothing were happening.
-  if (uploading) {
-    return (
-      <ScreenWrapper>
-        <View
-          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
-        >
-          <ActivityIndicator size="large" color={colors.accent} />
-          <Text
-            style={{
-              fontFamily: "Inter-ExtraBold",
-              fontSize: 20,
-              color: colors.textPrimary,
-              marginTop: 20,
-            }}
-          >
-            Adding your photos
-          </Text>
-          <Text
-            style={{
-              fontFamily: "Inter-Regular",
-              fontSize: 14,
-              color: colors.textSecondary,
-              marginTop: 6,
-            }}
-          >
-            {uploading.done} of {uploading.total}
-          </Text>
-        </View>
-      </ScreenWrapper>
-    );
-  }
 
   return (
     <ScreenWrapper>
@@ -1621,7 +1626,7 @@ export default function CreateScreen() {
 
             {/* ── Step 0: Basics ── */}
             {step === 0 && (
-              <View>
+              <Reanimated.View exiting={stepBlockOut}>
                 <Input
                   label="Event Name"
                   placeholder="e.g. Sarah & James's Wedding"
@@ -1669,7 +1674,7 @@ export default function CreateScreen() {
                     onSelect={(type) => setFormData({ ...formData, type })}
                   />
                 </Reanimated.View>
-              </View>
+              </Reanimated.View>
             )}
 
             {/* ── Step 1: Reveal ── */}
@@ -1737,7 +1742,7 @@ export default function CreateScreen() {
 
             {/* ── Step 2: Shot limit ── */}
             {step === 2 && (
-              <View>
+              <Reanimated.View exiting={stepBlockOut}>
                 <SectionLabel>Shots per person</SectionLabel>
                 <ShotsPerPerson
                   value={formData.shotLimit}
@@ -1750,24 +1755,38 @@ export default function CreateScreen() {
                     ? `Every guest gets ${formData.shotLimit} shots. Scarcity is the point — they'll make each one count.`
                     : "Guests can shoot as much as they like. Pick a limit if you'd rather they made each frame count."}
                 </HintText>
-              </View>
+              </Reanimated.View>
             )}
 
             {/* ── Step 3: Filter ── */}
+            {/* The cover leads and the presets follow: the big card shows the
+                chosen look on the actual event photo, the row under it is just
+                swatches of the same frame. */}
             {step === 3 && (
-              <View>
-                {/* Scrolls: four 102px cards overflow the 345px of usable width,
-                    which was silently clipping the last filter off-screen. */}
+              <View style={{ alignItems: "center" }}>
+                <FilterHero
+                  uri={formData.coverImage ?? FILTER_PREVIEW_URI}
+                  filter={formData.filter}
+                />
+                {/* Centred until the presets outgrow the width, then it scrolls
+                    rather than clipping the last one off-screen. */}
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
-                  contentContainerStyle={{ paddingBottom: 8, paddingRight: 24 }}
+                  style={{ alignSelf: "stretch", marginTop: 26 }}
+                  contentContainerStyle={{
+                    flexGrow: 1,
+                    justifyContent: "center",
+                    gap: 14,
+                    paddingBottom: 4,
+                  }}
                 >
                   {FILTERS.map((f) => (
-                    <FilterCard
+                    <FilterThumb
                       key={f.key}
                       item={f}
+                      uri={formData.coverImage ?? FILTER_PREVIEW_URI}
                       selected={formData.filter === f.key}
                       onPress={() =>
                         setFormData({ ...formData, filter: f.key })
@@ -1788,14 +1807,7 @@ export default function CreateScreen() {
               <View style={{ flex: 1, justifyContent: "center" }}>
                 <PhonePreview
                   title={formData.name}
-                  date={
-                    formData.expires_at
-                      ? formData.expires_at.toLocaleString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })
-                      : ""
-                  }
+                  date={coverDateLabel}
                   coverUri={formData.coverImage}
                   filter={formData.filter}
                   onPress={pickCoverImage}
@@ -1939,6 +1951,15 @@ export default function CreateScreen() {
           )}
         </TouchableOpacity>
       </Reanimated.View>
+
+      <SuccessSheet
+        visible={successEvent !== null}
+        title="Parabéns"
+        subtitle="Seu evento foi criado. Envie o link abaixo para os convidados."
+        actionLabel="Continuar"
+        link={successEvent?.token ? joinLink(successEvent.token) : undefined}
+        onDismiss={dismissSuccessSheet}
+      />
     </ScreenWrapper>
   );
 }
