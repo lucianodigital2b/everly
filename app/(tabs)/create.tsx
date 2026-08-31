@@ -1198,6 +1198,13 @@ export default function CreateScreen() {
     // Drops the handoff, not the upload progress — the queue holds its own
     // copy of the destination and keeps going.
     captureStore.getState().clear();
+
+    // Switch to the events tab *before* opening the event, so backing out of it
+    // lands on the home list. Pushing straight from here left the create tab
+    // underneath, and the wizard has already reset itself by this point — so
+    // closing the freshly made event dropped the user on a blank step 1, which
+    // reads as being asked to create it all over again.
+    router.replace("/(tabs)");
     router.push(`/event/${eventId}`);
   }, [isFocused, pendingEvent]);
 
