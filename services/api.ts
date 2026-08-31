@@ -20,7 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 /** Local backend (Laragon) exposed over an ngrok tunnel. Changes on every
  *  `ngrok http` restart — paste the new URL here when it does. */
 const DEV_BASE_URL =
-  "https://73d8-2804-56c-a5da-6600-351a-eeb1-ed9d-947f.ngrok-free.app/everly/public/api";
+  "https://b864-2804-56c-a5da-6600-e854-30d0-7518-9fb4.ngrok-free.app/everly/public/api";
 
 /** Production backend. Used by every release build. */
 const PROD_BASE_URL = "https://api.everly.app/api";
