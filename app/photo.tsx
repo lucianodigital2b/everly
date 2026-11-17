@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import {
+  ActionSheetIOS,
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
   Platform,
   Pressable,
   Share,
@@ -10,18 +12,38 @@ import {
   View,
   Dimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
 import { File, Paths } from "expo-file-system";
-import { Share2, X } from "lucide-react-native";
+import { useQueryClient } from "@tanstack/react-query";
+import { MoreHorizontal, Share2, X } from "lucide-react-native";
+import { eventsApi } from "../services/api";
 
 const { width: W, height: H } = Dimensions.get("window");
 
+const SUPPORT_EMAIL = "luciano@getclevernote.app";
+
 // Fullscreen photo viewer (lightbox). Tap anywhere or the X to close.
+//
+// Opened from the host's gallery with the event and photo ids, which turns on
+// the moderation menu: remove the photo, remove everything a guest sent and
+// block them, or report it to us. App Review requires all three for an app
+// whose users see each other's photos (guideline 1.2).
 export default function PhotoViewer() {
-  const { url } = useLocalSearchParams<{ url?: string }>();
+  const { url, eventId, photoId, guest } = useLocalSearchParams<{
+    url?: string;
+    eventId?: string;
+    photoId?: string;
+    guest?: string;
+  }>();
+  const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const [sharing, setSharing] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  const canModerate = !!eventId && !!photoId;
+  const guestLabel = guest?.trim() || "this guest";
 
   const handleShare = async () => {
     if (!url || sharing) return;
@@ -45,6 +67,88 @@ export default function PhotoViewer() {
     }
   };
 
+  const remove = async (blockGuest: boolean) => {
+    if (!eventId || !photoId) return;
+    setRemoving(true);
+    try {
+      await eventsApi.removePhoto(eventId, photoId, { blockGuest });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["event-photos", eventId] }),
+        queryClient.invalidateQueries({ queryKey: ["event", eventId] }),
+      ]);
+      router.back();
+    } catch (e: any) {
+      setRemoving(false);
+      Alert.alert("Couldn't remove it", e?.message ?? "Please try again.");
+    }
+  };
+
+  const confirmRemove = () =>
+    Alert.alert("Remove this photo?", "It's deleted from the album for everyone.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Remove", style: "destructive", onPress: () => remove(false) },
+    ]);
+
+  const confirmBlock = () =>
+    Alert.alert(
+      `Remove and block ${guestLabel}?`,
+      "Every photo they took is deleted from the album, and they can't add any more to this event.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Remove & Block", style: "destructive", onPress: () => remove(true) },
+      ],
+    );
+
+  const report = async () => {
+    const subject = encodeURIComponent("Everly — Report a photo");
+    const body = encodeURIComponent(
+      `Event ${eventId}, photo ${photoId}.\n\nWhat's wrong with it:\n`,
+    );
+    const mail = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
+    if (await Linking.canOpenURL(mail)) {
+      Linking.openURL(mail);
+    } else {
+      Alert.alert(
+        "No mail app",
+        `Email ${SUPPORT_EMAIL} with event ${eventId}, photo ${photoId}, and we'll review it within 24 hours.`,
+      );
+    }
+  };
+
+  const openMenu = () => {
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: [
+            "Remove Photo",
+            `Remove All from ${guestLabel} & Block`,
+            "Report Photo",
+            "Cancel",
+          ],
+          destructiveButtonIndex: [0, 1],
+          cancelButtonIndex: 3,
+        },
+        (index) => {
+          if (index === 0) confirmRemove();
+          else if (index === 1) confirmBlock();
+          else if (index === 2) report();
+        },
+      );
+      return;
+    }
+    // Android alerts hold three buttons at most, so the cancel is the scrim.
+    Alert.alert(
+      "Photo",
+      undefined,
+      [
+        { text: "Report", onPress: report },
+        { text: "Remove & Block", style: "destructive", onPress: confirmBlock },
+        { text: "Remove", style: "destructive", onPress: confirmRemove },
+      ],
+      { cancelable: true },
+    );
+  };
+
   return (
     <View style={styles.black}>
       <StatusBar style="light" />
@@ -58,36 +162,58 @@ export default function PhotoViewer() {
         ) : null}
       </Pressable>
 
-      <SafeAreaView
-        style={styles.topBar}
-        edges={["top"]}
+      {/* Absolutely positioned over full-bleed content, so the top inset is
+          applied by hand rather than through SafeAreaView. */}
+      <View
+        style={[styles.topBar, { paddingTop: insets.top + 8 }]}
         pointerEvents="box-none"
       >
         <Pressable
           onPress={() => router.back()}
           style={styles.roundBtn}
           hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
         >
           <X size={22} color="#fff" />
         </Pressable>
 
-        {url ? (
-          <Pressable
-            onPress={handleShare}
-            disabled={sharing}
-            style={styles.roundBtn}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="Share photo"
-          >
-            {sharing ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Share2 size={20} color="#fff" />
-            )}
-          </Pressable>
-        ) : null}
-      </SafeAreaView>
+        <View style={styles.actions} pointerEvents="box-none">
+          {url ? (
+            <Pressable
+              onPress={handleShare}
+              disabled={sharing}
+              style={styles.roundBtn}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Share photo"
+            >
+              {sharing ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Share2 size={20} color="#fff" />
+              )}
+            </Pressable>
+          ) : null}
+
+          {canModerate ? (
+            <Pressable
+              onPress={openMenu}
+              disabled={removing}
+              style={styles.roundBtn}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Remove or report photo"
+            >
+              {removing ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <MoreHorizontal size={22} color="#fff" />
+              )}
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
     </View>
   );
 }
@@ -103,8 +229,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 8,
   },
+  actions: { flexDirection: "row", gap: 10 },
   roundBtn: {
     width: 42,
     height: 42,

@@ -22,8 +22,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const DEV_BASE_URL =
   "https://b864-2804-56c-a5da-6600-e854-30d0-7518-9fb4.ngrok-free.app/everly/public/api";
 
-/** Production backend. Used by every release build. */
-const PROD_BASE_URL = "https://api.everly.app/api";
+/** Production backend (CloudPanel on the stockly VPS). Used by every release
+ *  build. api.everly.app was never ours — that domain is parked. */
+const PROD_BASE_URL = "https://everly.koffeecode.com/api";
 
 export const API_BASE_URL = (__DEV__ ? DEV_BASE_URL : PROD_BASE_URL).replace(
   /\/+$/,
@@ -353,6 +354,21 @@ export const eventsApi = {
       method: "GET",
       url: `/events/${eventId}/photos`,
     }),
+
+  /**
+   * Host-only moderation. `blockGuest` also removes every other photo from the
+   * same guest and stops that guest uploading to the event again.
+   */
+  removePhoto: (
+    eventId: number | string,
+    photoId: number | string,
+    { blockGuest = false }: { blockGuest?: boolean } = {},
+  ) =>
+    client
+      .delete(`/events/${eventId}/photos/${photoId}`, {
+        params: blockGuest ? { block_guest: 1 } : undefined,
+      })
+      .then(() => undefined),
 };
 
 // ─── Checkout ─────────────────────────────────────────────────────────────────

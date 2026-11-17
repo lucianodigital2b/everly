@@ -173,7 +173,12 @@ export default function EventDetailScreen() {
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={() =>
-          router.push(`/photo?url=${encodeURIComponent(photo.url)}`)
+          // The ids let the viewer offer the host's moderation actions.
+          router.push(
+            `/photo?url=${encodeURIComponent(photo.url)}&eventId=${id}&photoId=${
+              photo.id
+            }&guest=${encodeURIComponent(credit)}`,
+          )
         }
         style={{
           width,

@@ -840,7 +840,7 @@ const GuestStepper = ({
               marginTop: 4,
             }}
           >
-            {tier.participants === "custom" ? "custom guests" : "guests"}
+            {tier.participants === "custom" ? "unlimited guests" : "guests"}
           </Text>
         </Reanimated.View>
 

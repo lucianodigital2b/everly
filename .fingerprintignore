@@ -1,0 +1,18 @@
+# Keep the EAS Update fingerprint reproducible between this Windows machine and
+# EAS's Linux builders. Everything here is install-time output, not source.
+
+# @shopify/react-native-skia downloads ~685MB of prebuilt Skia binaries in its
+# postinstall (scripts/install-skia.mjs). The Apple xcframeworks extract as
+# symlinks on macOS/Linux and as plain copies on Windows, so this directory can
+# never hash the same on both sides.
+node_modules/@shopify/react-native-skia/libs/
+
+# The same postinstall rewrites this file in place (updateSkiaChecksums) with
+# checksums it computes from whatever it just downloaded, so it drifts from the
+# published manifest after any local `npm install`.
+node_modules/@shopify/react-native-skia/package.json
+
+# CNG generates these; they are gitignored and only exist on whichever side ran
+# prebuild, so they must not be part of the fingerprint.
+/ios/
+/android/

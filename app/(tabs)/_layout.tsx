@@ -4,7 +4,7 @@ import type { TabTriggerSlotProps } from "expo-router/ui";
 import { View, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Home, Plus, Settings } from "lucide-react-native";
+import { Home, Plus, Settings, CalendarHeart } from "lucide-react-native";
 import { forwardRef } from "react";
 import { colors } from "../../constants/colors";
 import { GlassSurface } from "../../components/GlassSurface";
@@ -12,14 +12,19 @@ import { GlassSurface } from "../../components/GlassSurface";
 // A single nav slot inside the glass pill. Active → gold gradient circle.
 const NavSlot = forwardRef<
   View,
-  TabTriggerSlotProps & { icon: "home" | "settings" }
+  TabTriggerSlotProps & { icon: "home" | "plan" | "settings" }
 >(({ isFocused, onPress, icon }, ref) => {
-  const Icon = icon === "home" ? Home : Settings;
+  const Icon = icon === "home" ? Home : icon === "plan" ? CalendarHeart : Settings;
   return (
     <Pressable
       ref={ref}
       onPress={onPress}
-      style={[styles.slot, icon === "home" ? styles.slotFirst : styles.slotLast]}
+      style={[
+        styles.slot,
+        icon === "home" && styles.slotFirst,
+        icon === "plan" && styles.slotMiddle,
+        icon === "settings" && styles.slotLast,
+      ]}
     >
       {isFocused ? (
         <LinearGradient
@@ -80,6 +85,9 @@ export default function TabLayout() {
         <TabTrigger name="index" href="/(tabs)" asChild>
           <NavSlot icon="home" />
         </TabTrigger>
+        <TabTrigger name="plan" href="/(tabs)/plan" asChild>
+          <NavSlot icon="plan" />
+        </TabTrigger>
         <TabTrigger name="settings" href="/(tabs)/settings" asChild>
           <NavSlot icon="settings" />
         </TabTrigger>
@@ -107,7 +115,7 @@ const LIFT = {
 const SLOT = 46;
 const PILL_PAD = 7;
 const SLOT_GAP = 4;
-const PILL_W = PILL_PAD * 2 + SLOT * 2 + SLOT_GAP;
+const PILL_W = PILL_PAD * 2 + SLOT * 3 + SLOT_GAP * 2;
 const PILL_H = PILL_PAD * 2 + SLOT;
 
 const styles = StyleSheet.create({
@@ -146,6 +154,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   slotFirst: { marginLeft: PILL_PAD, marginRight: SLOT_GAP / 2 },
+  slotMiddle: { marginHorizontal: SLOT_GAP / 2 },
   slotLast: { marginLeft: SLOT_GAP / 2, marginRight: PILL_PAD },
   slotActive: {
     width: 46,

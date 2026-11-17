@@ -29,6 +29,7 @@ import { router } from "expo-router";
 import { Button } from "../../components/Button";
 import { colors } from "../../constants/colors";
 import { authStore } from "../../zustand/auth-store";
+import { usePlannerStore } from "../../zustand/planner";
 import actions from "../../zustand/auth-store/actions";
 
 // Apple's mark, which lucide doesn't carry.
@@ -240,7 +241,11 @@ export default function Welcome() {
   }, []);
 
   useEffect(() => {
-    if (token) router.replace("/(tabs)");
+    if (!token) return;
+    // First sign-in lands on the Plan tab, where the setup wizard builds the
+    // wedding plan. Couples who already have a plan, or skipped it, go home.
+    const { weddingDate, setupSkipped } = usePlannerStore.getState();
+    router.replace(!weddingDate && !setupSkipped ? "/(tabs)/plan" : "/(tabs)");
   }, [token]);
 
   const handleApple = async () => {

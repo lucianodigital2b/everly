@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
-import { CreditCard, Bell, HelpCircle, Trash2, ChevronRight, LogOut } from 'lucide-react-native';
+import { CreditCard, Bell, HelpCircle, Shield, Trash2, ChevronRight, LogOut } from 'lucide-react-native';
 import { colors } from '../../constants/colors';
 import { authApi } from '../../services/api';
 import { useRevenueCat } from '../../hooks/useRevenueCat';
@@ -10,6 +11,7 @@ import { authStore } from '../../zustand/auth-store';
 import actions from '../../zustand/auth-store/actions';
 
 const SUPPORT_EMAIL = 'luciano@getclevernote.app';
+const PRIVACY_URL = 'https://everly.koffeecode.com/privacy';
 
 // Tailwind's `shadow-sm` translates to a tight, offset iOS shadow that reads as a
 // hard band on the right/bottom edge. A wide, low-opacity shadow matches the
@@ -128,6 +130,7 @@ export default function SettingsScreen() {
           <SettingItem icon={CreditCard} label="Purchases" onPress={openCustomerCenter} />
           <SettingItem icon={Bell} label="Notifications" onPress={() => Linking.openSettings()} />
           <SettingItem icon={HelpCircle} label="Help" onPress={handleHelp} />
+          <SettingItem icon={Shield} label="Privacy Policy" onPress={() => Linking.openURL(PRIVACY_URL)} />
         </View>
 
         <View className="bg-backgroundSecondary rounded-3xl p-6" style={CARD_SHADOW}>
@@ -142,7 +145,7 @@ export default function SettingsScreen() {
         </View>
 
         <Text className="text-center text-textSecondary font-sansSemiBold text-xs mt-8">
-          Everly v1.0.0
+          Everly v{Constants.expoConfig?.version}
         </Text>
       </ScrollView>
     </ScreenWrapper>

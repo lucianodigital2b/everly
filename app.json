@@ -69,7 +69,14 @@
           "userTrackingPermission": "Everly uses this to measure ad performance and improve your experience. Your data is never sold."
         }
       ],
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      "expo-sharing",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Everly reads your contacts only when you choose to import guests into your wedding guest list."
+        }
+      ]
     ],
     "extra": {
       "router": {
@@ -79,6 +86,12 @@
         "projectId": "3087a1be-3122-4ba6-bb7c-2b1bccbef4d0"
       }
     },
-    "owner": "the-everly-org"
+    "owner": "the-everly-org",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/3087a1be-3122-4ba6-bb7c-2b1bccbef4d0"
+    }
   }
 }

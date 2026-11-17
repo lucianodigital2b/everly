@@ -131,6 +131,15 @@ export default function RootLayout() {
               <Stack.Screen name="photo" options={SlideFromRight()} />
               <Stack.Screen name="scan" options={SlideFromRight()} />
               <Stack.Screen name="upload/[token]" options={SlideFromRight()} />
+              {/* Wedding planner, opened from the Plan tab. */}
+              <Stack.Screen name="guests" options={SlideFromRight()} />
+              <Stack.Screen name="guest-edit" options={SlideFromRight()} />
+              <Stack.Screen name="budget" options={SlideFromRight()} />
+              <Stack.Screen name="expense-edit" options={SlideFromRight()} />
+              <Stack.Screen name="task" options={SlideFromRight()} />
+              <Stack.Screen name="task-new" options={SlideFromRight()} />
+              <Stack.Screen name="timeline" options={SlideFromRight()} />
+              <Stack.Screen name="guest-import" options={SlideFromRight()} />
               <Stack.Screen
                 name="event/[id]"
                 options={({ route }: any) => {

@@ -655,8 +655,9 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
       body: (
         <View style={styles.panelBody}>
           <Text style={styles.panelHint}>
-            Guest packs add slots to this event. They're a one-off purchase, not
-            a subscription — and the allowance only moves up.
+            A guest pack raises this event's guest limit to that number. It's a
+            one-off purchase, not a subscription — and the allowance only moves
+            up.
           </Text>
           {GUEST_TIERS.map((tier) => {
             const isCurrent = currentTier?.planId === tier.planId;
