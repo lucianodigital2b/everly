@@ -26,7 +26,14 @@ const DEV_BASE_URL =
  *  build. api.everly.app was never ours — that domain is parked. */
 const PROD_BASE_URL = "https://everly.koffeecode.com/api";
 
-export const API_BASE_URL = (__DEV__ ? DEV_BASE_URL : PROD_BASE_URL).replace(
+/** Dev builds talk to production too, since the tunnel is offline most of the
+ *  time and production accepts the dev bundle id as the Apple `aud`. Flip to
+ *  true only while the local backend and a live ngrok tunnel are up. */
+const USE_LOCAL_BACKEND = false;
+
+export const API_BASE_URL = (
+  __DEV__ && USE_LOCAL_BACKEND ? DEV_BASE_URL : PROD_BASE_URL
+).replace(
   /\/+$/,
   ""
 );
@@ -425,4 +432,23 @@ export const uploadApi = {
       }>(url, formData, { headers })
       .then((r) => r.data);
   },
+};
+
+// ─── Wedding assistant (the FAB chat) ─────────────────────────────────────────
+
+export type ChatTurn = { role: "user" | "assistant"; content: string };
+
+export const chatApi = {
+  /**
+   * Ask the assistant. `context` is the on-device planner summary built by
+   * useAssistantContext (counts only, no guest names). The server keeps the
+   * last 12 turns; a slow reply can take well past the default 20 s timeout.
+   */
+  send: (messages: ChatTurn[], language: string, context: object) =>
+    auth<{ reply: string }>({
+      method: "POST",
+      url: "/chat",
+      data: { messages, language, context },
+      timeout: 60_000,
+    }),
 };

@@ -1,3 +1,5 @@
+import { LANGUAGE, t } from '../i18n';
+
 // "About our wedding" answers: asked in the setup wizard, shown and edited on
 // the Plan tab. Ids are persisted, so never rename an existing one.
 
@@ -10,51 +12,51 @@ export interface VibeOption {
 }
 
 export const VIBE_COLORS: VibeOption[] = [
-  { id: 'blush', label: 'Blush', hex: '#E6A9B4' },
-  { id: 'sage', label: 'Sage', hex: '#A7B89A' },
-  { id: 'dusty_blue', label: 'Dusty blue', hex: '#8FA9C7' },
-  { id: 'terracotta', label: 'Terracotta', hex: '#C9775A' },
-  { id: 'lavender', label: 'Lavender', hex: '#B7A3D6' },
-  { id: 'burgundy', label: 'Burgundy', hex: '#7E2F3E' },
-  { id: 'emerald', label: 'Emerald', hex: '#2F6F57' },
-  { id: 'gold', label: 'Gold', hex: '#C9A45C' },
-  { id: 'ivory', label: 'Ivory', hex: '#EFE6D6' },
-  { id: 'black_white', label: 'Black & white', hex: '#2E2429' },
+  { id: 'blush', label: t('vibe.colors.blush'), hex: '#E6A9B4' },
+  { id: 'sage', label: t('vibe.colors.sage'), hex: '#A7B89A' },
+  { id: 'dusty_blue', label: t('vibe.colors.dustyBlue'), hex: '#8FA9C7' },
+  { id: 'terracotta', label: t('vibe.colors.terracotta'), hex: '#C9775A' },
+  { id: 'lavender', label: t('vibe.colors.lavender'), hex: '#B7A3D6' },
+  { id: 'burgundy', label: t('vibe.colors.burgundy'), hex: '#7E2F3E' },
+  { id: 'emerald', label: t('vibe.colors.emerald'), hex: '#2F6F57' },
+  { id: 'gold', label: t('vibe.colors.gold'), hex: '#C9A45C' },
+  { id: 'ivory', label: t('vibe.colors.ivory'), hex: '#EFE6D6' },
+  { id: 'black_white', label: t('vibe.colors.blackWhite'), hex: '#2E2429' },
 ];
 
 export const VIBE_SEASONS: VibeOption[] = [
-  { id: 'spring', label: 'Spring' },
-  { id: 'summer', label: 'Summer' },
-  { id: 'fall', label: 'Fall' },
-  { id: 'winter', label: 'Winter' },
+  { id: 'spring', label: t('vibe.seasons.spring') },
+  { id: 'summer', label: t('vibe.seasons.summer') },
+  { id: 'fall', label: t('vibe.seasons.fall') },
+  { id: 'winter', label: t('vibe.seasons.winter') },
 ];
 
 export const VIBE_STYLES: VibeOption[] = [
-  { id: 'classic', label: 'Classic' },
-  { id: 'rustic', label: 'Rustic' },
-  { id: 'boho', label: 'Boho' },
-  { id: 'modern', label: 'Modern' },
-  { id: 'garden', label: 'Garden / outdoor' },
-  { id: 'beach', label: 'Beach' },
-  { id: 'glam', label: 'Glam' },
-  { id: 'minimal', label: 'Minimal' },
+  { id: 'classic', label: t('vibe.styles.classic') },
+  { id: 'rustic', label: t('vibe.styles.rustic') },
+  { id: 'boho', label: t('vibe.styles.boho') },
+  { id: 'modern', label: t('vibe.styles.modern') },
+  { id: 'garden', label: t('vibe.styles.garden') },
+  { id: 'beach', label: t('vibe.styles.beach') },
+  { id: 'glam', label: t('vibe.styles.glam') },
+  { id: 'minimal', label: t('vibe.styles.minimal') },
 ];
 
 export const VIBE_HONEYMOONS: VibeOption[] = [
-  { id: 'beach', label: 'Beach & islands' },
-  { id: 'europe', label: 'Europe' },
-  { id: 'adventure', label: 'Adventure' },
-  { id: 'city', label: 'City break' },
-  { id: 'road_trip', label: 'Road trip' },
-  { id: 'staycation', label: 'Staycation' },
-  { id: 'undecided', label: 'Not sure yet' },
+  { id: 'beach', label: t('vibe.honeymoons.beach') },
+  { id: 'europe', label: t('vibe.honeymoons.europe') },
+  { id: 'adventure', label: t('vibe.honeymoons.adventure') },
+  { id: 'city', label: t('vibe.honeymoons.city') },
+  { id: 'road_trip', label: t('vibe.honeymoons.roadTrip') },
+  { id: 'staycation', label: t('vibe.honeymoons.staycation') },
+  { id: 'undecided', label: t('vibe.honeymoons.undecided') },
 ];
 
 export const VIBE_FIELDS: { field: VibeField; label: string; options: VibeOption[] }[] = [
-  { field: 'color', label: 'Color', options: VIBE_COLORS },
-  { field: 'season', label: 'Season', options: VIBE_SEASONS },
-  { field: 'style', label: 'Style', options: VIBE_STYLES },
-  { field: 'honeymoon', label: 'Honeymoon', options: VIBE_HONEYMOONS },
+  { field: 'color', label: t('vibe.fields.color'), options: VIBE_COLORS },
+  { field: 'season', label: t('vibe.fields.season'), options: VIBE_SEASONS },
+  { field: 'style', label: t('vibe.fields.style'), options: VIBE_STYLES },
+  { field: 'honeymoon', label: t('vibe.fields.honeymoon'), options: VIBE_HONEYMOONS },
 ];
 
 export function vibeOption(field: VibeField, id: string | null): VibeOption | null {
@@ -62,11 +64,20 @@ export function vibeOption(field: VibeField, id: string | null): VibeOption | nu
   return VIBE_FIELDS.find((f) => f.field === field)?.options.find((o) => o.id === id) ?? null;
 }
 
-// Northern-hemisphere season of a YYYY-MM-DD date (the app's copy is US English).
+// Northern-hemisphere season of a YYYY-MM-DD date. Brazilian users are in the
+// southern hemisphere, so December is summer there, not winter: when the app
+// runs in Portuguese we flip the northern result.
 export function seasonFromDate(iso: string): string {
   const month = Number(iso.split('-')[1]);
-  if (month >= 3 && month <= 5) return 'spring';
-  if (month >= 6 && month <= 8) return 'summer';
-  if (month >= 9 && month <= 11) return 'fall';
-  return 'winter';
+  let season = 'winter';
+  if (month >= 3 && month <= 5) season = 'spring';
+  if (month >= 6 && month <= 8) season = 'summer';
+  if (month >= 9 && month <= 11) season = 'fall';
+  if (LANGUAGE === 'pt') {
+    if (season === 'spring') return 'fall';
+    if (season === 'fall') return 'spring';
+    if (season === 'summer') return 'winter';
+    if (season === 'winter') return 'summer';
+  }
+  return season;
 }

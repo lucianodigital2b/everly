@@ -7,6 +7,7 @@ import { authApi } from "../../services/api";
 import { appleAuth } from "../../services/appleAuth";
 import { appsFlyerService } from "../../services/appsflyer";
 import { StorageHelper } from "../../utils";
+import { t } from '../../i18n';
 
 /**
  * A dismissed Apple sheet. Which code comes back depends on the iOS version and
@@ -41,7 +42,7 @@ const actions = (dispatch: any) => ({
       });
 
       if (!credential?.identityToken) {
-        throw new Error("Apple did not return an identity token");
+        throw new Error(t('auth.appleTokenMissing'));
       }
 
       // Name/email only ever arrive on the first authorization — mergeProfile
@@ -57,7 +58,7 @@ const actions = (dispatch: any) => ({
       });
 
       if (!data?.token) {
-        throw new Error("Invalid response from server");
+        throw new Error(t('auth.invalidServerResponse'));
       }
 
       // Both of these run before the store flips to signed-in: the moment
@@ -84,12 +85,12 @@ const actions = (dispatch: any) => ({
         error?.response?.data?.error ||
         error?.response?.data?.message ||
         (error?.message === "Network Error"
-          ? "Couldn't reach Everly. Check your connection and try again."
-          : error?.message || "Apple Sign-In failed");
+          ? t('auth.networkError')
+          : error?.message || t('auth.appleSignInFailed'));
 
       notificationsShow({
         message: errorMessage,
-        title: "Apple Sign-In Failed",
+        title: t('auth.appleSignInFailedTitle'),
         type: "error",
       });
 

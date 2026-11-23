@@ -3,6 +3,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { File, Paths } from 'expo-file-system';
 import { guestStats, menuLabel, type Guest, type GuestGroup } from '../zustand/guests';
+import { t } from '../i18n';
 
 const escapeHtml = (value: string) =>
   value
@@ -12,6 +13,17 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, '&quot;');
 
 const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+
+const statusLabel = (status: Guest['status']) => {
+  if (status === 'attending') return t('guestExport.status.attending');
+  return t('guestExport.status.waiting');
+};
+
+const ageLabel = (age: Guest['age']) => {
+  if (age === 'child') return t('guestExport.age.child');
+  if (age === 'baby') return t('guestExport.age.baby');
+  return t('guestExport.age.adult');
+};
 
 const groupName = (groups: GuestGroup[], id: string) =>
   groups.find((group) => group.id === id)?.name ?? '';
@@ -23,7 +35,7 @@ function guestsByGroup(guests: Guest[], groups: GuestGroup[]) {
     .filter((section) => section.guests.length > 0);
   const known = new Set(groups.map((group) => group.id));
   const orphans = guests.filter((guest) => !known.has(guest.groupId));
-  if (orphans.length) sections.push({ name: 'Other', guests: orphans });
+  if (orphans.length) sections.push({ name: t('guestExport.otherGroup'), guests: orphans });
   return sections;
 }
 
@@ -34,14 +46,14 @@ export function guestListHtml(guests: Guest[], groups: GuestGroup[], coupleTitle
       (section) => `
       <h2>${escapeHtml(section.name)} <span>(${section.guests.length})</span></h2>
       <table>
-        <thead><tr><th>Name</th><th>RSVP</th><th>Age</th><th>Menu</th><th>Phone</th></tr></thead>
+        <thead><tr><th>${t('guestExport.col.name')}</th><th>${t('guestExport.col.rsvp')}</th><th>${t('guestExport.col.age')}</th><th>${t('guestExport.col.menu')}</th><th>${t('guestExport.col.phone')}</th></tr></thead>
         <tbody>
           ${section.guests
             .map(
               (guest) => `<tr>
               <td>${escapeHtml(guest.name)}${guest.plusOne ? ' <em>+1</em>' : ''}</td>
-              <td class="${guest.status}">${capitalize(guest.status)}</td>
-              <td>${capitalize(guest.age)}</td>
+              <td class="${guest.status}">${capitalize(statusLabel(guest.status))}</td>
+              <td>${capitalize(ageLabel(guest.age))}</td>
               <td>${escapeHtml(menuLabel(guest.menu))}</td>
               <td>${escapeHtml(guest.phone)}</td>
             </tr>`,
@@ -63,26 +75,37 @@ export function guestListHtml(guests: Guest[], groups: GuestGroup[], coupleTitle
     th { text-align: left; color: #7A6E73; font-weight: 600; border-bottom: 1px solid #E8DDE0; padding: 6px 4px; }
     td { border-bottom: 1px solid #F2ECEE; padding: 6px 4px; }
     em { color: #7A6E73; font-style: normal; font-size: 11px; }
-    .attending { color: #4F8A62; } .declined { color: #B5675F; } .waiting { color: #7A6E73; }
+    .attending { color: #4F8A62; } .waiting { color: #7A6E73; }
     tr { page-break-inside: avoid; }
   </style></head><body>
-    <h1>Guest list: ${escapeHtml(coupleTitle)}</h1>
-    <div class="summary">${stats.invited} invited · ${stats.attending} attending · ${stats.waiting} waiting · ${stats.declined} declined · ${stats.adults} adults, ${stats.children} kids, ${stats.babies} babies</div>
-    ${sections || '<p>No guests yet.</p>'}
+    <h1>${t('guestExport.guestListTitle', { coupleTitle: escapeHtml(coupleTitle) })}</h1>
+    <div class="summary">${t('guestExport.summary', { invited: stats.invited, attending: stats.attending, waiting: stats.waiting, adults: stats.adults, kids: stats.children, babies: stats.babies })}</div>
+    ${sections || `<p>${t('guestExport.noGuests')}</p>`}
   </body></html>`;
 }
 
 const csvCell = (value: string) => (/[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
 
 export function guestListCsv(guests: Guest[], groups: GuestGroup[]): string {
-  const header = ['Name', 'Group', 'RSVP', 'Plus one', 'Age', 'Menu', 'Phone', 'Email', 'Address', 'Note'];
+  const header = [
+    t('guestExport.col.name'),
+    t('guestExport.col.group'),
+    t('guestExport.col.rsvp'),
+    t('guestExport.col.plusOne'),
+    t('guestExport.col.age'),
+    t('guestExport.col.menu'),
+    t('guestExport.col.phone'),
+    t('guestExport.col.email'),
+    t('guestExport.col.address'),
+    t('guestExport.col.note'),
+  ];
   const rows = guestsByGroup(guests, groups).flatMap((section) =>
     section.guests.map((guest) => [
       guest.name,
       groupName(groups, guest.groupId) || section.name,
-      capitalize(guest.status),
-      guest.plusOne ? 'Yes' : 'No',
-      capitalize(guest.age),
+      capitalize(statusLabel(guest.status)),
+      guest.plusOne ? t('guestExport.yes') : t('guestExport.no'),
+      capitalize(ageLabel(guest.age)),
       menuLabel(guest.menu),
       guest.phone,
       guest.email,
@@ -105,7 +128,7 @@ export async function shareGuestListPdf(guests: Guest[], groups: GuestGroup[], c
   await Sharing.shareAsync(file.uri, {
     mimeType: 'application/pdf',
     UTI: 'com.adobe.pdf',
-    dialogTitle: 'Guest list',
+    dialogTitle: t('guestExport.guestList'),
   });
 }
 
@@ -116,6 +139,6 @@ export async function shareGuestListCsv(guests: Guest[], groups: GuestGroup[]) {
   await Sharing.shareAsync(file.uri, {
     mimeType: 'text/csv',
     UTI: 'public.comma-separated-values-text',
-    dialogTitle: 'Guest list',
+    dialogTitle: t('guestExport.guestList'),
   });
 }

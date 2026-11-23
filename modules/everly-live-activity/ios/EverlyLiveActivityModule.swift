@@ -1,5 +1,18 @@
 import ActivityKit
 import ExpoModulesCore
+import WidgetKit
+
+/// App Group shared with the widget extension. Derived from the bundle id so the
+/// dev / preview / production variants each get their own group, matching the
+/// entitlement app.config.js declares (`group.<bundleIdentifier>`).
+private enum WidgetStore {
+  static let snapshotKey = "everly.widget.snapshot"
+
+  static var defaults: UserDefaults? {
+    guard let bundleId = Bundle.main.bundleIdentifier else { return nil }
+    return UserDefaults(suiteName: "group.\(bundleId)")
+  }
+}
 
 /// Everything the JS side needs to describe one running event. Times cross the
 /// bridge as epoch milliseconds, since that's what `Date.getTime()` gives.
@@ -76,6 +89,19 @@ public class EverlyLiveActivityModule: Module {
     AsyncFunction("end") { (eventId: String) async -> Void in
       guard #available(iOS 16.2, *) else { return }
       await EverlyLiveActivityModule.end(eventId: eventId)
+    }
+
+    // Home Screen widget: the JS side hands over a JSON snapshot of the plan
+    // (couple, date, next tasks, RSVPs, localized labels). Stored in the App
+    // Group and the widget timelines reloaded. Returns false when the group
+    // isn't available (entitlement missing), so JS can log it once.
+    Function("setWidgetSnapshot") { (json: String) -> Bool in
+      guard let defaults = WidgetStore.defaults else { return false }
+      defaults.set(json, forKey: WidgetStore.snapshotKey)
+      if #available(iOS 14.0, *) {
+        WidgetCenter.shared.reloadAllTimelines()
+      }
+      return true
     }
 
     AsyncFunction("endAll") { () async -> Void in

@@ -1,0 +1,8 @@
+{
+  "CFBundleDisplayName": "Everly",
+  "NSCameraUsageDescription": "Everly needs access to your camera to take photos for events.",
+  "NSMicrophoneUsageDescription": "Everly needs access to your microphone for video recording.",
+  "NSPhotoLibraryUsageDescription": "Everly needs access to your photo library to upload photos to events.",
+  "NSUserNotificationsUsageDescription": "Everly needs to send you notifications about event updates and reveals.",
+  "NSUserTrackingUsageDescription": "Everly uses this to measure ad performance and improve your experience. Your data is never sold."
+}

@@ -1,5 +1,6 @@
 import * as Updates from 'expo-updates';
 import { Alert } from 'react-native';
+import { t } from '../i18n';
 
 /**
  * Check for available updates and prompt user to install
@@ -9,7 +10,7 @@ export const checkForUpdates = async (showNoUpdateAlert = false) => {
   try {
     if (__DEV__) {
       if (showNoUpdateAlert) {
-        Alert.alert('Updates', 'Updates are not available in development mode.');
+        Alert.alert(t('updates.devTitle'), t('updates.devMessage'));
       }
       return;
     }
@@ -18,43 +19,43 @@ export const checkForUpdates = async (showNoUpdateAlert = false) => {
     
     if (update.isAvailable) {
       Alert.alert(
-        'Update Available',
-        'A new version of the app is available. Would you like to update now?',
+        t('updates.updateAvailableTitle'),
+        t('updates.updateAvailableMessage'),
         [
           {
-            text: 'Later',
+            text: t('updates.later'),
             style: 'cancel'
           },
           {
-            text: 'Update',
+            text: t('updates.update'),
             onPress: async () => {
               try {
                 await Updates.fetchUpdateAsync();
                 Alert.alert(
-                  'Update Downloaded',
-                  'The update has been downloaded. The app will restart to apply the update.',
+                  t('updates.downloadedTitle'),
+                  t('updates.downloadedMessage'),
                   [
                     {
-                      text: 'Restart Now',
+                      text: t('updates.restartNow'),
                       onPress: () => Updates.reloadAsync()
                     }
                   ]
                 );
               } catch (error) {
                 console.error('Error downloading update:', error);
-                Alert.alert('Update Error', 'Failed to download the update. Please try again later.');
+                Alert.alert(t('updates.downloadErrorTitle'), t('updates.downloadErrorMessage'));
               }
             }
           }
         ]
       );
     } else if (showNoUpdateAlert) {
-      Alert.alert('No Updates', 'You are already using the latest version of the app.');
+      Alert.alert(t('updates.noUpdatesTitle'), t('updates.noUpdatesMessage'));
     }
   } catch (error) {
     console.error('Error checking for updates:', error);
     if (showNoUpdateAlert) {
-      Alert.alert('Update Error', 'Unable to check for updates. Please try again later.');
+      Alert.alert(t('updates.checkErrorTitle'), t('updates.checkErrorMessage'));
     }
   }
 };

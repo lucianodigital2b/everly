@@ -8,6 +8,7 @@ import {
   sepia,
   type ColorMatrix,
 } from './colorMatrix';
+import { t } from '../i18n';
 
 export type FilterKey = 'none' | 'warm' | 'film' | 'mono';
 
@@ -28,22 +29,22 @@ export interface FilterPreset {
 export const FILTERS: FilterPreset[] = [
   {
     key: 'none',
-    label: 'Natural',
+    label: t('filters.natural'),
     matrix: IDENTITY,
   },
   {
     key: 'warm',
-    label: 'Warm',
+    label: t('filters.warm'),
     matrix: compose(saturate(1.4), brightness(1.08), contrast(1.05)),
   },
   {
     key: 'film',
-    label: 'Film',
+    label: t('filters.film'),
     matrix: compose(sepia(0.55), contrast(1.15), brightness(0.97)),
   },
   {
     key: 'mono',
-    label: 'B&W',
+    label: t('filters.bw'),
     // Grayscale on its own comes out flat and grey. The extra contrast is what
     // makes it read as black and white rather than as a drained photo — the
     // look of the moodboard's monochrome frames.

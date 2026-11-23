@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { LANGUAGE, t } from '../i18n';
 
 export type BudgetCategory = {
   id: string;
@@ -21,33 +22,73 @@ export type Expense = {
 };
 
 const DEFAULT_CATEGORIES: BudgetCategory[] = [
-  { id: 'venue', name: 'Venue', share: 0.3, color: '#C77E8D' },
-  { id: 'catering', name: 'Food & drinks', share: 0.25, color: '#E6A9B4' },
-  { id: 'photo', name: 'Photo & video', share: 0.12, color: '#8FA9C7' },
-  { id: 'attire', name: 'Attire & beauty', share: 0.08, color: '#B7A3D6' },
-  { id: 'flowers', name: 'Flowers & decor', share: 0.08, color: '#9DC3A8' },
-  { id: 'music', name: 'Music', share: 0.05, color: '#E8C48F' },
-  { id: 'rings', name: 'Rings', share: 0.04, color: '#D4A5A5' },
-  { id: 'paper', name: 'Invitations', share: 0.02, color: '#A8B5C0' },
-  { id: 'other', name: 'Other', share: 0.06, color: '#C9B79C' },
+  { id: 'venue', name: t('budgetData.categories.venue'), share: 0.3, color: '#C77E8D' },
+  { id: 'catering', name: t('budgetData.categories.catering'), share: 0.25, color: '#E6A9B4' },
+  { id: 'photo', name: t('budgetData.categories.photo'), share: 0.12, color: '#8FA9C7' },
+  { id: 'attire', name: t('budgetData.categories.attire'), share: 0.08, color: '#B7A3D6' },
+  { id: 'flowers', name: t('budgetData.categories.flowers'), share: 0.08, color: '#9DC3A8' },
+  { id: 'music', name: t('budgetData.categories.music'), share: 0.05, color: '#E8C48F' },
+  { id: 'rings', name: t('budgetData.categories.rings'), share: 0.04, color: '#D4A5A5' },
+  { id: 'paper', name: t('budgetData.categories.paper'), share: 0.02, color: '#A8B5C0' },
+  { id: 'other', name: t('budgetData.categories.other'), share: 0.06, color: '#C9B79C' },
 ];
 
 export const BUDGET_ITEM_SUGGESTIONS: Record<string, string[]> = {
-  venue: ['Venue rental', 'Ceremony site fee', 'Chairs & tables', 'Venue deposit'],
-  catering: ['Catering per guest', 'Bar & drinks', 'Wedding cake', 'Service staff'],
-  photo: ['Photographer', 'Videographer', 'Engagement shoot', 'Album'],
-  attire: [
-    'Wedding dress',
-    'Suit or tux',
-    'Alterations',
-    'Hair & makeup',
-    'Shoes & accessories',
+  venue: [
+    t('budgetData.suggestions.venue.rental'),
+    t('budgetData.suggestions.venue.ceremonyFee'),
+    t('budgetData.suggestions.venue.chairsTables'),
+    t('budgetData.suggestions.venue.deposit'),
   ],
-  flowers: ['Bouquets', 'Centerpieces', 'Ceremony arch', 'Boutonnieres'],
-  music: ['DJ', 'Band', 'Ceremony musicians', 'Sound & lighting'],
-  rings: ['Engagement ring', 'Wedding bands', 'Engraving'],
-  paper: ['Save the dates', 'Invitations', 'Postage', 'Signage'],
-  other: ['Officiant', 'Marriage license', 'Favors', 'Transportation', 'Honeymoon'],
+  catering: [
+    t('budgetData.suggestions.catering.perGuest'),
+    t('budgetData.suggestions.catering.barDrinks'),
+    t('budgetData.suggestions.catering.weddingCake'),
+    t('budgetData.suggestions.catering.serviceStaff'),
+  ],
+  photo: [
+    t('budgetData.suggestions.photo.photographer'),
+    t('budgetData.suggestions.photo.videographer'),
+    t('budgetData.suggestions.photo.engagementShoot'),
+    t('budgetData.suggestions.photo.album'),
+  ],
+  attire: [
+    t('budgetData.suggestions.attire.dress'),
+    t('budgetData.suggestions.attire.suitOrTux'),
+    t('budgetData.suggestions.attire.alterations'),
+    t('budgetData.suggestions.attire.hairMakeup'),
+    t('budgetData.suggestions.attire.shoesAccessories'),
+  ],
+  flowers: [
+    t('budgetData.suggestions.flowers.bouquets'),
+    t('budgetData.suggestions.flowers.centerpieces'),
+    t('budgetData.suggestions.flowers.ceremonyArch'),
+    t('budgetData.suggestions.flowers.boutonnieres'),
+  ],
+  music: [
+    t('budgetData.suggestions.music.dj'),
+    t('budgetData.suggestions.music.band'),
+    t('budgetData.suggestions.music.ceremonyMusicians'),
+    t('budgetData.suggestions.music.soundLighting'),
+  ],
+  rings: [
+    t('budgetData.suggestions.rings.engagementRing'),
+    t('budgetData.suggestions.rings.weddingBands'),
+    t('budgetData.suggestions.rings.engraving'),
+  ],
+  paper: [
+    t('budgetData.suggestions.paper.saveTheDates'),
+    t('budgetData.suggestions.paper.invitations'),
+    t('budgetData.suggestions.paper.postage'),
+    t('budgetData.suggestions.paper.signage'),
+  ],
+  other: [
+    t('budgetData.suggestions.other.officiant'),
+    t('budgetData.suggestions.other.marriageLicense'),
+    t('budgetData.suggestions.other.favors'),
+    t('budgetData.suggestions.other.transportation'),
+    t('budgetData.suggestions.other.honeymoon'),
+  ],
 };
 
 type BudgetState = {
@@ -181,25 +222,36 @@ export function budgetSummary(
   };
 }
 
+// Money follows the app language: Portuguese shows reais (R$ 1.234, R$ 50 mil),
+// everything else dollars ($1,234, $50k). The amounts are whatever the couple
+// typed; there is no conversion.
+const PT = LANGUAGE === 'pt';
+export const CURRENCY_SYMBOL = PT ? 'R$' : '$';
+const THOUSANDS = PT ? '.' : ',';
+
 export function formatUsd(n: number): string {
   const safe = Number.isFinite(n) ? n : 0;
   const sign = safe < 0 ? '-' : '';
   const rounded = Math.round(Math.abs(safe));
-  const withThousands = rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return `${sign}$${withThousands}`;
+  const withThousands = rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, THOUSANDS);
+  return PT ? `${sign}R$ ${withThousands}` : `${sign}$${withThousands}`;
 }
 
 export function compactUsd(n: number): string {
   const safe = Number.isFinite(n) ? n : 0;
   const abs = Math.abs(safe);
   const sign = safe < 0 ? '-' : '';
+  const short = (v: number) => {
+    const text = v.toFixed(1).replace(/\.0$/, '');
+    return PT ? text.replace('.', ',') : text;
+  };
 
   if (abs >= 1_000_000) {
-    return `${sign}$${(abs / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+    return PT ? `${sign}R$ ${short(abs / 1_000_000)} mi` : `${sign}$${short(abs / 1_000_000)}M`;
   }
 
   if (abs >= 1_000) {
-    return `${sign}$${(abs / 1_000).toFixed(1).replace(/\.0$/, '')}k`;
+    return PT ? `${sign}R$ ${short(abs / 1_000)} mil` : `${sign}$${short(abs / 1_000)}k`;
   }
 
   return formatUsd(safe);

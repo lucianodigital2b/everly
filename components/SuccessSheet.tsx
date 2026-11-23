@@ -19,6 +19,7 @@ import Reanimated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Check, Copy, Share2 } from "lucide-react-native";
 import { colors } from "../constants/colors";
+import { t } from '../i18n';
 import { Button } from "./Button";
 
 interface SuccessSheetProps {
@@ -218,7 +219,7 @@ export const SuccessSheet: React.FC<SuccessSheetProps> = ({
                 onPressOut={() => setPressing(null)}
                 style={[styles.linkRow, pressing === "copy" && styles.pressed]}
                 accessibilityRole="button"
-                accessibilityLabel="Copiar link do convite"
+                accessibilityLabel={t('success.copyInviteAccessibility')}
               >
                 {copied ? (
                   <Check size={18} color={colors.accentDeep} strokeWidth={2.5} />
@@ -233,7 +234,7 @@ export const SuccessSheet: React.FC<SuccessSheetProps> = ({
                     copied && { color: colors.accentDeep },
                   ]}
                 >
-                  {copied ? "Link copiado" : link}
+                  {copied ? t('success.linkCopied') : link}
                 </Text>
               </Pressable>
 
@@ -243,10 +244,10 @@ export const SuccessSheet: React.FC<SuccessSheetProps> = ({
                 onPressOut={() => setPressing(null)}
                 style={[styles.shareRow, pressing === "share" && styles.pressed]}
                 accessibilityRole="button"
-                accessibilityLabel="Enviar aos convidados"
+                accessibilityLabel={t('success.sendToGuests')}
               >
                 <Share2 size={17} color={colors.accentDeep} strokeWidth={2} />
-                <Text style={styles.shareLabel}>Enviar aos convidados</Text>
+                <Text style={styles.shareLabel}>{t('success.sendToGuests')}</Text>
               </Pressable>
             </View>
           ) : null}

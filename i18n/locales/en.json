@@ -1,0 +1,1567 @@
+{
+  "plan": {
+    "building": {
+      "title": "Building your plan…",
+      "mappingTasks_one": "Mapping {{count}} task to your date",
+      "mappingTasks_other": "Mapping {{count}} tasks to your date",
+      "splittingBudget": "Splitting your budget into 9 categories",
+      "settingUpBudget": "Setting up your budget",
+      "creatingGuestGroups": "Creating guest groups for {{names}}",
+      "markingBooked": "Marking what you've already booked",
+      "savingVibe": "Saving your wedding vibe"
+    },
+    "guestEstimates": {
+      "under50": "Under 50",
+      "from50to100": "50-100",
+      "from100to150": "100-150",
+      "from150to200": "150-200",
+      "over200": "200+"
+    },
+    "wizard": {
+      "stepLabel": "Step {{current}} of {{total}}",
+      "step0Title": "Who's getting married?",
+      "step0Subtitle": "Add the couple.",
+      "yourName": "Your name",
+      "yourFirstNamePlaceholder": "Your first name",
+      "partnerName": "Partner's name",
+      "partnerFirstNamePlaceholder": "Partner's first name",
+      "skipForNow": "Skip for now",
+      "step1Title": "When is the big day?",
+      "step1Subtitle": "Choose the date for your countdown and timeline.",
+      "weddingDate": "Wedding date",
+      "selectDate": "Select a date",
+      "step2Title": "What's the vibe?",
+      "step2Subtitle": "Pick a main color and a style. You can change them anytime.",
+      "mainColor": "Main color",
+      "style": "Style",
+      "step3Title": "Season and honeymoon",
+      "step3Subtitle": "We guessed the season from your date.",
+      "season": "Season",
+      "dreamHoneymoon": "Dream honeymoon",
+      "step4Title": "How many guests, roughly?",
+      "step4Subtitle": "This helps you keep an eye on your list headroom.",
+      "step5Title": "What's your total budget?",
+      "step5Subtitle": "You can change this later in Budget.",
+      "budgetPlaceholder": "e.g. 15000",
+      "notSureYet": "Not sure yet",
+      "step6Title": "Already booked anything?",
+      "step6Subtitle": "Select anything already locked in, we'll mark those tasks done.",
+      "nothingYet": "Nothing yet",
+      "continue": "Continue",
+      "buildMyPlan": "Build my plan",
+      "step7Title": "How did you hear about Everly?",
+      "step7Subtitle": "One tap, and it helps us a lot.",
+      "sourceAppStore": "App Store search",
+      "sourceFriend": "A friend or family",
+      "sourceOther": "Other",
+      "roleTitle": "Who's planning?",
+      "roleSubtitle": "We'll tailor the plan to you.",
+      "typeTitle": "What kind of wedding?",
+      "typeSubtitle": "Pick the closest one.",
+      "worryTitle": "What worries you most?",
+      "worrySubtitle": "We'll keep an eye on it first.",
+      "noDateYet": "We haven't set a date yet",
+      "approxDateHint": "Roughly when?",
+      "roles": {
+        "bride": "The bride",
+        "groom": "The groom",
+        "both": "Both of us",
+        "planner": "Wedding planner",
+        "family": "Family or friend"
+      },
+      "types": {
+        "civil_party": "Civil ceremony + reception",
+        "religious_party": "Religious ceremony + reception",
+        "mini": "Mini wedding",
+        "civil_only": "Just the civil ceremony",
+        "destination": "Destination wedding",
+        "elopement": "Elopement"
+      },
+      "worries": {
+        "budget": "Going over budget",
+        "forgetting": "Forgetting something important",
+        "guests": "The guest list and family",
+        "time": "Not enough time",
+        "photos": "Not getting the guests' photos",
+        "vendors": "Finding good vendors"
+      }
+    },
+    "form": {
+      "title": "Plan your wedding",
+      "subtitle": "Add the couple and the big day.",
+      "saveChanges": "Save changes"
+    },
+    "cancel": "Cancel",
+    "progress": {
+      "tasks": "Tasks",
+      "guests": "Guests",
+      "budget": "Budget",
+      "add": "Add",
+      "set": "Set",
+      "yourList": "your list",
+      "ofPlanned": "of ~{{count}} planned",
+      "attending": "attending",
+      "essentialsLeft": "{{count}} essentials left",
+      "noEssentialsLeft": "no essentials left",
+      "ofTotal": "of {{total}}",
+      "yourBudget": "your budget"
+    },
+    "overdueText_one": "{{count}} task from earlier phases is still open",
+    "overdueText_other": "{{count}} tasks from earlier phases are still open",
+    "next": {
+      "upNextLabel": "UP NEXT",
+      "markDone": "Mark done"
+    },
+    "about": {
+      "title": "About our wedding",
+      "add": "Add",
+      "clear": "Clear"
+    },
+    "timelineCard": {
+      "title": "Timeline",
+      "subtitle": "Every task by date, filter by status"
+    },
+    "phase": {
+      "now": "Now",
+      "overdueTag": "{{count}} overdue",
+      "addTask": "Add task"
+    },
+    "taskRow": {
+      "essential": "Essential",
+      "skipped": "Skipped"
+    },
+    "resetAlert": {
+      "title": "Reset plan?",
+      "message": "This will erase all planning progress and details."
+    },
+    "reset": "Reset plan"
+  },
+  "task": {
+    "headerTitle": "Task",
+    "notFound": "Task not found",
+    "removeAlert": {
+      "title": "Remove task?",
+      "message": "This cannot be undone.",
+      "cancel": "Cancel",
+      "remove": "Remove"
+    },
+    "essential": "Essential",
+    "status": {
+      "done": "Done ✓",
+      "markDone": "Mark done",
+      "unskip": "Unskip",
+      "skip": "Skip"
+    },
+    "tip": "Tip",
+    "custom": {
+      "taskTitle": "Task title",
+      "taskTitlePlaceholder": "Task title",
+      "phase": "Phase"
+    },
+    "notes": "Notes",
+    "notesPlaceholder": "Add details, links, pronunciations...",
+    "costs": {
+      "title": "Costs",
+      "planned": "Planned for this category: {{amount}}",
+      "expenseAmount": "{{estimated}} · paid {{paid}}",
+      "addCost": "Add cost"
+    }
+  },
+  "taskNew": {
+    "headerTitle": "New task",
+    "taskTitle": "Task title",
+    "taskTitlePlaceholder": "e.g. Ask aunt Beth for a family photo",
+    "phase": "Phase",
+    "addTask": "Add task"
+  },
+  "timeline": {
+    "headerTitle": "Timeline",
+    "emptyTitle": "Set your wedding date first",
+    "goToPlan": "Go to plan",
+    "summaryDone": "{{done}} of {{total}} done",
+    "summaryEssentialsLeft": " · {{count}} essentials left",
+    "filters": {
+      "toDo": "To do ({{count}})",
+      "done": "Done ({{count}})",
+      "all": "All ({{count}})"
+    },
+    "essentialsToggle": "Essentials",
+    "jumpChip": "{{title}} · {{count}}",
+    "now": "Now",
+    "overdueTag": "{{count}} overdue",
+    "upNext": "UP NEXT",
+    "markDone": "Mark done",
+    "skip": "Skip",
+    "emptyTodo": "All done here",
+    "emptyOther": "Nothing here",
+    "essential": "Essential",
+    "addTask": "+ Add task"
+  },
+  "weddingPlan": {
+    "phases": {
+      "p12": {
+        "title": "10-12+ months out",
+        "subtitle": "Big-picture planning and booking"
+      },
+      "p7": {
+        "title": "7-9 months out",
+        "subtitle": "Lock in your key vendors"
+      },
+      "p4": {
+        "title": "4-6 months out",
+        "subtitle": "Details and final decisions"
+      },
+      "p2": {
+        "title": "2-3 months out",
+        "subtitle": "Paperwork, invitations, and fittings"
+      },
+      "p1": {
+        "title": "Last month",
+        "subtitle": "Finalize everything and enjoy"
+      },
+      "w2": {
+        "title": "Last 2 weeks",
+        "subtitle": "Wrap up final details"
+      },
+      "d0": {
+        "title": "Wedding day",
+        "subtitle": "Be present and celebrate"
+      },
+      "after": {
+        "title": "After the wedding",
+        "subtitle": "Thank yous, photos, and new names"
+      }
+    },
+    "categories": {
+      "planning": "Planning",
+      "ceremony": "Ceremony",
+      "reception": "Reception",
+      "photo": "Photo",
+      "music": "Music",
+      "attire": "Attire",
+      "beauty": "Beauty",
+      "flowers": "Flowers",
+      "paper": "Paper",
+      "legal": "Legal",
+      "rings": "Rings",
+      "honeymoon": "Honeymoon",
+      "guests": "Guests",
+      "camera": "Camera"
+    },
+    "tasks": {
+      "set_budget": {
+        "title": "Set overall budget",
+        "tip": "Decide how much you can spend before you lock in any vendors.",
+        "actionLabel": "Open budget"
+      },
+      "draft_guest_list": {
+        "title": "Draft guest list",
+        "tip": "Build a rough headcount early so venue and catering quotes stay realistic.",
+        "actionLabel": "Open guest list"
+      },
+      "choose_wedding_date": {
+        "title": "Choose wedding date",
+        "tip": "Pick a date that works for your families and your must-have venue."
+      },
+      "book_ceremony_venue": {
+        "title": "Book ceremony venue",
+        "tip": "Reserve the place where you will say your vows.",
+        "actionLabel": "Add cost"
+      },
+      "book_reception_venue": {
+        "title": "Book reception venue",
+        "tip": "Secure the space for dinner and dancing, if separate from the ceremony.",
+        "actionLabel": "Add cost"
+      },
+      "hire_planner": {
+        "title": "Hire wedding planner",
+        "tip": "A planner can save you time and reduce stress if budget allows."
+      },
+      "book_photographer": {
+        "title": "Book photographer",
+        "tip": "Book early because top photographers fill up fast.",
+        "actionLabel": "Add cost"
+      },
+      "book_videographer": {
+        "title": "Book videographer",
+        "tip": "Capture the day in motion so you can relive it.",
+        "actionLabel": "Add cost"
+      },
+      "book_caterer": {
+        "title": "Book caterer",
+        "tip": "Taste samples and confirm they can handle your guest count.",
+        "actionLabel": "Add cost"
+      },
+      "start_wedding_website": {
+        "title": "Start wedding website",
+        "tip": "Build a simple site with your story, travel details, and registry links."
+      },
+      "research_marriage_license": {
+        "title": "Research marriage license requirements",
+        "tip": "Check county rules now so there are no surprises when it is time to apply."
+      },
+      "book_florist": {
+        "title": "Book florist",
+        "tip": "Share inspiration photos and agree on a floral budget.",
+        "actionLabel": "Add cost"
+      },
+      "book_dj_band": {
+        "title": "Book DJ or band",
+        "tip": "Listen to samples or attend a live show before you commit.",
+        "actionLabel": "Add cost"
+      },
+      "send_save_the_dates": {
+        "title": "Send save-the-dates",
+        "tip": "Let guests know the date early so they can plan travel."
+      },
+      "buy_wedding_dress": {
+        "title": "Buy wedding dress",
+        "tip": "Order early because custom gowns can take months to arrive.",
+        "actionLabel": "Add cost"
+      },
+      "book_officiant": {
+        "title": "Book officiant",
+        "tip": "Find someone who will personalize the ceremony for you.",
+        "actionLabel": "Add cost"
+      },
+      "choose_wedding_party": {
+        "title": "Choose wedding party",
+        "tip": "Ask your closest friends and family to stand with you."
+      },
+      "book_hotel_block": {
+        "title": "Book hotel room block",
+        "tip": "Reserve a group of rooms for out-of-town guests.",
+        "actionLabel": "Add cost"
+      },
+      "plan_honeymoon": {
+        "title": "Plan honeymoon",
+        "tip": "Decide where to go and start booking flights and hotels."
+      },
+      "create_gift_registry": {
+        "title": "Create gift registry",
+        "tip": "Register for gifts you will actually use and love."
+      },
+      "order_wedding_rings": {
+        "title": "Order wedding rings",
+        "tip": "Have them sized and ordered well before the big day.",
+        "actionLabel": "Add cost"
+      },
+      "schedule_engagement_photos": {
+        "title": "Schedule engagement photos",
+        "tip": "Use them for your website, invitations, and save-the-dates."
+      },
+      "book_hair_makeup": {
+        "title": "Book hair and makeup artists",
+        "tip": "Trial runs help you find the perfect look for the day.",
+        "actionLabel": "Add cost"
+      },
+      "book_ceremony_musicians": {
+        "title": "Book ceremony musicians",
+        "tip": "Live music adds a special touch to the ceremony.",
+        "actionLabel": "Add cost"
+      },
+      "order_invitations": {
+        "title": "Order wedding invitations",
+        "tip": "Order them early so you have time to address and mail them.",
+        "actionLabel": "Add cost"
+      },
+      "finalize_menu": {
+        "title": "Finalize menu with caterer",
+        "tip": "Confirm selections, dietary restrictions, and service style."
+      },
+      "schedule_cake_tasting": {
+        "title": "Schedule cake tasting",
+        "tip": "Try a few flavors and designs before you order."
+      },
+      "book_rehearsal_dinner": {
+        "title": "Book rehearsal dinner venue",
+        "tip": "Reserve a spot for the night before the wedding.",
+        "actionLabel": "Add cost"
+      },
+      "plan_ceremony_details": {
+        "title": "Plan ceremony details",
+        "tip": "Decide readings, music, and who will do what during the ceremony."
+      },
+      "order_wedding_cake": {
+        "title": "Order wedding cake",
+        "tip": "Place the order once you have a final guest count estimate.",
+        "actionLabel": "Add cost"
+      },
+      "buy_wedding_party_gifts": {
+        "title": "Buy wedding party gifts",
+        "tip": "Thank your bridesmaids and groomsmen with thoughtful gifts.",
+        "actionLabel": "Add cost"
+      },
+      "schedule_dress_fittings": {
+        "title": "Schedule dress fittings",
+        "tip": "Book fittings so the dress fits perfectly by the big day."
+      },
+      "plan_day_of_timeline": {
+        "title": "Plan day-of timeline",
+        "tip": "Outline the schedule from getting ready to last dance."
+      },
+      "write_wedding_vows": {
+        "title": "Write wedding vows",
+        "tip": "Start early so you can refine them and practice aloud."
+      },
+      "apply_marriage_license": {
+        "title": "Apply for marriage license",
+        "tip": "Do this within the required window before the wedding."
+      },
+      "mail_invitations": {
+        "title": "Mail wedding invitations",
+        "tip": "Send them 6-8 weeks before the wedding.",
+        "actionLabel": "Open guest list"
+      },
+      "final_dress_fitting": {
+        "title": "Final dress fitting",
+        "tip": "Make sure the dress is perfect and ready for pickup."
+      },
+      "confirm_final_headcount": {
+        "title": "Confirm final headcount",
+        "tip": "Give your caterer and venue the exact number of guests.",
+        "actionLabel": "Open guest list"
+      },
+      "create_seating_chart": {
+        "title": "Create seating chart",
+        "tip": "Arrange guests at tables to encourage great conversation.",
+        "actionLabel": "Open guest list"
+      },
+      "pay_final_vendor_balances": {
+        "title": "Pay final vendor balances",
+        "tip": "Settle all remaining payments before the wedding day.",
+        "actionLabel": "See payments"
+      },
+      "pack_emergency_kit": {
+        "title": "Pack wedding day emergency kit",
+        "tip": "Include safety pins, tissues, mints, and a sewing kit."
+      },
+      "pick_up_dress": {
+        "title": "Pick up wedding dress",
+        "tip": "Bring it home and keep it in a safe, clean place."
+      },
+      "set_up_everly_guest_camera": {
+        "title": "Set up the Everly guest camera",
+        "tip": "Guests scan a QR and every photo lands in one album.",
+        "actionLabel": "Create camera event"
+      },
+      "relax_and_get_excited": {
+        "title": "Relax and get excited",
+        "tip": "You have done the work — now enjoy the final days of being engaged."
+      },
+      "final_vendor_confirmations": {
+        "title": "Final vendor confirmations",
+        "tip": "Call or email each vendor to confirm arrival times and final details."
+      },
+      "write_toasts_schedule": {
+        "title": "Write toasts schedule",
+        "tip": "Decide who is speaking and when so the reception flows smoothly."
+      },
+      "break_in_shoes": {
+        "title": "Break in wedding shoes",
+        "tip": "Wear them around the house for a few hours to avoid day-of blisters."
+      },
+      "share_guest_camera_qr": {
+        "title": "Share guest camera QR",
+        "tip": "Include the QR on signs, programs, or a welcome note so guests know where to share.",
+        "actionLabel": "Open your camera event"
+      },
+      "deliver_seating_to_venue": {
+        "title": "Deliver seating chart to venue",
+        "tip": "Send the final seating and table assignments before the venue prints them."
+      },
+      "pack_for_honeymoon": {
+        "title": "Pack for honeymoon",
+        "tip": "Pack passports, chargers, and outfits so you can leave without stress."
+      },
+      "prepare_vendor_tips": {
+        "title": "Prepare vendor tips",
+        "tip": "Organize cash or thank-you envelopes for each vendor you want to tip."
+      },
+      "get_manicure": {
+        "title": "Get manicure",
+        "tip": "Book a relaxing manicure a day or two before the wedding."
+      },
+      "eat_breakfast": {
+        "title": "Eat breakfast",
+        "tip": "Start the day with a calm, filling breakfast so you have energy."
+      },
+      "hand_off_rings": {
+        "title": "Hand off rings",
+        "tip": "Give the rings to the best man or another trusted person early."
+      },
+      "remind_guests_camera": {
+        "title": "Remind guests about the camera",
+        "tip": "Add a welcome note or ask your MC to mention the guest camera."
+      },
+      "download_guest_photos": {
+        "title": "Download guest photos",
+        "tip": "Save all your guest-camera photos before the event link expires.",
+        "actionLabel": "See your photos"
+      },
+      "send_thank_you_notes": {
+        "title": "Send thank you notes",
+        "tip": "Handwritten notes feel personal, even if they are short."
+      },
+      "review_vendors": {
+        "title": "Review vendors",
+        "tip": "Leave honest reviews to help future couples and thank your vendors."
+      },
+      "update_name_documents": {
+        "title": "Update name documents",
+        "tip": "Start with your social security card if you are changing your name."
+      },
+      "preserve_dress_bouquet": {
+        "title": "Preserve dress or bouquet",
+        "tip": "Book preservation services quickly while the bouquet is still fresh."
+      },
+      "reveal_film_with_guests": {
+        "title": "Reveal film with guests",
+        "tip": "Share a highlight film or invite guests to view the gallery."
+      },
+      "share_guest_photos_album": {
+        "title": "Share guest photos album",
+        "tip": "Send the guest photo album to everyone who contributed a photo."
+      }
+    },
+    "bookedOptions": {
+      "venue": {
+        "label": "Venue"
+      },
+      "photographer": {
+        "label": "Photographer"
+      },
+      "caterer": {
+        "label": "Caterer"
+      },
+      "dress": {
+        "label": "Dress / attire"
+      },
+      "dj_band": {
+        "label": "DJ / band"
+      },
+      "florist": {
+        "label": "Florist"
+      },
+      "officiant": {
+        "label": "Officiant"
+      },
+      "rings": {
+        "label": "Rings"
+      }
+    },
+    "months": {
+      "jan": "Jan",
+      "feb": "Feb",
+      "mar": "Mar",
+      "apr": "Apr",
+      "may": "May",
+      "jun": "Jun",
+      "jul": "Jul",
+      "aug": "Aug",
+      "sep": "Sep",
+      "oct": "Oct",
+      "nov": "Nov",
+      "dec": "Dec"
+    },
+    "deadline": {
+      "after": "After {{month}} {{day}}",
+      "byMonthYear": "By {{month}} {{year}}",
+      "on": "On {{month}} {{day}}",
+      "byMonthDay": "By {{month}} {{day}}"
+    }
+  },
+  "vibe": {
+    "colors": {
+      "blush": "Blush",
+      "sage": "Sage",
+      "dustyBlue": "Dusty blue",
+      "terracotta": "Terracotta",
+      "lavender": "Lavender",
+      "burgundy": "Burgundy",
+      "emerald": "Emerald",
+      "gold": "Gold",
+      "ivory": "Ivory",
+      "blackWhite": "Black & white"
+    },
+    "seasons": {
+      "spring": "Spring",
+      "summer": "Summer",
+      "fall": "Fall",
+      "winter": "Winter"
+    },
+    "styles": {
+      "classic": "Classic",
+      "rustic": "Rustic",
+      "boho": "Boho",
+      "modern": "Modern",
+      "garden": "Garden / outdoor",
+      "beach": "Beach",
+      "glam": "Glam",
+      "minimal": "Minimal"
+    },
+    "honeymoons": {
+      "beach": "Beach & islands",
+      "europe": "Europe",
+      "adventure": "Adventure",
+      "city": "City break",
+      "roadTrip": "Road trip",
+      "staycation": "Staycation",
+      "undecided": "Not sure yet"
+    },
+    "fields": {
+      "color": "Color",
+      "season": "Season",
+      "style": "Style",
+      "honeymoon": "Honeymoon"
+    }
+  },
+  "budgetData": {
+    "categories": {
+      "venue": "Venue",
+      "catering": "Food & drinks",
+      "photo": "Photo & video",
+      "attire": "Attire & beauty",
+      "flowers": "Flowers & decor",
+      "music": "Music",
+      "rings": "Rings",
+      "paper": "Invitations",
+      "other": "Other"
+    },
+    "suggestions": {
+      "venue": {
+        "rental": "Venue rental",
+        "ceremonyFee": "Ceremony site fee",
+        "chairsTables": "Chairs & tables",
+        "deposit": "Venue deposit"
+      },
+      "catering": {
+        "perGuest": "Catering per guest",
+        "barDrinks": "Bar & drinks",
+        "weddingCake": "Wedding cake",
+        "serviceStaff": "Service staff"
+      },
+      "photo": {
+        "photographer": "Photographer",
+        "videographer": "Videographer",
+        "engagementShoot": "Engagement shoot",
+        "album": "Album"
+      },
+      "attire": {
+        "dress": "Wedding dress",
+        "suitOrTux": "Suit or tux",
+        "alterations": "Alterations",
+        "hairMakeup": "Hair & makeup",
+        "shoesAccessories": "Shoes & accessories"
+      },
+      "flowers": {
+        "bouquets": "Bouquets",
+        "centerpieces": "Centerpieces",
+        "ceremonyArch": "Ceremony arch",
+        "boutonnieres": "Boutonnieres"
+      },
+      "music": {
+        "dj": "DJ",
+        "band": "Band",
+        "ceremonyMusicians": "Ceremony musicians",
+        "soundLighting": "Sound & lighting"
+      },
+      "rings": {
+        "engagementRing": "Engagement ring",
+        "weddingBands": "Wedding bands",
+        "engraving": "Engraving"
+      },
+      "paper": {
+        "saveTheDates": "Save the dates",
+        "invitations": "Invitations",
+        "postage": "Postage",
+        "signage": "Signage"
+      },
+      "other": {
+        "officiant": "Officiant",
+        "marriageLicense": "Marriage license",
+        "favors": "Favors",
+        "transportation": "Transportation",
+        "honeymoon": "Honeymoon"
+      }
+    }
+  },
+  "guestsData": {
+    "groups": {
+      "family": "Family",
+      "friends": "Friends",
+      "work": "Work"
+    },
+    "partnerFamily": "{{name}}'s family",
+    "partnerFriends": "{{name}}'s friends",
+    "partnerWork": "{{name}}'s work",
+    "mutualFriends": "Mutual friends",
+    "couple": "Couple",
+    "menu": {
+      "adult": "Adult menu",
+      "kids": "Kids menu",
+      "vegetarian": "Vegetarian",
+      "vegan": "Vegan",
+      "glutenFree": "Gluten-free",
+      "notChosen": "Not chosen"
+    },
+    "status": {
+      "waiting": "Waiting",
+      "attending": "Attending",
+      "declined": "Declined"
+    },
+    "guestListTitle": "Guest list for {{coupleTitle}}",
+    "totals": "Totals: {{invited}} invited, {{attending}} attending, {{waiting}} waiting",
+    "rsvpDateFallback": "our wedding day",
+    "rsvpMessage": "Hi {{guestName}}! You are invited to celebrate with {{coupleTitle}} on {{dateText}}. Please let us know if you can make it!"
+  },
+  "guestExport": {
+    "guestListTitle": "Guest list: {{coupleTitle}}",
+    "summary": "{{invited}} invited · {{attending}} attending · {{waiting}} waiting · {{adults}} adults, {{kids}} kids, {{babies}} babies",
+    "noGuests": "No guests yet.",
+    "otherGroup": "Other",
+    "status": {
+      "waiting": "Waiting",
+      "attending": "Attending",
+      "declined": "Declined"
+    },
+    "age": {
+      "adult": "Adult",
+      "child": "Child",
+      "baby": "Baby"
+    },
+    "col": {
+      "name": "Name",
+      "group": "Group",
+      "rsvp": "RSVP",
+      "plusOne": "Plus one",
+      "age": "Age",
+      "menu": "Menu",
+      "phone": "Phone",
+      "email": "Email",
+      "address": "Address",
+      "note": "Note"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "guestList": "Guest list"
+  },
+  "trialReminder": {
+    "title": "Your trial ends tomorrow",
+    "body": "Tomorrow you'll be charged {{price}}. Cancel in Settings if you don't want to continue."
+  },
+  "updates": {
+    "devTitle": "Updates",
+    "devMessage": "Updates are not available in development mode.",
+    "updateAvailableTitle": "Update Available",
+    "updateAvailableMessage": "A new version of the app is available. Would you like to update now?",
+    "later": "Later",
+    "update": "Update",
+    "downloadedTitle": "Update Downloaded",
+    "downloadedMessage": "The update has been downloaded. The app will restart to apply the update.",
+    "restartNow": "Restart Now",
+    "downloadErrorTitle": "Update Error",
+    "downloadErrorMessage": "Failed to download the update. Please try again later.",
+    "noUpdatesTitle": "No Updates",
+    "noUpdatesMessage": "You are already using the latest version of the app.",
+    "checkErrorTitle": "Update Error",
+    "checkErrorMessage": "Unable to check for updates. Please try again later."
+  },
+  "revenueCat": {
+    "unknownError": "Unknown error"
+  },
+  "filters": {
+    "natural": "Natural",
+    "warm": "Warm",
+    "film": "Film",
+    "bw": "B&W"
+  },
+  "premium": {
+    "features": {
+      "guestList": "Guest list with RSVPs, menus and groups",
+      "importExport": "Import guests from a pasted list and export to PDF",
+      "budgetTracker": "Budget tracker for every vendor and payment",
+      "timeline": "Timeline of every task by date"
+    }
+  },
+  "auth": {
+    "appleTokenMissing": "Apple did not return an identity token",
+    "invalidServerResponse": "Invalid response from server",
+    "networkError": "Couldn't reach Everly. Check your connection and try again.",
+    "appleSignInFailed": "Apple Sign-In failed",
+    "appleSignInFailedTitle": "Apple Sign-In Failed"
+  },
+  "uploader": {
+    "uploadFailed": "Upload failed"
+  },
+  "create": {
+    "steps": {
+      "reveal": {
+        "title": "Choose the\nreveal moment.",
+        "subtitle": "Decide when guests get to see the gallery."
+      },
+      "shots": {
+        "title": "How many\nshots?",
+        "subtitle": "Limit photos per guest, or leave blank for unlimited."
+      },
+      "mood": {
+        "title": "Set\nthe mood.",
+        "subtitle": "All guests will shoot with this filter for a cohesive album."
+      },
+      "invited": {
+        "title": "Who's\ninvited?",
+        "subtitle": "Choose how many guests can join your event."
+      }
+    },
+    "revealOptions": {
+      "instant": {
+        "line1": "During",
+        "line2": "the event"
+      },
+      "end": {
+        "line1": "After",
+        "line2": "the event"
+      },
+      "scheduled": {
+        "line1": "At a set",
+        "line2": "time"
+      }
+    },
+    "revealCopy": {
+      "empty": "Pick when the photos become visible. Until then, nobody sees a thing.",
+      "instant": "Every photo appears the moment it's taken - guests watch the album fill up live.",
+      "end": "Photos stay hidden until the event ends. Then the whole gallery opens at once.",
+      "scheduled": "Photos stay hidden until the time you set. Then the whole gallery opens at once."
+    },
+    "sectionLabels": {
+      "revealDateTime": "Reveal Date & Time",
+      "eventEnds": "Event Ends",
+      "whoCanSee": "Who can see the photos",
+      "shotsPerPerson": "Shots per person"
+    },
+    "datePicker": {
+      "placeholders": {
+        "reveal": "Select reveal date & time",
+        "expires": "Select an end date & time"
+      }
+    },
+    "toggle": {
+      "everyoneSees": "Everyone can see every photo.",
+      "guestsOnly": "Guests only see the photos they took."
+    },
+    "hints": {
+      "shotLimit": {
+        "withLimit": "Every guest gets {{count}} shots. Scarcity is the point - they'll make each one count.",
+        "unlimited": "Guests can shoot as much as they like. Pick a limit if you'd rather they made each frame count."
+      }
+    },
+    "guestStepper": {
+      "unlimitedGuests": "unlimited guests",
+      "guests": "guests",
+      "free": "Free",
+      "oneTime": "{{price}} one-time"
+    },
+    "uploadAlert": {
+      "allTitle": "Your photos didn't upload",
+      "someTitle": "Some photos didn't upload",
+      "message": "{{failed}} of {{total}} failed",
+      "errorSuffix": " - {{error}}",
+      "buttons": {
+        "notNow": "Not now",
+        "tryAgain": "Try again"
+      }
+    },
+    "purchaseFallback": {
+      "cancelled": {
+        "title": "Purchase cancelled",
+        "message": "You weren't charged. Your event is saved with the free 5-guest limit - try again, choose another pack, or continue and upgrade later."
+      },
+      "unavailable": {
+        "title": "Guest pack unavailable",
+        "message": "We couldn't load this pack from the store. Your event is saved with the free 5-guest limit - try again, choose another pack, or continue and upgrade later."
+      },
+      "failed": {
+        "title": "Purchase didn't complete",
+        "message": "The store couldn't finish the purchase. Your event is saved with the free 5-guest limit - try again, choose another pack, or continue and upgrade later."
+      },
+      "buttons": {
+        "tryAgain": "Try again",
+        "continueWith5": "Continue with 5 guests",
+        "chooseAnother": "Choose another pack"
+      }
+    },
+    "createAlert": {
+      "title": "Couldn't create event",
+      "fallbackMessage": "Something went wrong. Please try again."
+    },
+    "success": {
+      "title": "Congratulations",
+      "subtitle": "Your event has been created. Send the link below to your guests.",
+      "actionLabel": "Continue"
+    },
+    "tierHint": {
+      "free": "Starter is free, upgrade anytime after creating your event.",
+      "paid": "One-time charge. No subscription required."
+    },
+    "defaultAlbumName": "Our Wedding"
+  },
+  "eventSettings": {
+    "revealOptions": {
+      "instant": {
+        "label": "During the event",
+        "hint": "Every photo appears the moment it's taken."
+      },
+      "end": {
+        "label": "After the event",
+        "hint": "The whole gallery opens at once when the event ends."
+      },
+      "scheduled": {
+        "label": "At a set time",
+        "hint": "The gallery opens at the time you choose."
+      }
+    },
+    "formatDate": {
+      "notSet": "Not set"
+    },
+    "guestLabel": {
+      "unlimited": "Unlimited",
+      "upTo": "Up to {{limit}} guests"
+    },
+    "shotLabel": {
+      "unlimited": "Unlimited",
+      "photo_one": "{{count}} photo",
+      "photo_other": "{{count}} photos"
+    },
+    "root": {
+      "title": "Event settings"
+    },
+    "rows": {
+      "nameAndCover": "Name & cover",
+      "endDate": "End date",
+      "revealTime": "Reveal time",
+      "cameraStyle": "Camera style",
+      "participants": "Participants",
+      "shotsPerPerson": "Shots per person",
+      "deleteEvent": "Delete event"
+    },
+    "toggle": {
+      "everyoneSees": "Everyone sees every photo",
+      "hint": {
+        "all": "Guests browse the whole gallery.",
+        "private": "Guests only see the photos they took."
+      }
+    },
+    "name": {
+      "title": "Name & cover",
+      "fieldLabel": "Event name",
+      "placeholder": "Sarah & James",
+      "save": "Save",
+      "requiredAlert": {
+        "title": "Name required",
+        "message": "An event needs a name."
+      }
+    },
+    "expires": {
+      "title": "End date",
+      "hint": "When the event closes. Guests can't upload after it, and an \"after the event\" reveal opens the gallery at this moment."
+    },
+    "reveal": {
+      "title": "Reveal time"
+    },
+    "filter": {
+      "title": "Camera style",
+      "hint": "Every guest shoots in this look, so the album stays of a piece."
+    },
+    "guests": {
+      "title": "Participants",
+      "hint": "A guest pack raises this event's guest limit to that number. It's a one-off purchase, not a subscription - and the allowance only moves up.",
+      "unlimitedGuests": "Unlimited guests",
+      "guests": "{{count}} guests",
+      "currentAllowance": "Current allowance"
+    },
+    "shots": {
+      "title": "Shots per person",
+      "hint": "How many photos each guest may take. Lower limits make people choose their moment.",
+      "unlimited": "Unlimited",
+      "photos": "{{count}} photos"
+    },
+    "backToSettings": "Back to settings",
+    "save": {
+      "alert": {
+        "title": "Change not saved",
+        "fallback": "Couldn't save that change."
+      }
+    },
+    "pickOwnCover": {
+      "permission": {
+        "title": "Photo access needed",
+        "message": "Allow photo access to use one of your own pictures as the cover."
+      }
+    },
+    "buyTier": {
+      "unavailable": {
+        "title": "Guest pack unavailable",
+        "message": "We couldn't load this pack from the store. Try again in a moment."
+      },
+      "failed": {
+        "title": "Purchase didn't complete",
+        "message": "The store couldn't finish the purchase. You weren't charged."
+      },
+      "success": {
+        "title": "Guests added",
+        "message": "The new allowance appears as soon as the store confirms the purchase."
+      }
+    },
+    "delete": {
+      "title": "Delete event?",
+      "message": "The event and every photo in it are removed for good. This can't be undone.",
+      "cancel": "Cancel",
+      "confirm": "Delete",
+      "errorTitle": "Couldn't delete",
+      "errorFallback": "Try again."
+    }
+  },
+  "coverPicker": {
+    "label": "Bring your own, or pick a cover"
+  },
+  "shots": {},
+  "success": {
+    "copyInviteAccessibility": "Copy invitation link",
+    "linkCopied": "Link copied",
+    "sendToGuests": "Send to guests"
+  },
+  "budget": {
+    "overBudget": "{{amount}} over budget",
+    "leftToPlan": "{{amount}} left to plan",
+    "noDueDate": "No due date",
+    "overdueDate": "Overdue · {{date}}",
+    "dueDate": "Due {{date}}",
+    "unknownCategory": "Unknown",
+    "categoryDueText": "{{category}} · {{dueText}}",
+    "markPaid": "Mark paid",
+    "setupTitle": "What's your total budget?",
+    "setupSubtitle": "You can adjust this later as planning evolves.",
+    "setBudget": "Set budget",
+    "spent": "SPENT",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "ofTotalBudget": "of {{amount}} total budget",
+    "paid": "Paid",
+    "stillToPayAmount": "Still to pay {{amount}}",
+    "stillToPay": "Still to pay",
+    "whereItGoes": "Where it goes",
+    "planned": "planned",
+    "addExpensesToSeeBreakdown": "Add expenses to see your budget breakdown.",
+    "categories": "Categories",
+    "categoryMeta": "{{planned}} planned of {{allocated}} · {{paid}} paid",
+    "overShare": "{{amount}} over its share",
+    "noExpensesInCategory": "No expenses in this category.",
+    "suggestions": "Suggestions",
+    "addExpense": "+ Add expense",
+    "noPayments": "No payments yet. Add costs with a due date to track them here.",
+    "overdue": "Overdue",
+    "upcoming": "Upcoming",
+    "paidInFullCount_one": "Paid in full ({{count}})",
+    "paidInFullCount_other": "Paid in full ({{count}})",
+    "categoryPaidInFull": "{{category}} · Paid in full",
+    "title": "Budget",
+    "tabBudget": "Budget",
+    "tabPayments": "Payments"
+  },
+  "expenseEdit": {
+    "title": "Budget",
+    "editExpense": "Edit expense",
+    "addExpense": "Add expense",
+    "removeAlertTitle": "Remove expense?",
+    "removeAlertBody": "This cannot be undone.",
+    "cancel": "Cancel",
+    "remove": "Remove",
+    "label": "Label",
+    "labelPlaceholder": "Cake tasting, venue deposit, etc.",
+    "linkedToPlanTask": "Linked to a plan task",
+    "category": "Category",
+    "estimatedCost": "Estimated cost",
+    "amountPaid": "Amount paid",
+    "markAsPaidInFull": "Mark as paid in full",
+    "dueDate": "Due date",
+    "setDueDate": "Set a due date",
+    "save": "Save",
+    "removeExpense": "Remove expense"
+  },
+  "home": {
+    "footer": "Here's to a beautiful day."
+  },
+  "homeHeader": {
+    "yourWedding": "Your wedding",
+    "noDateSet": "No date set",
+    "yourInitial": "Y"
+  },
+  "homeHero": {
+    "planYourWedding": "Plan your wedding",
+    "setDateStartChecklist": "Set your date and start your checklist",
+    "startNow": "Start now →",
+    "justGettingStarted": "Just getting started",
+    "makingGoodProgress": "Making good progress",
+    "almostThere": "Almost there",
+    "allSet": "All set!",
+    "justMarried": "Just married",
+    "today": "Today",
+    "dayToGo_one": "day to go",
+    "dayToGo_other": "days to go",
+    "percentDone": "{{percent}}% done",
+    "eyebrow": "Your wedding",
+    "daysToGoLabel_one": "day to go",
+    "daysToGoLabel_other": "days to go",
+    "completeLabel": "complete",
+    "tasksDone": "Tasks ready",
+    "guestsConfirmed": "Confirmed",
+    "addGuestsLabel": "Add guests",
+    "percentPlanned": "{{percent}}% planned",
+    "seeAlbum": "See your album →",
+    "daysUnit_one": "day",
+    "daysUnit_other": "days",
+    "hoursUnit_one": "hour",
+    "hoursUnit_other": "hours"
+  },
+  "nextStep": {
+    "upNext": "UP NEXT",
+    "markDone": "Mark done"
+  },
+  "quickActions": {
+    "guests": "Guests",
+    "budget": "Budget",
+    "timeline": "Timeline",
+    "newAlbum": "New album"
+  },
+  "smartTip": {
+    "eyebrow": "SMART TIP",
+    "tipVenue": "Book your venue and photographer early, they go fast.",
+    "tipVendors": "Lock in your key vendors now so you have first pick.",
+    "tipInvitations": "Order invitations and start fittings this month.",
+    "tipLicense": "Apply for your marriage license within the required window.",
+    "tipHeadcount": "Confirm final headcount with your caterer and venue.",
+    "tipTimeline": "Finalize your day-of timeline and share it with your vendors.",
+    "tipEmergencyKit": "Pack an emergency kit and confirm all vendor arrival times.",
+    "tipEnjoy": "Enjoy every moment, the details are handled."
+  },
+  "whatsLeft": {
+    "title": "What's left",
+    "itemsLeft_one": "{{count}} left",
+    "itemsLeft_other": "{{count}} left",
+    "seeFullPlan": "See full plan"
+  },
+  "budgetCard": {
+    "title": "Budget",
+    "premiumTeaser": "Track every deposit and payment",
+    "premium": "Premium",
+    "setTotalBudget": "Set your total budget",
+    "planSpending": "Plan your spending across categories",
+    "setBudget": "Set budget",
+    "edit": "Edit",
+    "set": "Set",
+    "planned": "PLANNED",
+    "of": "OF",
+    "left": "{{amount}} left",
+    "over": "{{amount}} over",
+    "leftStillToPay": "{{amount}} left · {{pending}} still to pay",
+    "overStillToPay": "{{amount}} over · {{pending}} still to pay",
+    "label": "BUDGET CAP",
+    "allocatedPill": "{{percent}}% allocated",
+    "overPill": "Over by {{amount}}",
+    "legendPaid": "{{percent}}% paid",
+    "legendPending": "{{percent}}% to pay",
+    "legendFree": "{{percent}}% free",
+    "overLegend": "Over by {{amount}}",
+    "unlockLegend": "Unlock to see your budget breakdown"
+  },
+  "albums": {
+    "noDate": "-",
+    "greeting": {
+      "morning": "morning,",
+      "afternoon": "afternoon,",
+      "evening": "evening,"
+    },
+    "noPhotos": "No photos in this gallery",
+    "startFirstGallery": "Start your first gallery below.",
+    "youHaveEvents_one": "You have {{count}} event.",
+    "youHaveEvents_other": "You have {{count}} events.",
+    "noEventsTitle": "No events yet",
+    "noEventsSubtitle": "Create your first gallery and start collecting everyone's moments.",
+    "createEvent": "Create Event",
+    "active": "Active",
+    "memories": "Memories",
+    "greetingFirst": {
+      "morning": "Good",
+      "afternoon": "Good",
+      "evening": "Good"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "yourAccount": "Your account",
+    "noEmail": "-",
+    "purchases": "Purchases",
+    "notifications": "Notifications",
+    "help": "Help",
+    "privacyPolicy": "Privacy Policy",
+    "loadDemoWedding": "Load demo wedding (dev)",
+    "signOutTitle": "Sign Out",
+    "signOutMessage": "Are you sure you want to sign out?",
+    "cancel": "Cancel",
+    "deleteAccountTitle": "Delete Account",
+    "deleteAccountMessage": "This permanently deletes your account and all your data: events, photos your guests uploaded, your wedding plan, tasks, budget and guest list. This cannot be undone.",
+    "delete": "Delete",
+    "deleteAccountErrorTitle": "Couldn't delete account",
+    "deleteAccountErrorFallback": "Please try again, or contact support.",
+    "helpSubject": "Everly - Help",
+    "noMailApp": "No mail app",
+    "reachUs": "Reach us at {{email}}.",
+    "appVersion": "Everly v{{version}}",
+    "language": "Language"
+  },
+  "welcome": {
+    "title": "Your whole wedding, planned.",
+    "subtitle": "Every task, guest and payment in one plan, plus a disposable camera for the big day.",
+    "continueWithApple": "Continue with Apple",
+    "scanQrToJoin": "Scan a QR to join"
+  },
+  "camera": {
+    "flash": {
+      "off": "Off",
+      "on": "On",
+      "auto": "Auto"
+    },
+    "flashLabel": "Flash",
+    "timer": "Timer",
+    "timerSeconds": "{{seconds}}s",
+    "flip": "Flip",
+    "grid": "Grid",
+    "permissionTitle": "Camera access",
+    "permissionText": "Everly needs your camera to capture photos for this event.",
+    "allowCamera": "Allow camera",
+    "notNow": "Not now",
+    "uploading": "Uploading {{count}}",
+    "allShotsUsed_one": "You've used all {{count}} shot",
+    "allShotsUsed_other": "You've used all {{count}} shots",
+    "done": "Done",
+    "doneWithCount": "Done · {{count}}"
+  },
+  "event": {
+    "noDate": "-",
+    "revealInstant": "REVEALS AS THEY SHOOT",
+    "revealEndOfEvent": "REVEALS WHEN IT ENDS",
+    "revealScheduled": "REVEALS AT A SET TIME",
+    "guest": "Guest",
+    "notFound": "Event not found.",
+    "unlimitedGuests": "∞ guests",
+    "guestCount_one": "{{count}} guests",
+    "guestCount_other": "{{count}} guests",
+    "eventSettings": "Event settings",
+    "shareQrCode": "Share QR code",
+    "photoWord_one": "photo",
+    "photoWord_other": "photos",
+    "sofar": "so far",
+    "viewGallery": "View gallery",
+    "gallery": "Gallery",
+    "loading": "Loading…",
+    "noPhotosTitle": "No photos yet",
+    "noPhotosSubtitle": "Share the QR code so guests can start adding their shots.",
+    "notRevealedTitle": "Not yet revealed",
+    "notRevealedSubtitle": "Photos will appear here once the gallery is revealed.",
+    "photoCount_one": "{{count}} photo",
+    "photoCount_other": "{{count}} photos"
+  },
+  "photo": {
+    "thisGuest": "this guest",
+    "couldntShare": "Couldn't share",
+    "couldntRemove": "Couldn't remove it",
+    "pleaseTryAgain": "Please try again.",
+    "removeConfirmTitle": "Remove this photo?",
+    "removeConfirmMessage": "It's deleted from the album for everyone.",
+    "cancel": "Cancel",
+    "remove": "Remove",
+    "removeBlockConfirmTitle": "Remove and block {{guest}}?",
+    "removeBlockConfirmMessage": "Every photo they took is deleted from the album, and they can't add any more to this event.",
+    "removeBlock": "Remove & Block",
+    "reportSubject": "Everly - Report a photo",
+    "reportBody": "Event {{eventId}}, photo {{photoId}}.\n\nWhat's wrong with it:\n",
+    "noMailApp": "No mail app",
+    "reportFallback": "Email {{email}} with event {{eventId}}, photo {{photoId}}, and we'll review it within 24 hours.",
+    "removePhoto": "Remove Photo",
+    "removeAllFromGuest": "Remove All from {{guest}} & Block",
+    "reportPhoto": "Report Photo",
+    "report": "Report",
+    "menuTitle": "Photo",
+    "close": "Close",
+    "sharePhoto": "Share photo",
+    "removeOrReport": "Remove or report photo"
+  },
+  "qr": {
+    "scanToJoin": "Scan to join",
+    "subtitle": "Point a camera at this code to join the event and start adding photos.",
+    "noJoinCode": "This event has no join code.",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied"
+  },
+  "scan": {
+    "permissionTitle": "Scan event QR",
+    "permissionText": "Allow camera access to scan an event's QR code and join it.",
+    "allowCamera": "Allow camera",
+    "notNow": "Not now",
+    "hint": "Point at an event's QR code"
+  },
+  "upload": {
+    "uploadFailed": "Upload failed",
+    "pleaseTryAgain": "Please try again.",
+    "notAcceptingTitle": "Not accepting photos",
+    "notAcceptingSubtitle": "This event may have ended or reached its upload limit.",
+    "sharedCount_one": "{{count}} photo shared",
+    "sharedCount_other": "{{count}} photos shared",
+    "yourName": "Your name",
+    "namePlaceholder": "Shown under your photos",
+    "chooseFromLibrary": "Choose from library"
+  },
+  "input": {
+    "clear": "Clear",
+    "hidePassword": "Hide password",
+    "showPassword": "Show password"
+  },
+  "eventCard": {
+    "revealed": "Revealed",
+    "live": "Live",
+    "draft": "Draft",
+    "unlimitedGuests": "∞ guests",
+    "guestCount_one": "{{count}} guests",
+    "guestCount_other": "{{count}} guests"
+  },
+  "guests": {
+    "viewGroups": "Groups",
+    "viewRsvp": "RSVP",
+    "viewMenu": "Menu",
+    "statusAttending": "Attending",
+    "statusDeclined": "Declined",
+    "statusWaiting": "Waiting",
+    "us": "us",
+    "couldNotExport": "Could not export",
+    "tryAgain": "Please try again.",
+    "downloadTitle": "Download guest list",
+    "chooseFormat": "Choose a format.",
+    "pdf": "PDF",
+    "csv": "Spreadsheet (CSV)",
+    "cancel": "Cancel",
+    "renameOrDeleteGroup": "Rename or delete this group?",
+    "rename": "Rename",
+    "delete": "Delete",
+    "deleteGroupTitle": "Delete group?",
+    "deleteGroupBody": "Guests will move to Friends.",
+    "statInvited": "Invited",
+    "statAttending": "Attending",
+    "statWaiting": "Waiting",
+    "statDeclined": "Declined",
+    "emptyTitle": "No guests yet",
+    "noMatchesTitle": "No matches",
+    "emptyBody": "Add your first guest or paste a list.",
+    "noMatchesBody": "Try a different search or filter.",
+    "addGuest": "Add guest",
+    "pasteList": "Paste a list",
+    "title": "Guests",
+    "plusOne": "  plus one",
+    "couple": "Couple",
+    "ageStatsAll": "{{adults}} adults · {{children}} kids · {{babies}} babies",
+    "ageStatsAdultsChildren": "{{adults}} adults · {{children}} kids",
+    "ageStatsAdultsBabies": "{{adults}} adults · {{babies}} babies",
+    "ageStatsAdults": "{{adults}} adults",
+    "download": "Download",
+    "print": "Print",
+    "filterAll": "All",
+    "filterAttending": "Attending",
+    "filterWaiting": "Waiting",
+    "filterDeclined": "Declined",
+    "searchPlaceholder": "Search guests",
+    "groupNamePlaceholder": "Group name",
+    "save": "Save",
+    "menuNotChosen": "Not chosen",
+    "fabAddGuest": "+ Add guest",
+    "fabAddList": "Add a list",
+    "premiumTitle": "Guest list"
+  },
+  "guestEdit": {
+    "us": "us",
+    "removeGuestTitle": "Remove guest?",
+    "removeGuestBody": "This cannot be undone.",
+    "cancel": "Cancel",
+    "remove": "Remove",
+    "editGuest": "Edit guest",
+    "addGuest": "Add guest",
+    "fieldName": "Name",
+    "fieldGroup": "Group",
+    "fieldAge": "Age",
+    "fieldMenu": "Menu",
+    "fieldStatus": "Status",
+    "fieldContact": "Contact",
+    "fieldNote": "Note",
+    "guestNamePlaceholder": "Guest name",
+    "newGroup": "+ New group",
+    "groupNamePlaceholder": "Group name",
+    "save": "Save",
+    "ageAdult": "Adult",
+    "ageChild": "Child",
+    "ageBaby": "Baby",
+    "statusWaiting": "Waiting",
+    "statusAttending": "Attending",
+    "statusDeclined": "Declined",
+    "phonePlaceholder": "Phone",
+    "emailPlaceholder": "Email",
+    "addressPlaceholder": "Address",
+    "whatsappRsvp": "Ask for RSVP on WhatsApp",
+    "plusOneTitle": "Bringing a plus one",
+    "plusOneSubtitle": "Counts as an extra head.",
+    "notePlaceholder": "Dietary needs, relationship, etc.",
+    "saveAndAddAnother": "Save and add another",
+    "removeGuest": "Remove guest",
+    "premiumTitle": "Guest list",
+    "menuNotChosen": "Not chosen"
+  },
+  "guestImport": {
+    "title": "Paste your list",
+    "explanation": "One guest per line. Add a phone after a comma if you have it.",
+    "placeholderExample": "Mom & Dad, +1 555 123 4567\nChris - 555 987 6543\nSally",
+    "fieldGroup": "Group",
+    "guestsFound_one": "{{count}} guest found",
+    "guestsFound_other": "{{count}} guests found",
+    "importGuests_one": "Import {{count}} guest",
+    "importGuests_other": "Import {{count}} guests",
+    "importedTitle": "Imported",
+    "importedMessage_one": "{{count}} guest added",
+    "importedMessage_other": "{{count}} guests added",
+    "premiumTitle": "Guest list"
+  },
+  "paywall": {
+    "purchaseFailedTitle": "Purchase failed",
+    "purchaseFailedBody": "Something went wrong. You have not been charged.",
+    "restoredTitle": "Purchases restored",
+    "restoredBody": "Your subscription is active again on this device.",
+    "ok": "OK",
+    "nothingToRestoreTitle": "Nothing to restore",
+    "nothingToRestoreBody": "We couldn't find an active subscription for this store account.",
+    "restoreFailedBody": "We couldn't restore your purchases. Please try again.",
+    "back": "Back",
+    "close": "Close",
+    "restore": "Restore",
+    "loadFailedTitle": "Couldn't load plans",
+    "checkConnection": "Check your connection and try again.",
+    "tryAgain": "Try again",
+    "loadFailedBody": "We couldn't load the plans. Check your connection and try again.",
+    "introTitleFirst": "Your whole wedding,",
+    "introTitleSecond": "planned with Premium",
+    "introSubtitle": "YOUR WEDDING PLANNING, ALL IN ONE PLACE",
+    "reminderTitle": "We'll send you a reminder before your free trial ends",
+    "noPaymentDue": "NO PAYMENT DUE NOW",
+    "periodYear": "year",
+    "periodMonth": "month",
+    "priceLineTrialMonthly_one": "{{days}} day free, then {{price}} per {{period}} ({{monthly}}/month)",
+    "priceLineTrialMonthly_other": "{{days}} days free, then {{price}} per {{period}} ({{monthly}}/month)",
+    "priceLineTrial_one": "{{days}} day free, then {{price}} per {{period}}",
+    "priceLineTrial_other": "{{days}} days free, then {{price}} per {{period}}",
+    "priceLineAnnualMonthly": "{{price}} per {{period}} ({{monthly}}/month)",
+    "priceLine": "{{price}} per {{period}}",
+    "ctaContinue": "Continue",
+    "ctaContinueFree": "Continue for free",
+    "ctaSubscribeMonthly": "Subscribe for {{price}}/month",
+    "ctaStartTrial_one": "Start my {{days}}-day free trial",
+    "ctaStartTrial_other": "Start my {{days}}-day free trial",
+    "ctaSubscribe": "Subscribe"
+  },
+  "paywallIntro": {},
+  "paywallLinks": {
+    "restore": "Restore",
+    "terms": "Terms",
+    "privacy": "Privacy"
+  },
+  "paywallPlans": {
+    "everlyPremium": "Everly Premium",
+    "loadingPlans": "Loading plans…",
+    "loadFailed": "We couldn't load the plans. Check your connection and try again."
+  },
+  "paywallReminder": {},
+  "planCard": {
+    "priceYearly": "{{price}}/year",
+    "priceMonthly": "{{price}}/month",
+    "monthlyEquivalent": "just {{monthly}}/month",
+    "yearly": "Yearly",
+    "monthly": "Monthly",
+    "trialBadge_one": "{{days}}-day free trial",
+    "trialBadge_other": "{{days}}-day free trial",
+    "bestPrice": "BEST PRICE"
+  },
+  "premiumOnly": {
+    "isPartOfPremium": "{{title}} is part of Premium",
+    "subtitle": "Your checklist and the event album stay free. Premium adds:",
+    "seePlans": "See Premium plans"
+  },
+  "noPaymentDue": {},
+  "trialTimeline": {
+    "todayTitle": "Today",
+    "todayBody": "Get full access to every Premium feature for free.",
+    "reminderTitleDay": "Day {{day}}",
+    "reminderTitleTonight": "Tonight",
+    "reminderBody": "Get a reminder about when your free trial will end.",
+    "startTitle": "Day {{day}}",
+    "startBody": "Your Premium subscription starts today. Cancel any time before."
+  },
+  "priceLine": {},
+  "guestsCard": {
+    "title": "Guests",
+    "total_one": "{{count}} total",
+    "total_other": "{{count}} total",
+    "confirmed": "Confirmed",
+    "pending": "Pending",
+    "declined": "Declined",
+    "premium": "Premium",
+    "emptySubtitle": "No guests yet",
+    "addList": "Add guest list",
+    "premiumTeaser": "See who RSVPd at a glance"
+  },
+  "assistant": {
+    "open": "Ask the wedding assistant",
+    "title": "Wedding assistant",
+    "close": "Close",
+    "clear": "Clear conversation",
+    "welcomeTitle": "Ask me anything about your wedding",
+    "welcomeSubtitle": "I can see your checklist, guest count and budget, so the answers are about your wedding.",
+    "suggestions": {
+      "thisWeek": "What should we do this week?",
+      "onTrack": "Are we on track?",
+      "budget": "How should we split our budget?",
+      "saveTheDate": "Help me write the save-the-date"
+    },
+    "placeholder": "Ask about your wedding…",
+    "send": "Send",
+    "thinking": "Thinking…",
+    "retry": "Try again",
+    "error": "Couldn't get an answer right now. Check your connection and try again.",
+    "limit": "You've sent a lot of messages today. Try again tomorrow.",
+    "disclaimer": "AI answers can be wrong. Double-check dates, prices and legal requirements.",
+    "consentTitle": "Before you ask",
+    "consentBody": "To answer, Everly sends your messages and a summary of your plan (your first names, wedding date, counts and totals, never guest names) to DeepSeek, a third-party AI provider. Don't share sensitive personal information. More in our Privacy Policy.",
+    "consentAccept": "I agree",
+    "consentDecline": "Not now"
+  },
+  "widget": {
+    "daysToGo": "days to go",
+    "dayToGo": "day to go",
+    "today": "It's today!",
+    "married": "Just married",
+    "upNext": "UP NEXT",
+    "allDone": "All caught up",
+    "rsvp": "{attending} of {invited} coming",
+    "tasks": "{done}/{total} tasks",
+    "emptyTitle": "Your wedding",
+    "emptySubtitle": "Open Everly to build your plan"
+  },
+  "groupPicker": {
+    "title": "Choose a group",
+    "newGroup": "New group"
+  }
+}

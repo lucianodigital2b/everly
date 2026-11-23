@@ -23,12 +23,12 @@ module.exports = {
         success: "#7FA88C",
       },
       fontFamily: {
-        // Editorial pair on trial: Lora titles, Amiri descriptions. The legacy
+        // Editorial pair: New Kansas titles, Lexend descriptions. The legacy
         // "serif" keys mean serif again, so every DisplayText/TitleText in the
-        // app picks Lora up with no edits; "sans" carries the body copy.
-        serif: ["Lora-SemiBold"],
-        serifBold: ["Lora-Bold"],
-        sans: ["Amiri-Regular"],
+        // app picks New Kansas up with no edits; "sans" carries the body copy.
+        serif: ["NewKansas-Medium"],
+        serifBold: ["NewKansas-Medium"],
+        sans: ["Lexend-Regular"],
         sansLight: ["Inter-ExtraLight"],
         sansMedium: ["Inter-Medium"],
         sansSemiBold: ["Inter-SemiBold"],
@@ -42,12 +42,12 @@ module.exports = {
         interExtrabold: ["Inter-ExtraBold"],
         // Sacramento — the wordmark hand only.
         script: ["Script"],
-        // Lora / Amiri, addressable directly.
-        loraMedium: ["Lora-Medium"],
-        loraSemibold: ["Lora-SemiBold"],
-        loraBold: ["Lora-Bold"],
-        amiri: ["Amiri-Regular"],
-        amiriBold: ["Amiri-Bold"],
+        // New Kansas (under the old lora* keys) / Lexend (under the old amiri* keys), addressable directly.
+        loraMedium: ["NewKansas-Medium"],
+        loraSemibold: ["NewKansas-Medium"],
+        loraBold: ["NewKansas-Medium"],
+        amiri: ["Lexend-Regular"],
+        amiriBold: ["Lexend-Bold"],
       },
     },
   },

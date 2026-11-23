@@ -5,6 +5,7 @@ import { Users } from "lucide-react-native";
 import { GlassSurface } from "./GlassSurface";
 import { colors } from "../constants/colors";
 import { eventCover } from "../constants/sampleImages";
+import { t } from "../i18n";
 
 interface EventCardProps {
   title: string;
@@ -55,7 +56,13 @@ export const EventCard: React.FC<EventCardProps> = ({
         style={styles.pill}
       >
         <View style={[styles.dot, { backgroundColor: statusColor }]} />
-        <Text style={styles.pillText}>{status}</Text>
+        <Text style={styles.pillText}>
+          {status === "Revealed"
+            ? t("eventCard.revealed")
+            : status === "Live"
+              ? t("eventCard.live")
+              : t("eventCard.draft")}
+        </Text>
       </GlassSurface>
 
       <View style={styles.body}>
@@ -65,7 +72,11 @@ export const EventCard: React.FC<EventCardProps> = ({
         </Text>
         <View style={styles.stat}>
           <Users size={14} color={colors.accentBright} strokeWidth={2} />
-          <Text style={styles.statText}>{participantCount ?? "∞"} guests</Text>
+          <Text style={styles.statText}>
+            {participantCount == null
+              ? t("eventCard.unlimitedGuests")
+              : t("eventCard.guestCount", { count: participantCount })}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>

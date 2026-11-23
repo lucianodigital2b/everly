@@ -23,6 +23,10 @@ type PlannerState = {
   partnerA: string;
   partnerB: string;
   weddingDate: string | null;
+  dateEstimated: boolean;
+  role: string | null;
+  weddingType: string | null;
+  worry: string | null;
   coverUri: string | null;
   marks: Record<string, Mark>;
   customTasks: CustomTask[];
@@ -35,6 +39,12 @@ type PlannerState = {
 type PlannerActions = {
   setCouple: (a: string, b: string) => void;
   setDate: (iso: string) => void;
+  setDateEstimated: (v: boolean) => void;
+  setProfile: (p: {
+    role?: string | null;
+    weddingType?: string | null;
+    worry?: string | null;
+  }) => void;
   setCover: (uri: string | null) => void;
   toggleDone: (id: string) => void;
   skip: (id: string) => void;
@@ -56,6 +66,10 @@ const initialState: PlannerState = {
   partnerA: '',
   partnerB: '',
   weddingDate: null,
+  dateEstimated: false,
+  role: null,
+  weddingType: null,
+  worry: null,
   coverUri: null,
   marks: {},
   customTasks: [],
@@ -71,7 +85,14 @@ export const usePlannerStore = create<PlannerStore>()(
       ...initialState,
 
       setCouple: (a, b) => set({ partnerA: a.trim(), partnerB: b.trim() }),
-      setDate: (iso) => set({ weddingDate: iso }),
+      setDate: (iso) => set({ weddingDate: iso, dateEstimated: false }),
+      setDateEstimated: (v) => set({ dateEstimated: v }),
+      setProfile: (p) =>
+        set((current) => ({
+          role: p.role !== undefined ? p.role : current.role,
+          weddingType: p.weddingType !== undefined ? p.weddingType : current.weddingType,
+          worry: p.worry !== undefined ? p.worry : current.worry,
+        })),
       setCover: (uri) => set({ coverUri: uri }),
 
       toggleDone: (id) =>
@@ -177,7 +198,7 @@ export const usePlannerStore = create<PlannerStore>()(
     }),
     {
       name: 'planner-store',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => AsyncStorage),
       migrate: (persistedState) => {
         const persisted = (persistedState ?? {}) as Partial<PlannerState>;
@@ -185,6 +206,10 @@ export const usePlannerStore = create<PlannerStore>()(
           partnerA: persisted.partnerA ?? '',
           partnerB: persisted.partnerB ?? '',
           weddingDate: persisted.weddingDate ?? null,
+          dateEstimated: persisted.dateEstimated ?? false,
+          role: persisted.role ?? null,
+          weddingType: persisted.weddingType ?? null,
+          worry: persisted.worry ?? null,
           coverUri: persisted.coverUri ?? null,
           marks: persisted.marks ?? {},
           customTasks: persisted.customTasks ?? [],

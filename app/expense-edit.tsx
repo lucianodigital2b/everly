@@ -17,7 +17,9 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { BackButton } from '../components/BackButton';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
-import { useBudgetStore } from '../zustand/budget';
+import { useBudgetStore } from '../zustand/budget';
+import { t, LOCALE_TAG } from '../i18n';
+import { PremiumOnly } from '../components/paywall/PremiumOnly';
 
 function toISODate(d: Date): string {
   const y = d.getFullYear();
@@ -31,14 +33,14 @@ function parseISODate(iso: string): Date {
   return new Date(y, m - 1, d);
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DUE_FORMATTER = new Intl.DateTimeFormat(LOCALE_TAG, { month: 'short', day: 'numeric', year: 'numeric' });
 
 function formatDue(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
-  return `${MONTHS[m - 1]} ${d}, ${y}`;
+  return DUE_FORMATTER.format(new Date(y, m - 1, d));
 }
 
-export default function ExpenseEditScreen() {
+function ExpenseEditScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
     id?: string | string[];
@@ -123,10 +125,10 @@ export default function ExpenseEditScreen() {
   };
 
   const handleRemove = () => {
-    Alert.alert('Remove expense?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('expenseEdit.removeAlertTitle'), t('expenseEdit.removeAlertBody'), [
+      { text: t('expenseEdit.cancel'), style: 'cancel' },
       {
-        text: 'Remove',
+        text: t('expenseEdit.remove'),
         style: 'destructive',
         onPress: () => {
           if (id) {
@@ -154,7 +156,7 @@ export default function ExpenseEditScreen() {
       <View style={styles.container}>
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <BackButton fallback="/(tabs)/plan" />
-          <Text style={styles.title}>{id ? 'Edit expense' : 'Add expense'}</Text>
+          <Text style={styles.title}>{id ? t('expenseEdit.editExpense') : t('expenseEdit.addExpense')}</Text>
           <View style={styles.topBarRight} />
         </View>
 
@@ -163,22 +165,22 @@ export default function ExpenseEditScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Label</Text>
+            <Text style={styles.fieldLabel}>{t('expenseEdit.label')}</Text>
             <TextInput
               style={styles.input}
               autoFocus={!id}
               value={label}
               onChangeText={setLabel}
-              placeholder="Cake tasting, venue deposit, etc."
+              placeholder={t('expenseEdit.labelPlaceholder')}
               placeholderTextColor={colors.textTertiary}
             />
             {linkedTaskId ? (
-              <Text style={styles.linkedTaskCaption}>Linked to a plan task</Text>
+              <Text style={styles.linkedTaskCaption}>{t('expenseEdit.linkedToPlanTask')}</Text>
             ) : null}
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Category</Text>
+            <Text style={styles.fieldLabel}>{t('expenseEdit.category')}</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -207,7 +209,7 @@ export default function ExpenseEditScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Estimated cost</Text>
+            <Text style={styles.fieldLabel}>{t('expenseEdit.estimatedCost')}</Text>
             <TextInput
               style={styles.input}
               value={estimated}
@@ -219,7 +221,7 @@ export default function ExpenseEditScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Amount paid</Text>
+            <Text style={styles.fieldLabel}>{t('expenseEdit.amountPaid')}</Text>
             <TextInput
               style={styles.input}
               value={paid}
@@ -229,18 +231,18 @@ export default function ExpenseEditScreen() {
               keyboardType="number-pad"
             />
             <Pressable style={styles.quickPaidButton} onPress={handlePaidInFull}>
-              <Text style={styles.quickPaidText}>Mark as paid in full</Text>
+              <Text style={styles.quickPaidText}>{t('expenseEdit.markAsPaidInFull')}</Text>
             </Pressable>
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Due date</Text>
+            <Text style={styles.fieldLabel}>{t('expenseEdit.dueDate')}</Text>
             <Pressable
               style={styles.dueDateRow}
               onPress={() => setShowDatePicker(true)}
             >
               <Text style={dueDate ? styles.dueDateText : styles.dueDatePlaceholder}>
-                {dueDate ? formatDue(dueDate) : 'Set a due date'}
+                {dueDate ? formatDue(dueDate) : t('expenseEdit.setDueDate')}
               </Text>
               {dueDate ? (
                 <Pressable
@@ -262,12 +264,12 @@ export default function ExpenseEditScreen() {
             disabled={!canSave}
             onPress={handleSave}
           >
-            <Text style={styles.primaryButtonText}>Save</Text>
+            <Text style={styles.primaryButtonText}>{t('expenseEdit.save')}</Text>
           </Pressable>
 
           {id ? (
             <Pressable style={styles.removeButton} onPress={handleRemove}>
-              <Text style={styles.removeButtonText}>Remove expense</Text>
+              <Text style={styles.removeButtonText}>{t('expenseEdit.removeExpense')}</Text>
             </Pressable>
           ) : null}
         </ScrollView>
@@ -306,7 +308,7 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     textAlign: 'center',
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
   },
@@ -456,3 +458,12 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 });
+
+// Premium screen: see constants/premium.ts.
+export default function ExpenseEditScreenRoute() {
+  return (
+    <PremiumOnly title={t('expenseEdit.title')}>
+      <ExpenseEditScreen />
+    </PremiumOnly>
+  );
+}

@@ -2,6 +2,7 @@ import React, { forwardRef, useState } from 'react';
 import { TextInput, View, Text, TextInputProps, Pressable } from 'react-native';
 import { Eye, EyeOff, X } from 'lucide-react-native';
 import { colors } from '../constants/colors';
+import { t } from '../i18n';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -51,7 +52,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
             hitSlop={12}
             className="pl-3"
             accessibilityRole="button"
-            accessibilityLabel="Clear"
+            accessibilityLabel={t('input.clear')}
           >
             <X size={18} color={colors.textTertiary} />
           </Pressable>
@@ -62,7 +63,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
             hitSlop={10}
             className="pl-3"
             accessibilityRole="button"
-            accessibilityLabel={revealed ? 'Hide password' : 'Show password'}
+            accessibilityLabel={revealed ? t('input.hidePassword') : t('input.showPassword')}
           >
             {revealed ? (
               <EyeOff size={19} color={colors.textSecondary} />

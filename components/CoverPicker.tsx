@@ -3,6 +3,7 @@ import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "rea
 import Svg, { Rect } from "react-native-svg";
 import { ImageUp } from "lucide-react-native";
 import { colors } from "../constants/colors";
+import { t } from '../i18n';
 import { COVER_PRESETS, isOwnCover } from "../constants/sampleImages";
 
 const TILE_W = 62;
@@ -97,7 +98,7 @@ export const CoverPicker = ({ value, onSelect, onPickOwn }: CoverPickerProps) =>
 
   return (
     <View>
-      <Text style={styles.label}>Bring your own, or pick a cover</Text>
+      <Text style={styles.label}>{t('coverPicker.label')}</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

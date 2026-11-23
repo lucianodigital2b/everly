@@ -12,7 +12,18 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import Svg, { Circle, G } from 'react-native-svg';
+import {
+  Camera,
+  Flower2,
+  Gem,
+  Landmark,
+  Mail,
+  MoreHorizontal,
+  Music,
+  Shirt,
+  UtensilsCrossed,
+  Wallet,
+} from 'lucide-react-native';
 import { BackButton } from '../components/BackButton';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
@@ -23,8 +34,33 @@ import {
   useBudgetStore,
   type Expense,
 } from '../zustand/budget';
+import { t, LOCALE_TAG } from '../i18n';
+import { PremiumOnly } from '../components/paywall/PremiumOnly';
+import { BudgetBar } from '../components/budget/BudgetBar';
+import { DonutChart } from '../components/budget/DonutChart';
+import { PressableScale } from '../components/home/PressableScale';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_FORMATTER = new Intl.DateTimeFormat(LOCALE_TAG, { month: 'short' });
+
+const TIGHT_COLOR = '#D9A35B';
+
+type IconComponent = React.ComponentType<{
+  color?: string;
+  size?: number | string;
+  strokeWidth?: number | string;
+}>;
+
+const CATEGORY_ICONS: Record<string, IconComponent> = {
+  venue: Landmark,
+  catering: UtensilsCrossed,
+  photo: Camera,
+  attire: Shirt,
+  flowers: Flower2,
+  music: Music,
+  rings: Gem,
+  paper: Mail,
+  other: MoreHorizontal,
+};
 
 function toISODate(date: Date): string {
   const y = date.getFullYear();
@@ -35,10 +71,23 @@ function toISODate(date: Date): string {
 
 function formatMonthDay(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
-  return `${MONTHS[m - 1]} ${d}`;
+  return `${MONTH_FORMATTER.format(new Date(y, m - 1, 1))} ${d}`;
 }
 
-export default function BudgetScreen() {
+function withAlpha(hex: string, alpha: string): string {
+  const clean = hex.replace('#', '');
+  const full =
+    clean.length === 3
+      ? clean
+          .split('')
+          .map((char) => char + char)
+          .join('')
+      : clean;
+
+  return /^[0-9A-Fa-f]{6}$/.test(full) ? `#${full}${alpha}` : hex;
+}
+
+function BudgetScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ tab?: string | string[] }>();
   const tabParam = Array.isArray(params.tab) ? params.tab[0] : params.tab;
@@ -51,33 +100,60 @@ export default function BudgetScreen() {
 
   const [editingTotal, setEditingTotal] = useState(false);
   const [totalDraft, setTotalDraft] = useState('');
-  const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
+  const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(
+    null,
+  );
   const [paidExpanded, setPaidExpanded] = useState(false);
 
   const summary = useMemo(() => budgetSummary(budgetState), [budgetState]);
 
-  const chartSize = 200;
-  const strokeWidth = 22;
-  const radius = (chartSize - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const chartMax = Math.max(total ?? 0, summary.estimated) || 1;
+  const budgetStatus = useMemo(() => {
+    if (total === null || total === 0) return null;
 
-  const chartArcs = useMemo(() => {
-    let offset = 0;
-    return summary.byCategory
-      .filter((cat) => cat.estimated > 0)
-      .map((cat) => {
-        const arc = {
+    if (summary.estimated > total) {
+      return {
+        text: t('budget.overBudget', {
+          amount: formatUsd(summary.estimated - total),
+        }),
+        color: colors.error,
+      };
+    }
+
+    if (summary.estimated >= total * 0.9) {
+      return {
+        text: t('budget.leftToPlan', {
+          amount: formatUsd(total - summary.estimated),
+        }),
+        color: TIGHT_COLOR,
+      };
+    }
+
+    return {
+      text: `${formatUsd(total - summary.estimated)} left to plan`,
+      color: colors.success,
+    };
+  }, [summary.estimated, total]);
+
+  const isOverCap = total !== null && total > 0 && summary.estimated > total;
+
+  const donutSlices = useMemo(
+    () =>
+      summary.byCategory
+        .filter((cat) => cat.estimated > 0)
+        .map((cat) => ({
           id: cat.category.id,
+          value: cat.estimated,
           color: cat.category.color,
-          length: (cat.estimated / chartMax) * circumference,
-          offset,
-        };
-        offset += arc.length;
-        return arc;
-      });
-  }, [summary.byCategory, chartMax, circumference]);
+        })),
+    [summary.byCategory],
+  );
 
+  const donutLegendSlices = useMemo(
+    () => [...donutSlices].sort((a, b) => b.value - a.value),
+    [donutSlices],
+  );
+
+  const donutTotal = summary.estimated;
   const todayKey = toISODate(new Date());
 
   const pendingExpenses = useMemo(() => {
@@ -147,10 +223,14 @@ export default function BudgetScreen() {
   const renderPaymentRow = (expense: Expense) => {
     const category = categories.find((c) => c.id === expense.categoryId);
     const dueText = !expense.dueDate
-      ? 'No due date'
+      ? t('budget.noDueDate')
       : expense.dueDate < todayKey
-        ? `Overdue · ${formatMonthDay(expense.dueDate)}`
-        : `Due ${formatMonthDay(expense.dueDate)}`;
+        ? t('budget.overdueDate', {
+            date: formatMonthDay(expense.dueDate),
+          })
+        : t('budget.dueDate', {
+            date: formatMonthDay(expense.dueDate),
+          });
     const isOverdue = !!expense.dueDate && expense.dueDate < todayKey;
     const left = expense.estimated - expense.paid;
 
@@ -163,12 +243,20 @@ export default function BudgetScreen() {
         }
       >
         <View
-          style={[styles.paymentDot, { backgroundColor: category?.color ?? colors.textTertiary }]}
+          style={[
+            styles.paymentDot,
+            { backgroundColor: category?.color ?? colors.textTertiary },
+          ]}
         />
         <View style={styles.paymentInfo}>
           <Text style={styles.paymentGroupLabel}>{expense.label}</Text>
-          <Text style={[styles.paymentDue, isOverdue && styles.paymentOverdueText]}>
-            {category?.name ?? 'Unknown'}{` · ${dueText}`}
+          <Text
+            style={[styles.paymentDue, isOverdue && styles.paymentOverdueText]}
+          >
+            {t('budget.categoryDueText', {
+              category: category?.name ?? t('budget.unknownCategory'),
+              dueText,
+            })}
           </Text>
         </View>
         <View style={styles.paymentAmountBox}>
@@ -182,7 +270,7 @@ export default function BudgetScreen() {
               void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             }}
           >
-            <Text style={styles.markPaidText}>Mark paid</Text>
+            <Text style={styles.markPaidText}>{t('budget.markPaid')}</Text>
           </Pressable>
         </View>
       </Pressable>
@@ -191,13 +279,16 @@ export default function BudgetScreen() {
 
   const renderSetupBudget = () => (
     <ScrollView
-      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+      contentContainerStyle={[
+        styles.content,
+        { paddingBottom: insets.bottom + 40 },
+      ]}
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.setupCard}>
-        <Text style={styles.cardTitle}>What&apos;s your total budget?</Text>
+        <Text style={styles.cardTitle}>{t('budget.setupTitle')}</Text>
         <Text style={styles.cardSubtitle}>
-          You can adjust this later as planning evolves.
+          {t('budget.setupSubtitle')}
         </Text>
         <TextInput
           style={styles.input}
@@ -208,11 +299,14 @@ export default function BudgetScreen() {
           keyboardType="number-pad"
         />
         <Pressable
-          style={[styles.primaryButton, !totalDraft.trim() && styles.primaryButtonDisabled]}
+          style={[
+            styles.primaryButton,
+            !totalDraft.trim() && styles.primaryButtonDisabled,
+          ]}
           disabled={!totalDraft.trim()}
           onPress={handleSetInitialBudget}
         >
-          <Text style={styles.primaryButtonText}>Set budget</Text>
+          <Text style={styles.primaryButtonText}>{t('budget.setBudget')}</Text>
         </Pressable>
       </View>
     </ScrollView>
@@ -223,127 +317,218 @@ export default function BudgetScreen() {
       return renderSetupBudget();
     }
 
+    const remainingDotColor = isOverCap ? colors.error : colors.accentBright;
+
     return (
       <>
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: insets.bottom + 110 },
+          ]}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.donutCard}>
-            <View style={styles.donutWrapper}>
-              <Svg width={chartSize} height={chartSize}>
-                <G transform={`rotate(-90 ${chartSize / 2} ${chartSize / 2})`}>
-                  <Circle
-                    cx={chartSize / 2}
-                    cy={chartSize / 2}
-                    r={radius}
-                    stroke={colors.surface2}
-                    strokeWidth={strokeWidth}
-                    fill="none"
-                  />
-                  {chartArcs.map((arc) => (
-                    <Circle
-                      key={arc.id}
-                      cx={chartSize / 2}
-                      cy={chartSize / 2}
-                      r={radius}
-                      stroke={arc.color}
-                      strokeWidth={strokeWidth}
-                      fill="none"
-                      strokeDasharray={`${arc.length} ${circumference - arc.length}`}
-                      strokeDashoffset={-arc.offset}
-                    />
-                  ))}
-                </G>
-              </Svg>
-              <View style={styles.donutCenter} pointerEvents="box-none">
-                {editingTotal ? (
-                  <View style={styles.centerEditBox}>
-                    <TextInput
-                      style={styles.centerInput}
-                      value={totalDraft}
-                      onChangeText={setTotalDraft}
-                      placeholder="$0"
-                      placeholderTextColor={colors.textTertiary}
-                      keyboardType="number-pad"
-                    />
-                    <Pressable style={styles.centerSave} onPress={handleSaveTotal}>
-                      <Text style={styles.centerSaveText}>Save</Text>
-                    </Pressable>
-                    <Pressable
-                      style={styles.centerCancel}
-                      onPress={() => setEditingTotal(false)}
-                    >
-                      <Text style={styles.centerCancelText}>Cancel</Text>
-                    </Pressable>
-                  </View>
-                ) : (
-                  <Pressable style={styles.centerPressable} onPress={handleOpenTotalEditor}>
-                    <Text style={styles.remainingAmount}>
-                      {formatUsd(summary.remaining)}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.remainingLabel,
-                        summary.remaining < 0 && styles.overBudgetLabel,
-                      ]}
-                    >
-                      {summary.remaining < 0
-                        ? 'over budget'
-                        : `left of ${formatUsd(total)}`}
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryTopRow}>
+              <Text style={styles.eyebrow}>{t('budget.spent')}</Text>
+              <PressableScale
+                onPress={handleOpenTotalEditor}
+                accessibilityRole="button"
+                style={styles.editPill}
+              >
+                <Text style={styles.editPillText}>{t('budget.edit')}</Text>
+              </PressableScale>
             </View>
 
-            <View style={styles.summaryRow}>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Estimated</Text>
-                <Text style={styles.summaryValue}>{formatUsd(summary.estimated)}</Text>
+            {editingTotal ? (
+              <View style={styles.totalEditBox}>
+                <TextInput
+                  style={styles.input}
+                  value={totalDraft}
+                  onChangeText={setTotalDraft}
+                  placeholder="$0"
+                  placeholderTextColor={colors.textTertiary}
+                  keyboardType="number-pad"
+                />
+                <View style={styles.editActions}>
+                  <PressableScale
+                    style={styles.saveButton}
+                    onPress={handleSaveTotal}
+                  >
+                    <Text style={styles.saveButtonText}>{t('budget.save')}</Text>
+                  </PressableScale>
+                  <Pressable
+                    style={styles.cancelButton}
+                    onPress={() => setEditingTotal(false)}
+                  >
+                    <Text style={styles.cancelButtonText}>{t('budget.cancel')}</Text>
+                  </Pressable>
+                </View>
               </View>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Paid</Text>
-                <Text style={styles.summaryValue}>{formatUsd(summary.paid)}</Text>
+            ) : (
+              <>
+                <Text
+                  style={styles.spentAmount}
+                  adjustsFontSizeToFit
+                  numberOfLines={1}
+                >
+                  {formatUsd(summary.paid)}
+                </Text>
+                <Text style={styles.spentSubtitle}>
+                  {t('budget.ofTotalBudget', {
+                    amount: formatUsd(total),
+                  })}
+                </Text>
+                <BudgetBar
+                  paid={summary.paid}
+                  planned={summary.estimated}
+                  cap={total}
+                  height={10}
+                />
+                <View style={styles.legend}>
+                  <View style={styles.legendItem}>
+                    <View
+                      style={[styles.dot, { backgroundColor: colors.accent }]}
+                    />
+                    <Text style={styles.legendText}>{t('budget.paid')}</Text>
+                  </View>
+                  <View style={styles.legendItem}>
+                    <View
+                      style={[
+                        styles.dot,
+                        { backgroundColor: remainingDotColor },
+                      ]}
+                    />
+                    <Text style={styles.legendText}>
+                      {t('budget.stillToPayAmount', {
+                        amount: formatUsd(summary.pending),
+                      })}
+                    </Text>
+                  </View>
+                </View>
+                {budgetStatus ? (
+                  <Text
+                    style={[styles.statusText, { color: budgetStatus.color }]}
+                  >
+                    {budgetStatus.text}
+                  </Text>
+                ) : null}
+              </>
+            )}
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('budget.whereItGoes')}</Text>
+            <View style={styles.chartCard}>
+              <View style={styles.donutChartWrap}>
+                <DonutChart slices={donutSlices} size={200} thickness={26}>
+                  <Text
+                    style={styles.donutTotal}
+                    adjustsFontSizeToFit
+                    numberOfLines={1}
+                  >
+                    {formatUsd(donutTotal)}
+                  </Text>
+                  <Text style={styles.donutLabel}>{t('budget.planned')}</Text>
+                </DonutChart>
               </View>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Pending</Text>
-                <Text style={styles.summaryValue}>{formatUsd(summary.pending)}</Text>
-              </View>
+
+              {donutLegendSlices.length === 0 ? (
+                <Text style={styles.emptyChart}>
+                  {t('budget.addExpensesToSeeBreakdown')}
+                </Text>
+              ) : (
+                <View style={styles.donutLegend}>
+                  {donutLegendSlices.map((slice) => {
+                    const category = categories.find((c) => c.id === slice.id);
+                    const share =
+                      donutTotal > 0
+                        ? Math.round((slice.value / donutTotal) * 100)
+                        : 0;
+
+                    return (
+                      <View key={slice.id} style={styles.donutLegendRow}>
+                        <View
+                          style={[
+                            styles.legendDot,
+                            { backgroundColor: slice.color },
+                          ]}
+                        />
+                        <Text
+                          style={styles.donutLegendName}
+                          numberOfLines={1}
+                        >
+                          {category?.name ?? slice.id}
+                        </Text>
+                        <Text style={styles.donutLegendPercent}>
+                          {`${share}%`}
+                        </Text>
+                        <Text style={styles.donutLegendValue}>
+                          {formatUsd(slice.value)}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
             </View>
           </View>
 
-          <View style={styles.legendSection}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('budget.categories')}</Text>
             {summary.byCategory.map((cat) => {
               const categoryExpenses = expenses.filter(
                 (expense) => expense.categoryId === cat.category.id,
               );
               const expanded = expandedCategoryId === cat.category.id;
-              const ratio =
-                cat.allocated > 0 ? Math.min(cat.estimated / cat.allocated, 1) : 0;
-              const overAllocated = cat.estimated > cat.allocated;
+              // Each category gets a share of the total; going past it is the warning.
+              const overShare = cat.estimated > cat.allocated;
               const usedLabels = new Set(
                 categoryExpenses.map((e) => e.label.trim().toLowerCase()),
               );
-              const suggestions = (BUDGET_ITEM_SUGGESTIONS[cat.category.id] ?? []).filter(
-                (s) => !usedLabels.has(s.toLowerCase()),
-              );
+              const suggestions = (
+                BUDGET_ITEM_SUGGESTIONS[cat.category.id] ?? []
+              ).filter((s) => !usedLabels.has(s.toLowerCase()));
+              const CategoryIcon = CATEGORY_ICONS[cat.category.id] ?? Wallet;
 
               return (
                 <View key={cat.category.id} style={styles.categoryCard}>
                   <Pressable
                     style={styles.categoryHeader}
                     onPress={() =>
-                      setExpandedCategoryId(expanded ? null : cat.category.id)
+                      setExpandedCategoryId(
+                        expanded ? null : cat.category.id,
+                      )
                     }
+                    accessibilityRole="button"
                   >
                     <View
-                      style={[styles.categoryDot, { backgroundColor: cat.category.color }]}
-                    />
+                      style={[
+                        styles.categoryBadge,
+                        {
+                          backgroundColor: withAlpha(
+                            cat.category.color,
+                            '22',
+                          ),
+                        },
+                      ]}
+                    >
+                      <CategoryIcon
+                        color={cat.category.color}
+                        size={20}
+                        strokeWidth={2}
+                      />
+                    </View>
                     <View style={styles.categoryInfo}>
-                      <Text style={styles.categoryName}>{cat.category.name}</Text>
-                      <Text style={styles.categoryAmounts}>
-                        {formatUsd(cat.estimated)} estimated · {formatUsd(cat.allocated)} planned
+                      <Text style={styles.categoryName}>
+                        {cat.category.name}
+                      </Text>
+                      <Text style={styles.categoryMeta}>
+                        {t('budget.categoryMeta', {
+                          planned: formatUsd(cat.estimated),
+                          allocated: formatUsd(cat.allocated),
+                          paid: formatUsd(cat.paid),
+                        })}
                       </Text>
                     </View>
                     <Text style={styles.categoryChevron}>
@@ -351,34 +536,39 @@ export default function BudgetScreen() {
                     </Text>
                   </Pressable>
 
-                  <View style={styles.barTrack}>
-                    <View
-                      style={[
-                        styles.barFill,
-                        {
-                          width: `${ratio * 100}%`,
-                          backgroundColor: overAllocated
-                            ? colors.error
-                            : cat.category.color,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <Text style={styles.paidText}>Paid {formatUsd(cat.paid)}</Text>
+                  <BudgetBar
+                    paid={cat.paid}
+                    planned={cat.estimated}
+                    cap={cat.allocated}
+                    height={8}
+                    color={cat.category.color}
+                  />
+
+                  {overShare ? (
+                    <Text style={styles.categoryOver}>
+                      {t('budget.overShare', {
+                        amount: formatUsd(cat.estimated - cat.allocated),
+                      })}
+                    </Text>
+                  ) : null}
 
                   {expanded ? (
                     <View style={styles.expenseList}>
                       {categoryExpenses.length === 0 ? (
                         <Text style={styles.emptyExpenses}>
-                          No expenses in this category.
+                          {t('budget.noExpensesInCategory')}
                         </Text>
                       ) : (
-                        categoryExpenses.map((expense) => renderExpenseRow(expense))
+                        categoryExpenses.map((expense) =>
+                          renderExpenseRow(expense),
+                        )
                       )}
 
                       {suggestions.length > 0 ? (
                         <View style={styles.suggestionsSection}>
-                          <Text style={styles.suggestionsTitle}>Suggestions</Text>
+                          <Text style={styles.suggestionsTitle}>
+                            {t('budget.suggestions')}
+                          </Text>
                           <View style={styles.suggestionsWrap}>
                             {suggestions.map((suggestion) => (
                               <Pressable
@@ -410,57 +600,64 @@ export default function BudgetScreen() {
           </View>
         </ScrollView>
 
-        <Pressable
+        <PressableScale
           style={[styles.fab, { bottom: insets.bottom + 24 }]}
           onPress={() => router.push({ pathname: '/expense-edit' })}
         >
-          <Text style={styles.fabText}>+ Add expense</Text>
-        </Pressable>
+          <Text style={styles.fabText}>{t('budget.addExpense')}</Text>
+        </PressableScale>
       </>
     );
   };
 
   const renderPayments = () => (
     <ScrollView
-      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+      contentContainerStyle={[
+        styles.content,
+        { paddingBottom: insets.bottom + 40 },
+      ]}
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.paymentCardsRow}>
         <View style={styles.paymentCard}>
-          <Text style={styles.paymentCardLabel}>Paid</Text>
-          <Text style={styles.paymentCardValue}>{formatUsd(summary.paid)}</Text>
+          <Text style={styles.paymentCardLabel}>{t('budget.paid')}</Text>
+          <Text style={styles.paymentCardValue}>
+            {formatUsd(summary.paid)}
+          </Text>
         </View>
         <View style={styles.paymentCard}>
-          <Text style={styles.paymentCardLabel}>Still to pay</Text>
-          <Text style={styles.paymentCardValue}>{formatUsd(summary.pending)}</Text>
+          <Text style={styles.paymentCardLabel}>{t('budget.stillToPay')}</Text>
+          <Text style={styles.paymentCardValue}>
+            {formatUsd(summary.pending)}
+          </Text>
         </View>
       </View>
 
       {expenses.length === 0 ? (
         <View style={styles.emptyPaymentsCard}>
           <Text style={styles.emptyPaymentsText}>
-            No payments yet. Add costs with a due date to track them here.
+            {t('budget.noPayments')}
           </Text>
         </View>
       ) : (
         <>
           {overdue.length > 0 ? (
             <View style={styles.paymentGroup}>
-              <Text style={styles.paymentGroupTitle}>Overdue</Text>
+              <Text style={styles.paymentGroupTitle}>{t('budget.overdue')}</Text>
               {overdue.map((expense) => renderPaymentRow(expense))}
             </View>
           ) : null}
 
           {upcoming.length > 0 ? (
             <View style={styles.paymentGroup}>
-              <Text style={styles.paymentGroupTitle}>Upcoming</Text>
+              <Text style={styles.paymentGroupTitle}>{t('budget.upcoming')}</Text>
               {upcoming.map((expense) => renderPaymentRow(expense))}
             </View>
           ) : null}
 
           {noDueDate.length > 0 ? (
             <View style={styles.paymentGroup}>
-              <Text style={styles.paymentGroupTitle}>No due date</Text>
+              <Text style={styles.paymentGroupTitle}>{t('budget.noDueDate')}</Text>
               {noDueDate.map((expense) => renderPaymentRow(expense))}
             </View>
           ) : null}
@@ -472,7 +669,7 @@ export default function BudgetScreen() {
                 onPress={() => setPaidExpanded((v) => !v)}
               >
                 <Text style={styles.paidSectionTitle}>
-                  Paid in full ({fullyPaid.length})
+                  {t('budget.paidInFullCount', { count: fullyPaid.length })}
                 </Text>
                 <Text style={styles.paidSectionChevron}>
                   {paidExpanded ? '-' : '+'}
@@ -497,13 +694,20 @@ export default function BudgetScreen() {
                         <View
                           style={[
                             styles.paymentDot,
-                            { backgroundColor: category?.color ?? colors.textTertiary },
+                            {
+                              backgroundColor:
+                                category?.color ?? colors.textTertiary,
+                            },
                           ]}
                         />
                         <View style={styles.paymentInfo}>
-                          <Text style={styles.paymentGroupLabel}>{expense.label}</Text>
+                          <Text style={styles.paymentGroupLabel}>
+                            {expense.label}
+                          </Text>
                           <Text style={styles.paymentDue}>
-                            {category?.name ?? 'Unknown'} · Paid in full
+                            {t('budget.categoryPaidInFull', {
+                              category: category?.name ?? t('budget.unknownCategory'),
+                            })}
                           </Text>
                         </View>
                         <Text style={styles.paymentGroupAmount}>
@@ -528,13 +732,16 @@ export default function BudgetScreen() {
       <View style={styles.container}>
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <BackButton fallback="/(tabs)/plan" />
-          <Text style={styles.title}>Budget</Text>
+          <Text style={styles.title}>{t('budget.title')}</Text>
           <View style={styles.topBarRight} />
         </View>
 
         <View style={styles.segmentedControl}>
           <Pressable
-            style={[styles.segment, activeTab === 'budget' && styles.segmentActive]}
+            style={[
+              styles.segment,
+              activeTab === 'budget' && styles.segmentActive,
+            ]}
             onPress={() => setActiveTab('budget')}
           >
             <Text
@@ -543,11 +750,14 @@ export default function BudgetScreen() {
                 activeTab === 'budget' && styles.segmentTextActive,
               ]}
             >
-              Budget
+              {t('budget.tabBudget')}
             </Text>
           </Pressable>
           <Pressable
-            style={[styles.segment, activeTab === 'payments' && styles.segmentActive]}
+            style={[
+              styles.segment,
+              activeTab === 'payments' && styles.segmentActive,
+            ]}
             onPress={() => setActiveTab('payments')}
           >
             <Text
@@ -556,7 +766,7 @@ export default function BudgetScreen() {
                 activeTab === 'payments' && styles.segmentTextActive,
               ]}
             >
-              Payments
+              {t('budget.tabPayments')}
             </Text>
           </Pressable>
         </View>
@@ -586,7 +796,7 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     textAlign: 'center',
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
   },
@@ -643,7 +853,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cardTitle: {
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
   },
@@ -683,112 +893,187 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.button,
     color: colors.textPrimary,
   },
-  donutCard: {
+  summaryCard: {
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 20,
     padding: 20,
-    alignItems: 'center',
+    gap: 10,
     shadowColor: '#2E2429',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.06,
     shadowRadius: 20,
     elevation: 3,
   },
-  donutWrapper: {
-    width: 200,
-    height: 200,
+  summaryTopRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
   },
-  donutCenter: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerPressable: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerEditBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  centerInput: {
-    width: 110,
-    textAlign: 'center',
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.sizes.h3,
-    color: colors.textPrimary,
-    backgroundColor: colors.surface2,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  centerSave: {
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginTop: 6,
-  },
-  centerSaveText: {
+  eyebrow: {
     fontFamily: typography.fonts.semibold,
     fontSize: typography.sizes.caption,
-    color: colors.textPrimary,
+    letterSpacing: 1.2,
+    color: colors.accentDeep,
+    textTransform: 'uppercase',
   },
-  centerCancel: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  editPill: {
+    backgroundColor: colors.accentBright,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
   },
-  centerCancelText: {
+  editPillText: {
     fontFamily: typography.fonts.medium,
     fontSize: typography.sizes.caption,
-    color: colors.textSecondary,
+    color: colors.accentDeep,
   },
-  remainingAmount: {
-    fontFamily: typography.fonts.extraBold,
-    fontSize: typography.sizes.h2,
+  spentAmount: {
+    fontFamily: typography.fonts.title,
+    fontSize: 34,
+    lineHeight: 40,
     color: colors.textPrimary,
+    fontVariant: ['tabular-nums'],
   },
-  remainingLabel: {
-    fontFamily: typography.fonts.medium,
-    fontSize: typography.sizes.caption,
+  spentSubtitle: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.body,
     color: colors.textSecondary,
+  },
+  legend: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    rowGap: 4,
     marginTop: 4,
   },
-  overBudgetLabel: {
-    color: colors.error,
-  },
-  summaryRow: {
+  legendItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    alignSelf: 'stretch',
+    gap: 6,
   },
-  summaryItem: {
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendText: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.caption,
+    color: colors.textSecondary,
+  },
+  statusText: {
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.sizes.body,
+    lineHeight: 20,
+    marginTop: 2,
+  },
+  totalEditBox: {
+    gap: 10,
+    marginTop: 2,
+  },
+  editActions: {
+    flexDirection: 'row',
+    gap: 10,
     alignItems: 'center',
-    flex: 1,
   },
-  summaryLabel: {
+  saveButton: {
+    backgroundColor: colors.accent,
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    fontFamily: typography.fonts.bold,
+    fontSize: typography.sizes.caption,
+    color: colors.textPrimary,
+  },
+  cancelButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  cancelButtonText: {
     fontFamily: typography.fonts.medium,
     fontSize: typography.sizes.caption,
     color: colors.textSecondary,
   },
-  summaryValue: {
-    fontFamily: typography.fonts.bold,
+  section: {
+    gap: 12,
+  },
+  sectionTitle: {
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
     marginTop: 4,
   },
-  legendSection: {
-    gap: 12,
+  chartCard: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 20,
+    padding: 20,
+    gap: 18,
+    alignItems: 'stretch',
+    shadowColor: '#2E2429',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    elevation: 3,
+  },
+  donutChartWrap: {
+    alignSelf: 'center',
+  },
+  donutTotal: {
+    maxWidth: 140,
+    fontFamily: typography.fonts.title,
+    fontSize: 26,
+    color: colors.textPrimary,
+    fontVariant: ['tabular-nums'],
+  },
+  donutLabel: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  emptyChart: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  donutLegend: {
+    gap: 10,
+  },
+  donutLegendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  donutLegendName: {
+    flex: 1,
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.body,
+    color: colors.textPrimary,
+  },
+  donutLegendPercent: {
+    width: 44,
+    textAlign: 'right',
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.caption,
+    color: colors.textSecondary,
+    fontVariant: ['tabular-nums'],
+  },
+  donutLegendValue: {
+    minWidth: 70,
+    textAlign: 'right',
+    fontFamily: typography.fonts.semibold,
+    fontSize: typography.sizes.body,
+    color: colors.textPrimary,
+    fontVariant: ['tabular-nums'],
   },
   categoryCard: {
     backgroundColor: colors.backgroundSecondary,
@@ -804,12 +1089,14 @@ const styles = StyleSheet.create({
   categoryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
-  categoryDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  categoryBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   categoryInfo: {
     flex: 1,
@@ -819,7 +1106,7 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.body,
     color: colors.textPrimary,
   },
-  categoryAmounts: {
+  categoryMeta: {
     fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.caption,
     color: colors.textSecondary,
@@ -829,21 +1116,12 @@ const styles = StyleSheet.create({
     fontFamily: typography.fonts.bold,
     fontSize: typography.sizes.h3,
     color: colors.textSecondary,
+    marginLeft: 4,
   },
-  barTrack: {
-    height: 6,
-    backgroundColor: colors.surface2,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  paidText: {
-    fontFamily: typography.fonts.regular,
+  categoryOver: {
+    fontFamily: typography.fonts.medium,
     fontSize: typography.sizes.caption,
-    color: colors.textSecondary,
+    color: colors.error,
   },
   expenseList: {
     gap: 8,
@@ -1057,3 +1335,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 });
+
+export default function BudgetScreenRoute() {
+  return (
+    <PremiumOnly title={t('budget.title')}>
+      <BudgetScreen />
+    </PremiumOnly>
+  );
+}

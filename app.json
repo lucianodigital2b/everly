@@ -2,7 +2,7 @@
   "expo": {
     "name": "Everly",
     "slug": "everly-app",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon-logo.png",
     "userInterfaceStyle": "light",
@@ -15,6 +15,10 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "locales": {
+      "en": "./languages/en.json",
+      "pt": "./languages/pt.json"
+    },
     "ios": {
       "supportsTablet": false,
       "usesAppleSignIn": true,
@@ -55,6 +59,7 @@
       "expo-notifications",
       "expo-updates",
       "expo-asset",
+      "expo-localization",
       [
         "react-native-appsflyer",
         {
@@ -70,13 +75,7 @@
         }
       ],
       "@bacons/apple-targets",
-      "expo-sharing",
-      [
-        "expo-contacts",
-        {
-          "contactsPermission": "Everly reads your contacts only when you choose to import guests into your wedding guest list."
-        }
-      ]
+      "expo-sharing"
     ],
     "extra": {
       "router": {

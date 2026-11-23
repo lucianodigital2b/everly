@@ -20,6 +20,7 @@ import QRCode from "react-native-qrcode-svg";
 import { X, Copy, Check } from "lucide-react-native";
 import { colors } from "../constants/colors";
 import { joinLink } from "../constants/links";
+import { t } from "../i18n";
 
 const COPY_EASE = Easing.bezier(0.23, 1, 0.32, 1);
 
@@ -82,10 +83,10 @@ export default function QrScreen() {
 
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={2}>
-          {name || "Scan to join"}
+          {name || t("qr.scanToJoin")}
         </Text>
         <Text style={styles.subtitle}>
-          Point a camera at this code to join the event and start adding photos.
+          {t("qr.subtitle")}
         </Text>
 
         <View style={styles.qrCard}>
@@ -97,7 +98,7 @@ export default function QrScreen() {
               backgroundColor="#FFFFFF"
             />
           ) : (
-            <Text style={styles.subtitle}>This event has no join code.</Text>
+            <Text style={styles.subtitle}>{t("qr.noJoinCode")}</Text>
           )}
         </View>
 
@@ -118,7 +119,7 @@ export default function QrScreen() {
             <View style={[styles.copyInner, { opacity: 0 }]} pointerEvents="none">
               <Check size={16} color={colors.accentDeep} strokeWidth={3} />
               <Text style={styles.copyText} numberOfLines={1}>
-                Link copied
+                {t("qr.linkCopied")}
               </Text>
             </View>
             <Animated.View
@@ -127,7 +128,7 @@ export default function QrScreen() {
             >
               <Copy size={16} color={colors.accentDeep} />
               <Text style={styles.copyText} numberOfLines={1}>
-                Copy link
+                {t("qr.copyLink")}
               </Text>
             </Animated.View>
             <Animated.View
@@ -136,7 +137,7 @@ export default function QrScreen() {
             >
               <Check size={16} color={colors.accentDeep} strokeWidth={3} />
               <Text style={styles.copyText} numberOfLines={1}>
-                Link copied
+                {t("qr.linkCopied")}
               </Text>
             </Animated.View>
           </View>

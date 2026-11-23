@@ -16,9 +16,12 @@ import { router } from 'expo-router';
 import { BackButton } from '../components/BackButton';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
-import { parseGuestLines, useGuestsStore } from '../zustand/guests';
+import { parseGuestLines, useGuestsStore } from '../zustand/guests';
+import { PremiumOnly } from '../components/paywall/PremiumOnly';
+import { GroupPicker } from '../components/GroupPicker';
+import { t } from '../i18n';
 
-export default function GuestImportScreen() {
+function GuestImportScreen() {
   const insets = useSafeAreaInsets();
   const groups = useGuestsStore((state) => state.groups);
   const addGuestsBulk = useGuestsStore((state) => state.addGuestsBulk);
@@ -33,7 +36,10 @@ export default function GuestImportScreen() {
     if (!rows.length) return;
     const importedCount = addGuestsBulk(rows, groupId);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert('Imported', `${importedCount} guests added`);
+    Alert.alert(
+      t('guestImport.importedTitle'),
+      t('guestImport.importedMessage', { count: importedCount }),
+    );
     router.back();
   };
 
@@ -45,7 +51,7 @@ export default function GuestImportScreen() {
       <View style={styles.container}>
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <BackButton fallback="/(tabs)/plan" />
-          <Text style={styles.title}>Paste your list</Text>
+          <Text style={styles.title}>{t('guestImport.title')}</Text>
           <View style={styles.topBarRight} />
         </View>
 
@@ -54,7 +60,7 @@ export default function GuestImportScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <Text style={styles.explanationText}>
-            One guest per line. Add a phone after a comma if you have it.
+            {t('guestImport.explanation')}
           </Text>
 
           <TextInput
@@ -63,43 +69,21 @@ export default function GuestImportScreen() {
             autoFocus
             value={text}
             onChangeText={setText}
-            placeholder={'Mom & Dad, +1 555 123 4567\nChris - 555 987 6543\nSally'}
+            placeholder={t('guestImport.placeholderExample')}
             placeholderTextColor={colors.textTertiary}
             textAlignVertical="top"
             autoCorrect={false}
           />
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Group</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipRow}
-            >
-              {groups.map((group) => {
-                const selected = group.id === groupId;
-                return (
-                  <Pressable
-                    key={group.id}
-                    style={[styles.chip, selected && styles.chipSelected]}
-                    onPress={() => setGroupId(group.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        selected && styles.chipTextSelected,
-                      ]}
-                    >
-                      {group.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+            <Text style={styles.fieldLabel}>{t('guestImport.fieldGroup')}</Text>
+            <GroupPicker groups={groups} value={groupId} onChange={setGroupId} />
           </View>
 
           <View style={styles.previewCard}>
-            <Text style={styles.previewTitle}>{rows.length} guests found</Text>
+            <Text style={styles.previewTitle}>
+              {t('guestImport.guestsFound', { count: rows.length })}
+            </Text>
             {preview ? (
               <Text style={styles.previewText}>{preview}</Text>
             ) : null}
@@ -111,7 +95,7 @@ export default function GuestImportScreen() {
             onPress={handleImport}
           >
             <Text style={styles.primaryButtonText}>
-              Import {rows.length} guests
+              {t('guestImport.importGuests', { count: rows.length })}
             </Text>
           </Pressable>
         </ScrollView>
@@ -139,7 +123,7 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     textAlign: 'center',
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
   },
@@ -185,30 +169,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  chipRow: {
-    gap: 8,
-    paddingRight: 20,
-  },
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 16,
-    backgroundColor: colors.surface2,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipSelected: {
-    backgroundColor: colors.accentDeep,
-    borderColor: colors.accentDeep,
-  },
-  chipText: {
-    fontFamily: typography.fonts.medium,
-    fontSize: typography.sizes.caption,
-    color: colors.textSecondary,
-  },
-  chipTextSelected: {
-    color: colors.white,
-  },
   previewCard: {
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 20,
@@ -251,3 +211,12 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
 });
+
+// Premium screen: see constants/premium.ts.
+export default function GuestImportScreenRoute() {
+  return (
+    <PremiumOnly title={t('guestImport.premiumTitle')}>
+      <GuestImportScreen />
+    </PremiumOnly>
+  );
+}

@@ -9,6 +9,7 @@ import { QrCode, X } from "lucide-react-native";
 import { Button } from "../components/Button";
 import { GlassSurface } from "../components/GlassSurface";
 import { colors } from "../constants/colors";
+import { t } from "../i18n";
 
 // Pull the event token out of whatever the QR encodes:
 // everly://upload/<token>, https://.../upload/<token>, or a bare token.
@@ -37,13 +38,13 @@ export default function ScanScreen() {
       <SafeAreaView style={styles.permWrap}>
         <StatusBar style="light" />
         <QrCode size={40} color={colors.accentBright} strokeWidth={1.5} />
-        <Text style={styles.permTitle}>Scan event QR</Text>
+        <Text style={styles.permTitle}>{t("scan.permissionTitle")}</Text>
         <Text style={styles.permText}>
-          Allow camera access to scan an event's QR code and join it.
+          {t("scan.permissionText")}
         </Text>
         <View style={{ width: "100%", marginTop: 20, gap: 10 }}>
-          <Button title="Allow camera" onPress={requestPermission} />
-          <Button title="Not now" variant="outline" onPress={() => router.back()} />
+          <Button title={t("scan.allowCamera")} onPress={requestPermission} />
+          <Button title={t("scan.notNow")} variant="outline" onPress={() => router.back()} />
         </View>
       </SafeAreaView>
     );
@@ -84,7 +85,7 @@ export default function ScanScreen() {
           cornerRadius={999}
           style={styles.hintPill}
         >
-          <Text style={styles.hint}>Point at an event's QR code</Text>
+          <Text style={styles.hint}>{t("scan.hint")}</Text>
         </GlassSurface>
       </SafeAreaView>
     </View>

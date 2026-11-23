@@ -14,7 +14,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
-import Transition from "react-native-screen-transitions";
 import { GlassSurface } from "../../components/GlassSurface";
 import { SerifBoldText, SansText, SansSemiText } from "../../components/Text";
 import { EmptyState } from "../../components/EmptyState";
@@ -32,6 +31,7 @@ import {
   ArrowUpRight,
   Settings2,
 } from "lucide-react-native";
+import { t, LOCALE_TAG } from "../../i18n";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const H_PAD = 24; // matches ScreenWrapper px-6
@@ -58,7 +58,7 @@ const tileRatio = (photo) => {
 // route — the host's own shots included — so an unnamed uploader is still
 // truthfully credited as a guest.
 const photoCredit = (photo) =>
-  photo.guest_name?.trim() || photo.guest?.name?.trim() || "Guest";
+  photo.guest_name?.trim() || photo.guest?.name?.trim() || t("event.guest");
 
 const EVENT_SCREEN_OPTIONS = {
   headerShown: false,
@@ -70,19 +70,15 @@ const CARD_W = SCREEN_WIDTH - H_PAD * 2;
 const CARD_H = Math.min(Math.round(SCREEN_HEIGHT * 0.46), Math.round(CARD_W * 1.2));
 
 const REVEAL_TAG = {
-  Instant: "REVEALS AS THEY SHOOT",
-  "End of Event": "REVEALS WHEN IT ENDS",
-  Scheduled: "REVEALS AT A SET TIME",
+  Instant: t("event.revealInstant"),
+  "End of Event": t("event.revealEndOfEvent"),
+  Scheduled: t("event.revealScheduled"),
 };
 
 export default function EventDetailScreen() {
-  const { id, sharedBoundTag } = useLocalSearchParams();
+  const { id } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const coverSharedBoundTag =
-    typeof sharedBoundTag === "string" && sharedBoundTag.length > 0
-      ? sharedBoundTag
-      : `event-cover-${id}`;
 
   const { data, isLoading } = useQuery({
     queryKey: ["event", id],
@@ -125,8 +121,8 @@ export default function EventDetailScreen() {
   };
 
   const formatDate = (dateStr) => {
-    if (!dateStr) return "—";
-    return new Date(dateStr).toLocaleDateString("en-US", {
+    if (!dateStr) return t("event.noDate");
+    return new Date(dateStr).toLocaleDateString(LOCALE_TAG, {
       month: "long",
       day: "numeric",
       year: "numeric",
@@ -160,7 +156,7 @@ export default function EventDetailScreen() {
       >
         <Stack.Screen options={EVENT_SCREEN_OPTIONS} />
         <SansSemiText className="text-textSecondary text-base">
-          Event not found.
+          {t("event.notFound")}
         </SansSemiText>
       </View>
     );
@@ -252,19 +248,19 @@ export default function EventDetailScreen() {
   // uploadCount is the *photo* count (BACKEND.md), which the card now states —
   // so the subtitle carries the guest allowance instead of repeating it under
   // the wrong noun.
-  const guestLabel = `${event.participant_limit ?? "∞"} guests`;
+  const guestLabel = event.participant_limit == null
+    ? t("event.unlimitedGuests")
+    : t("event.guestCount", { count: event.participant_limit });
 
-  const revealTag = REVEAL_TAG[event.reveal_time] ?? "REVEALS WHEN IT ENDS";
+  const revealTag = REVEAL_TAG[event.reveal_time] ?? t("event.revealEndOfEvent");
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.backgroundPrimary }}>
       <Stack.Screen options={EVENT_SCREEN_OPTIONS} />
 
       {/* ── Backdrop: the cover again, blown up and frosted, so the card in
-             front of it reads as the one sharp thing on the screen. Keeps the
-             shared-element bound tag — this is what flies in from the list. ── */}
-      <Transition.View
-        sharedBoundTag={coverSharedBoundTag}
+             front of it reads as the one sharp thing on the screen. ── */}
+      <View
         style={{
           position: "absolute",
           top: 0,
@@ -289,7 +285,7 @@ export default function EventDetailScreen() {
           locations={[0, 0.4, 1]}
           style={StyleSheet.absoluteFill}
         />
-      </Transition.View>
+      </View>
 
       {/* No bottom padding: the cover is pinned behind this ScrollView, so any
           gap under the sheet shows a strip of photo below it. The sheet runs to
@@ -317,7 +313,7 @@ export default function EventDetailScreen() {
               onPress={() => setSettingsOpen(true)}
               activeOpacity={0.75}
               accessibilityRole="button"
-              accessibilityLabel="Event settings"
+              accessibilityLabel={t("event.eventSettings")}
             >
               <GlassSurface tint="dark" shape="circle" style={styles.glassButton}>
                 <Settings2 size={22} color="#fff" />
@@ -362,9 +358,9 @@ export default function EventDetailScreen() {
                   </Text>
                   <View style={{ marginLeft: 8, marginTop: 6 }}>
                     <Text style={styles.cardCaption}>
-                      {data.uploadCount === 1 ? "photo" : "photos"}
+                      {t("event.photoWord", { count: data.uploadCount })}
                     </Text>
-                    <Text style={styles.cardCaption}>so far</Text>
+                    <Text style={styles.cardCaption}>{t("event.sofar")}</Text>
                   </View>
                 </View>
                 <Text style={styles.cardEyebrow}>{revealTag}</Text>
@@ -389,7 +385,7 @@ export default function EventDetailScreen() {
                 activeOpacity={0.85}
                 style={styles.circleAction}
                 accessibilityRole="button"
-                accessibilityLabel="Share QR code"
+                accessibilityLabel={t("event.shareQrCode")}
               >
                 <QrCode size={24} color={colors.textPrimary} />
               </TouchableOpacity>
@@ -400,7 +396,7 @@ export default function EventDetailScreen() {
                 style={styles.pillCta}
               >
                 <SansSemiText style={styles.pillCtaText}>
-                  View gallery
+                  {t("event.viewGallery")}
                 </SansSemiText>
                 <ArrowUpRight size={22} color={colors.textPrimary} />
               </TouchableOpacity>
@@ -428,14 +424,14 @@ export default function EventDetailScreen() {
           >
             {/* Gallery header */}
             <View className="flex-row justify-between items-baseline mb-4">
-              <SerifBoldText className="text-2xl">Gallery</SerifBoldText>
+              <SerifBoldText className="text-2xl">{t("event.gallery")}</SerifBoldText>
               {/* Silent when empty — the placeholder below already says it. */}
               <SansText className="text-sm text-textSecondary">
                 {photosLoading
-                  ? "Loading…"
+                  ? t("event.loading")
                   : data.uploadCount === 0
                     ? ""
-                    : `${data.uploadCount} photo${data.uploadCount === 1 ? "" : "s"}`}
+                    : t("event.photoCount", { count: data.uploadCount })}
               </SansText>
             </View>
 
@@ -446,9 +442,9 @@ export default function EventDetailScreen() {
                 <EmptyState
                   variant="bare"
                   icon={Images}
-                  title="No photos yet"
-                  subtitle="Share the QR code so guests can start adding their shots."
-                  actionLabel="Share QR code"
+                  title={t("event.noPhotosTitle")}
+                  subtitle={t("event.noPhotosSubtitle")}
+                  actionLabel={t("event.shareQrCode")}
                   onAction={openQr}
                 />
               </View>
@@ -457,8 +453,8 @@ export default function EventDetailScreen() {
                 <EmptyState
                   variant="bare"
                   icon={Clock}
-                  title="Not yet revealed"
-                  subtitle="Photos will appear here once the gallery is revealed."
+                  title={t("event.notRevealedTitle")}
+                  subtitle={t("event.notRevealedSubtitle")}
                 />
               </View>
             ) : photosLoading ? (
@@ -549,7 +545,7 @@ const styles = StyleSheet.create({
     // Wider than the screen so it runs off both edges, like a masthead.
     width: SCREEN_WIDTH * 2,
     textAlign: "center",
-    fontFamily: "Lora-Bold",
+    fontFamily: "NewKansas-Medium",
     fontSize: 96,
     lineHeight: 108,
     letterSpacing: -2,
@@ -581,9 +577,9 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   cardCaption: {
-    fontFamily: "Amiri-Regular",
-    fontSize: 14,
-    lineHeight: 17,
+    fontFamily: "Lexend-Regular",
+    fontSize: 12,
+    lineHeight: 15,
     color: "rgba(255,255,255,0.82)",
   },
   cardEyebrow: {
@@ -594,19 +590,17 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.72)",
   },
   heroTitle: {
-    fontFamily: "Lora-Bold",
+    fontFamily: "NewKansas-Medium",
     fontSize: 44,
     lineHeight: 52,
     letterSpacing: -0.6,
     color: "#fff",
     marginBottom: 8,
   },
-  // Amiri's Latin sets small for its point size, so descriptions run ~2px
-  // larger than the Inter they replace.
   heroSubtitle: {
-    fontFamily: "Amiri-Regular",
-    fontSize: 17,
-    lineHeight: 24,
+    fontFamily: "Lexend-Regular",
+    fontSize: 15,
+    lineHeight: 22,
   },
   actionRow: {
     flexDirection: "row",

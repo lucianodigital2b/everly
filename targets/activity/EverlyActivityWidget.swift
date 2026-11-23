@@ -177,6 +177,9 @@ struct EverlyEventActivity: Widget {
 @main
 struct EverlyWidgetBundle: WidgetBundle {
   var body: some Widget {
+    // Home Screen / Lock Screen widget (App Review 4.4: the extension must
+    // offer a real widget, not only the Live Activity).
+    EverlyPlanWidget()
     EverlyEventActivity()
   }
 }

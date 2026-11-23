@@ -11,6 +11,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { BackButton } from '../components/BackButton';
+import { t } from '../i18n';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
 import { PHASES, type PhaseId } from '../data/weddingPlan';
@@ -46,7 +47,7 @@ export default function TaskNewScreen() {
     <View style={styles.container}>
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
         <BackButton fallback="/(tabs)/plan" />
-        <Text style={styles.headerTitle}>New task</Text>
+        <Text style={styles.headerTitle}>{t('taskNew.headerTitle')}</Text>
         <View style={styles.topBarRight} />
       </View>
 
@@ -57,17 +58,17 @@ export default function TaskNewScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.fieldLabel}>Task title</Text>
+        <Text style={styles.fieldLabel}>{t('taskNew.taskTitle')}</Text>
         <TextInput
           style={styles.input}
           autoFocus
           value={title}
           onChangeText={setTitle}
-          placeholder="e.g. Ask aunt Beth for a family photo"
+          placeholder={t('taskNew.taskTitlePlaceholder')}
           placeholderTextColor={colors.textTertiary}
         />
 
-        <Text style={styles.fieldLabel}>Phase</Text>
+        <Text style={styles.fieldLabel}>{t('taskNew.phase')}</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -96,7 +97,7 @@ export default function TaskNewScreen() {
           disabled={!canAdd}
           onPress={handleAdd}
         >
-          <Text style={styles.primaryButtonText}>Add task</Text>
+          <Text style={styles.primaryButtonText}>{t('taskNew.addTask')}</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -119,7 +120,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
   },

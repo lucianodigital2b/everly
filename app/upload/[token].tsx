@@ -27,6 +27,7 @@ import {
 import { uploadApi, type UploadToken } from "../../services/api";
 import { captureStore } from "../../zustand/capture-store";
 import * as StorageHelper from "../../utils/StorageHelper";
+import { t } from "../../i18n";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PREVIEW_WIDTH = SCREEN_WIDTH - 48;
@@ -189,8 +190,8 @@ export default function GuestUploadScreen() {
       }
     } catch (err: any) {
       Alert.alert(
-        "Upload failed",
-        err?.response?.data?.message ?? "Please try again."
+        t("upload.uploadFailed"),
+        err?.response?.data?.message ?? t("upload.pleaseTryAgain")
       );
     } finally {
       setUploading(false);
@@ -215,8 +216,8 @@ export default function GuestUploadScreen() {
         <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 8 }}>
           <EmptyState
             icon={CalendarX}
-            title="Not accepting photos"
-            subtitle="This event may have ended or reached its upload limit."
+            title={t("upload.notAcceptingTitle")}
+            subtitle={t("upload.notAcceptingSubtitle")}
           />
         </View>
       </ScreenWrapper>
@@ -228,7 +229,7 @@ export default function GuestUploadScreen() {
       <View style={{ paddingTop: 16, paddingBottom: 24, alignItems: "center" }}>
         <Text
           style={{
-            fontFamily: "Lora-Bold",
+            fontFamily: "NewKansas-Medium",
             fontSize: 24,
             lineHeight: 30,
             color: colors.textPrimary,
@@ -245,7 +246,7 @@ export default function GuestUploadScreen() {
               marginTop: 4,
             }}
           >
-            {uploadedCount} photo{uploadedCount === 1 ? "" : "s"} shared
+            {t("upload.sharedCount", { count: uploadedCount })}
           </Text>
         )}
       </View>
@@ -257,8 +258,8 @@ export default function GuestUploadScreen() {
       {!photoUri && (
         <View style={{ paddingHorizontal: 8, marginBottom: 24 }}>
           <Input
-            label="Your name"
-            placeholder="Shown under your photos"
+            label={t("upload.yourName")}
+            placeholder={t("upload.namePlaceholder")}
             value={guestName}
             onChangeText={setGuestName}
             autoCapitalize="words"
@@ -309,7 +310,7 @@ export default function GuestUploadScreen() {
                   color: colors.textSecondary,
                 }}
               >
-                Choose from library
+                {t("upload.chooseFromLibrary")}
               </Text>
             </View>
           </TouchableOpacity>

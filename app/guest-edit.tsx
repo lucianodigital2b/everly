@@ -27,12 +27,15 @@ import {
   type AgeGroup,
   type MenuChoice,
   type RsvpStatus,
-} from '../zustand/guests';
+} from '../zustand/guests';
+import { PremiumOnly } from '../components/paywall/PremiumOnly';
+import { GroupPicker } from '../components/GroupPicker';
+import { t } from '../i18n';
 
-const STATUS_OPTIONS: RsvpStatus[] = ['waiting', 'attending', 'declined'];
+const STATUS_OPTIONS: RsvpStatus[] = ['waiting', 'attending'];
 const AGE_OPTIONS: AgeGroup[] = ['adult', 'child', 'baby'];
 
-export default function GuestEditScreen() {
+function GuestEditScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -62,8 +65,6 @@ export default function GuestEditScreen() {
   const [phone, setPhone] = useState(existing?.phone ?? '');
   const [email, setEmail] = useState(existing?.email ?? '');
   const [address, setAddress] = useState(existing?.address ?? '');
-  const [showNewGroupInput, setShowNewGroupInput] = useState(false);
-  const [newGroupName, setNewGroupName] = useState('');
 
   useEffect(() => {
     if (existing) {
@@ -90,21 +91,6 @@ export default function GuestEditScreen() {
       setAddress('');
     }
   }, [existing]);
-
-  const handleNewGroup = () => {
-    setShowNewGroupInput(true);
-    setNewGroupName('');
-  };
-
-  const handleAddGroupInline = () => {
-    const trimmed = newGroupName.trim();
-    if (!trimmed) return;
-    const newId = addGroup(trimmed);
-    setGroupId(newId);
-    setNewGroupName('');
-    setShowNewGroupInput(false);
-    void Haptics.selectionAsync();
-  };
 
   const handleAgeChange = (nextAge: AgeGroup) => {
     setAge(nextAge);
@@ -149,10 +135,10 @@ export default function GuestEditScreen() {
   };
 
   const handleRemove = () => {
-    Alert.alert('Remove guest?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('guestEdit.removeGuestTitle'), t('guestEdit.removeGuestBody'), [
+      { text: t('guestEdit.cancel'), style: 'cancel' },
       {
-        text: 'Remove',
+        text: t('guestEdit.remove'),
         style: 'destructive',
         onPress: () => {
           if (id) {
@@ -168,7 +154,7 @@ export default function GuestEditScreen() {
   };
 
   const coupleTitle =
-    partnerA && partnerB ? `${partnerA} & ${partnerB}` : 'us';
+    partnerA && partnerB ? `${partnerA} & ${partnerB}` : t('guestEdit.us');
 
   const handleWhatsApp = () => {
     if (!existing?.phone) return;
@@ -190,7 +176,7 @@ export default function GuestEditScreen() {
       <View style={styles.container}>
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <BackButton fallback="/(tabs)/plan" />
-          <Text style={styles.title}>{id ? 'Edit guest' : 'Add guest'}</Text>
+          <Text style={styles.title}>{id ? t('guestEdit.editGuest') : t('guestEdit.addGuest')}</Text>
           <View style={styles.topBarRight} />
         </View>
 
@@ -202,77 +188,30 @@ export default function GuestEditScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Name</Text>
+            <Text style={styles.fieldLabel}>{t('guestEdit.fieldName')}</Text>
             <TextInput
               style={styles.input}
               autoFocus={!id}
               value={name}
               onChangeText={setName}
-              placeholder="Guest name"
+              placeholder={t('guestEdit.guestNamePlaceholder')}
               placeholderTextColor={colors.textTertiary}
               textContentType="name"
             />
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Group</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipRow}
-            >
-              {groups.map((group) => {
-                const selected = group.id === groupId;
-                return (
-                  <Pressable
-                    key={group.id}
-                    style={[styles.chip, selected && styles.chipSelected]}
-                    onPress={() => setGroupId(group.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        selected && styles.chipTextSelected,
-                      ]}
-                    >
-                      {group.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-              <Pressable style={styles.newChip} onPress={handleNewGroup}>
-                <Text style={styles.newChipText}>+ New group</Text>
-              </Pressable>
-            </ScrollView>
-
-            {showNewGroupInput ? (
-              <View style={styles.inlineGroupInput}>
-                <TextInput
-                  style={styles.inlineGroupTextInput}
-                  autoFocus
-                  value={newGroupName}
-                  onChangeText={setNewGroupName}
-                  placeholder="Group name"
-                  placeholderTextColor={colors.textTertiary}
-                />
-                <Pressable
-                  style={styles.inlineSave}
-                  onPress={handleAddGroupInline}
-                >
-                  <Text style={styles.inlineSaveText}>Save</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.inlineCancel}
-                  onPress={() => setShowNewGroupInput(false)}
-                >
-                  <Text style={styles.inlineCancelText}>Cancel</Text>
-                </Pressable>
-              </View>
-            ) : null}
+            <Text style={styles.fieldLabel}>{t('guestEdit.fieldGroup')}</Text>
+            <GroupPicker
+              groups={groups}
+              value={groupId}
+              onChange={setGroupId}
+              onCreate={addGroup}
+            />
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Age</Text>
+            <Text style={styles.fieldLabel}>{t('guestEdit.fieldAge')}</Text>
             <View style={styles.segmentedControl}>
               {AGE_OPTIONS.map((option) => {
                 const selected = age === option;
@@ -288,7 +227,11 @@ export default function GuestEditScreen() {
                         selected && styles.segmentTextSelected,
                       ]}
                     >
-                      {option.charAt(0).toUpperCase() + option.slice(1)}
+                      {option === 'adult'
+                        ? t('guestEdit.ageAdult')
+                        : option === 'child'
+                          ? t('guestEdit.ageChild')
+                          : t('guestEdit.ageBaby')}
                     </Text>
                   </Pressable>
                 );
@@ -297,7 +240,7 @@ export default function GuestEditScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Menu</Text>
+            <Text style={styles.fieldLabel}>{t('guestEdit.fieldMenu')}</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -332,14 +275,14 @@ export default function GuestEditScreen() {
                     menu === 'unset' && styles.chipTextSelected,
                   ]}
                 >
-                  Not chosen
+                  {t('guestEdit.menuNotChosen')}
                 </Text>
               </Pressable>
             </ScrollView>
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Status</Text>
+            <Text style={styles.fieldLabel}>{t('guestEdit.fieldStatus')}</Text>
             <View style={styles.segmentedControl}>
               {STATUS_OPTIONS.map((option) => {
                 const selected = status === option;
@@ -355,7 +298,9 @@ export default function GuestEditScreen() {
                         selected && styles.segmentTextSelected,
                       ]}
                     >
-                      {option.charAt(0).toUpperCase() + option.slice(1)}
+                      {option === 'waiting'
+                        ? t('guestEdit.statusWaiting')
+                        : t('guestEdit.statusAttending')}
                     </Text>
                   </Pressable>
                 );
@@ -364,12 +309,12 @@ export default function GuestEditScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Contact</Text>
+            <Text style={styles.fieldLabel}>{t('guestEdit.fieldContact')}</Text>
             <TextInput
               style={styles.input}
               value={phone}
               onChangeText={setPhone}
-              placeholder="Phone"
+              placeholder={t('guestEdit.phonePlaceholder')}
               placeholderTextColor={colors.textTertiary}
               keyboardType="phone-pad"
               textContentType="telephoneNumber"
@@ -378,7 +323,7 @@ export default function GuestEditScreen() {
               style={styles.input}
               value={email}
               onChangeText={setEmail}
-              placeholder="Email"
+              placeholder={t('guestEdit.emailPlaceholder')}
               placeholderTextColor={colors.textTertiary}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -388,7 +333,7 @@ export default function GuestEditScreen() {
               style={[styles.input, styles.multilineInput]}
               value={address}
               onChangeText={setAddress}
-              placeholder="Address"
+              placeholder={t('guestEdit.addressPlaceholder')}
               placeholderTextColor={colors.textTertiary}
               multiline
               textAlignVertical="top"
@@ -398,7 +343,7 @@ export default function GuestEditScreen() {
             {id && existing?.phone && !existing.coupleSlot ? (
               <Pressable style={styles.whatsappButton} onPress={handleWhatsApp}>
                 <Text style={styles.whatsappButtonText}>
-                  Ask for RSVP on WhatsApp
+                  {t('guestEdit.whatsappRsvp')}
                 </Text>
               </Pressable>
             ) : null}
@@ -406,8 +351,8 @@ export default function GuestEditScreen() {
 
           <View style={[styles.switchRow, styles.card]}>
             <View style={styles.switchInfo}>
-              <Text style={styles.switchTitle}>Bringing a plus one</Text>
-              <Text style={styles.switchSubtitle}>Counts as an extra head.</Text>
+              <Text style={styles.switchTitle}>{t('guestEdit.plusOneTitle')}</Text>
+              <Text style={styles.switchSubtitle}>{t('guestEdit.plusOneSubtitle')}</Text>
             </View>
             <Switch
               value={plusOne}
@@ -418,12 +363,12 @@ export default function GuestEditScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Note</Text>
+            <Text style={styles.fieldLabel}>{t('guestEdit.fieldNote')}</Text>
             <TextInput
               style={[styles.input, styles.multilineInput]}
               value={note}
               onChangeText={setNote}
-              placeholder="Dietary needs, relationship, etc."
+              placeholder={t('guestEdit.notePlaceholder')}
               placeholderTextColor={colors.textTertiary}
               multiline
               textAlignVertical="top"
@@ -438,7 +383,7 @@ export default function GuestEditScreen() {
             disabled={!canSave}
             onPress={() => handleSave(false)}
           >
-            <Text style={styles.primaryButtonText}>Save</Text>
+            <Text style={styles.primaryButtonText}>{t('guestEdit.save')}</Text>
           </Pressable>
 
           {!id ? (
@@ -451,12 +396,12 @@ export default function GuestEditScreen() {
               onPress={() => handleSave(true)}
             >
               <Text style={styles.secondaryButtonText}>
-                Save and add another
+                {t('guestEdit.saveAndAddAnother')}
               </Text>
             </Pressable>
           ) : !existing?.coupleSlot ? (
             <Pressable style={styles.removeButton} onPress={handleRemove}>
-              <Text style={styles.removeButtonText}>Remove guest</Text>
+              <Text style={styles.removeButtonText}>{t('guestEdit.removeGuest')}</Text>
             </Pressable>
           ) : null}
         </ScrollView>
@@ -484,7 +429,7 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     textAlign: 'center',
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
   },
@@ -549,66 +494,6 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     color: colors.white,
-  },
-  newChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 16,
-    backgroundColor: colors.backgroundSecondary,
-    borderWidth: 1,
-    borderColor: colors.accent,
-  },
-  newChipText: {
-    fontFamily: typography.fonts.semibold,
-    fontSize: typography.sizes.caption,
-    color: colors.accentDeep,
-  },
-  inlineGroupInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 10,
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 16,
-    padding: 12,
-    shadowColor: '#2E2429',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 20,
-    elevation: 3,
-  },
-  inlineGroupTextInput: {
-    flex: 1,
-    minWidth: 0,
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.sizes.body,
-    color: colors.textPrimary,
-    backgroundColor: colors.surface2,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  inlineSave: {
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  inlineSaveText: {
-    fontFamily: typography.fonts.semibold,
-    fontSize: typography.sizes.caption,
-    color: colors.textPrimary,
-  },
-  inlineCancel: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-  },
-  inlineCancelText: {
-    fontFamily: typography.fonts.medium,
-    fontSize: typography.sizes.caption,
-    color: colors.textSecondary,
   },
   segmentedControl: {
     flexDirection: 'row',
@@ -719,3 +604,12 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 });
+
+// Premium screen: see constants/premium.ts.
+export default function GuestEditScreenRoute() {
+  return (
+    <PremiumOnly title={t('guestEdit.premiumTitle')}>
+      <GuestEditScreen />
+    </PremiumOnly>
+  );
+}

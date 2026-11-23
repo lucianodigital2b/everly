@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { TaskCheck } from '../components/TaskCheck';
 import { Check, Minus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
@@ -15,11 +16,13 @@ import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
 import { TASK_CATEGORY_LABEL } from '../data/weddingPlan';
 import { usePlanner, type PhaseProgress } from '../hooks/usePlanner';
-import { usePlannerStore } from '../zustand/planner';
+import { usePlannerStore } from '../zustand/planner';
+import { PremiumOnly } from '../components/paywall/PremiumOnly';
+import { t } from '../i18n';
 
 type StatusFilter = 'todo' | 'done' | 'all';
 
-export default function TimelineScreen() {
+function TimelineScreen() {
   const insets = useSafeAreaInsets();
   const planner = usePlanner();
   const scrollRef = useRef<ScrollView>(null);
@@ -54,7 +57,11 @@ export default function TimelineScreen() {
   }, [planner, statusFilter, essentialsOnly]);
 
   const handleCheck = (taskId: string, currentState: 'done' | 'skipped' | 'pending') => {
-    void Haptics.selectionAsync();
+    if (currentState === 'pending') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } else {
+      void Haptics.selectionAsync();
+    }
     if (currentState === 'skipped') {
       undo(taskId);
     } else {
@@ -93,13 +100,13 @@ export default function TimelineScreen() {
       >
         <View style={styles.topBar}>
           <BackButton fallback="/(tabs)/plan" />
-          <Text style={styles.headerTitle}>Timeline</Text>
+          <Text style={styles.headerTitle}>{t('timeline.headerTitle')}</Text>
           <View style={styles.topBarRight} />
         </View>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Set your wedding date first</Text>
+          <Text style={styles.emptyTitle}>{t('timeline.emptyTitle')}</Text>
           <Pressable style={styles.emptyButton} onPress={goToPlan}>
-            <Text style={styles.emptyButtonText}>Go to plan</Text>
+            <Text style={styles.emptyButtonText}>{t('timeline.goToPlan')}</Text>
           </Pressable>
         </View>
       </View>
@@ -119,16 +126,16 @@ export default function TimelineScreen() {
         {/* Header */}
         <View style={styles.topBar}>
           <BackButton fallback="/(tabs)/plan" />
-          <Text style={styles.headerTitle}>Timeline</Text>
+          <Text style={styles.headerTitle}>{t('timeline.headerTitle')}</Text>
           <View style={styles.topBarRight} />
         </View>
 
         {/* Summary */}
         <View style={styles.summaryBlock}>
           <Text style={styles.summaryText}>
-            {`${planner.doneCount} of ${planner.total} done`}
+            {t('timeline.summaryDone', { done: planner.doneCount, total: planner.total })}
             {planner.essentialsLeft > 0
-              ? ` · ${planner.essentialsLeft} essentials left`
+              ? t('timeline.summaryEssentialsLeft', { count: planner.essentialsLeft })
               : ''}
           </Text>
           <View style={styles.progressTrack}>
@@ -160,7 +167,7 @@ export default function TimelineScreen() {
                 statusFilter === 'todo' && styles.chipTextSelected,
               ]}
             >
-              To do ({pendingCount})
+              {t('timeline.filters.toDo', { count: pendingCount })}
             </Text>
           </Pressable>
           <Pressable
@@ -176,7 +183,7 @@ export default function TimelineScreen() {
                 statusFilter === 'done' && styles.chipTextSelected,
               ]}
             >
-              Done ({doneCount})
+              {t('timeline.filters.done', { count: doneCount })}
             </Text>
           </Pressable>
           <Pressable
@@ -192,7 +199,7 @@ export default function TimelineScreen() {
                 statusFilter === 'all' && styles.chipTextSelected,
               ]}
             >
-              All ({totalCount})
+              {t('timeline.filters.all', { count: totalCount })}
             </Text>
           </Pressable>
         </ScrollView>
@@ -208,7 +215,7 @@ export default function TimelineScreen() {
               essentialsOnly && styles.essentialToggleTextOn,
             ]}
           >
-            Essentials
+            {t('timeline.essentialsToggle')}
           </Text>
         </Pressable>
 
@@ -236,7 +243,7 @@ export default function TimelineScreen() {
                     isCurrent && styles.jumpChipTextCurrent,
                   ]}
                 >
-                  {`${phase.phase.title} · ${phase.tasks.length}`}
+                  {t('timeline.jumpChip', { title: phase.phase.title, count: phase.tasks.length })}
                 </Text>
               </Pressable>
             );
@@ -294,13 +301,13 @@ export default function TimelineScreen() {
                   <Text style={styles.phaseTitle}>{phase.phase.title}</Text>
                   {phase.isCurrent ? (
                     <View style={styles.nowPill}>
-                      <Text style={styles.nowPillText}>Now</Text>
+                      <Text style={styles.nowPillText}>{t('timeline.now')}</Text>
                     </View>
                   ) : null}
                   {phase.isPast && pendingInPhase > 0 ? (
                     <View style={styles.overduePill}>
                       <Text style={styles.overduePillText}>
-                        {pendingInPhase} overdue
+                        {t('timeline.overdueTag', { count: pendingInPhase })}
                       </Text>
                     </View>
                   ) : null}
@@ -313,7 +320,7 @@ export default function TimelineScreen() {
                 <View style={styles.card}>
                   {nextEntry ? (
                     <View style={styles.nextHighlight}>
-                      <Text style={styles.nextEyebrow}>UP NEXT</Text>
+                      <Text style={styles.nextEyebrow}>{t('timeline.upNext')}</Text>
                       <Text style={styles.nextTitle}>{nextEntry.task.title}</Text>
                       {nextEntry.task.category ? (
                         <View style={styles.categoryTag}>
@@ -332,7 +339,7 @@ export default function TimelineScreen() {
                             toggleDone(nextEntry.task.id);
                           }}
                         >
-                          <Text style={styles.nextButtonText}>Mark done</Text>
+                          <Text style={styles.nextButtonText}>{t('timeline.markDone')}</Text>
                         </Pressable>
                         <Pressable
                           style={[styles.nextButton, styles.nextSkipButton]}
@@ -344,7 +351,7 @@ export default function TimelineScreen() {
                           }}
                         >
                           <Text style={[styles.nextButtonText, styles.nextSkipText]}>
-                            Skip
+                            {t('timeline.skip')}
                           </Text>
                         </Pressable>
                       </View>
@@ -353,29 +360,25 @@ export default function TimelineScreen() {
 
                   {phase.tasks.length === 0 ? (
                     <Text style={styles.emptyPhaseText}>
-                      {statusFilter === 'todo' ? 'All done here' : 'Nothing here'}
+                      {statusFilter === 'todo'
+                        ? t('timeline.emptyTodo')
+                        : t('timeline.emptyOther')}
                     </Text>
                   ) : (
                     phase.tasks
                       .filter((entry) => !nextEntry || entry.task.id !== nextEntry.task.id)
                       .map((entry) => (
                         <View key={entry.task.id} style={styles.taskRow}>
-                          <Pressable
-                            style={[
-                              styles.checkButton,
-                              entry.state === 'done' && styles.checkButtonDone,
-                              entry.state === 'skipped' && styles.checkButtonSkipped,
-                            ]}
+                          <TaskCheck
+                            state={entry.state}
                             onPress={() => handleCheck(entry.task.id, entry.state)}
                             onLongPress={() => handleLongPress(entry.task.id, entry.state)}
-                            delayLongPress={300}
-                          >
-                            {entry.state === 'done' ? (
-                              <Check size={16} color={colors.white} />
-                            ) : entry.state === 'skipped' ? (
-                              <Minus size={16} color={colors.white} />
-                            ) : null}
-                          </Pressable>
+                            style={styles.checkButton}
+                            doneStyle={styles.checkButtonDone}
+                            skippedStyle={styles.checkButtonSkipped}
+                            doneMark={<Check size={16} color={colors.white} />}
+                            skippedMark={<Minus size={16} color={colors.white} />}
+                          />
                           <Pressable
                             style={styles.taskBody}
                             onPress={() => router.push(`/task?id=${entry.task.id}`)}
@@ -400,7 +403,7 @@ export default function TimelineScreen() {
                               {entry.task.essential && entry.state === 'pending' ? (
                                 <View style={styles.essentialTag}>
                                   <Text style={styles.essentialTagText}>
-                                    Essential
+                                    {t('timeline.essential')}
                                   </Text>
                                 </View>
                               ) : null}
@@ -434,7 +437,7 @@ export default function TimelineScreen() {
                     router.push(`/task-new?phase=${phase.phase.id}` as any)
                   }
                 >
-                  <Text style={styles.addTaskText}>+ Add task</Text>
+                  <Text style={styles.addTaskText}>{t('timeline.addTask')}</Text>
                 </Pressable>
               </View>
             </View>
@@ -464,7 +467,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
   },
@@ -694,7 +697,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   nextTitle: {
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.body,
     color: colors.textPrimary,
   },
@@ -826,7 +829,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   emptyTitle: {
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
     textAlign: 'center',
@@ -843,3 +846,12 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
 });
+
+// Premium screen: see constants/premium.ts.
+export default function TimelineScreenRoute() {
+  return (
+    <PremiumOnly title={t('timeline.headerTitle')}>
+      <TimelineScreen />
+    </PremiumOnly>
+  );
+}

@@ -1,7 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -13,7 +12,16 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { PressableScale } from '../../components/home/PressableScale';
+import { t, LOCALE_TAG } from '../../i18n';
+import { TaskCheck } from '../../components/TaskCheck';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  LayoutAnimationConfig,
+  LinearTransition,
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
@@ -26,6 +34,7 @@ import {
   Wallet,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   FileText,
   Plus,
   Palette,
@@ -33,19 +42,30 @@ import {
   Sparkles,
   Plane,
   CalendarDays,
+  Heart,
+  User,
+  ClipboardList,
+  HandHeart,
+  Landmark,
+  Church,
+  FileSignature,
+  Mountain,
+  Clock,
+  Store,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
 import {
   usePlanner,
-  useCountdown,
   type PhaseProgress,
   type PhaseTaskEntry,
 } from '../../hooks/usePlanner';
 import { parseISODate, toISODate, usePlannerStore } from '../../zustand/planner';
 import { guestStats, useGuestsStore } from '../../zustand/guests';
-import { useBudgetStore, compactUsd } from '../../zustand/budget';
+import { useBudgetStore, compactUsd, formatUsd, CURRENCY_SYMBOL } from '../../zustand/budget';
+import { NumericText } from '../../components/NumericText';
+import { StepSlider } from '../../components/StepSlider';
 import { BOOKED_OPTIONS, PLAN_TASKS, TASK_CATEGORY_LABEL } from '../../data/weddingPlan';
 import {
   VIBE_COLORS,
@@ -58,18 +78,104 @@ import {
   type VibeField,
 } from '../../data/weddingVibe';
 import type { Vibe } from '../../zustand/planner';
+import { presentPaywallIfNotSubscribed } from '../../services/paywall';
+import { revenueCat } from '../../services/revenuecat';
+import { SourceLogo } from '../../components/SourceLogo';
+import { usePostHog } from 'posthog-react-native';
 
-const GUEST_ESTIMATES: [string, number][] = [
-  ['Under 50', 40],
-  ['50-100', 80],
-  ['100-150', 125],
-  ['150-200', 175],
-  ['200+', 220],
+// "How did you hear about Everly?" (ob_source in PostHog and RevenueCat).
+// AppsFlyer files organic TikTok, Instagram and Pinterest all as "organic",
+// so asking is the only way to tell them apart. App Store search is its own
+// option: in DailyHair, without it, "Other" became the biggest answer.
+const SOURCE_OPTIONS: { id: string; label: string }[] = [
+  { id: 'tiktok', label: 'TikTok' },
+  { id: 'instagram', label: 'Instagram' },
+  { id: 'pinterest', label: 'Pinterest' },
+  { id: 'app_store', label: t('plan.wizard.sourceAppStore') },
+  { id: 'google', label: 'Google' },
+  { id: 'friend', label: t('plan.wizard.sourceFriend') },
+  { id: 'other', label: t('plan.wizard.sourceOther') },
 ];
 
-const BUDGET_CHIPS = [10000, 20000, 30000, 50000];
+const GUEST_ESTIMATES: [string, number][] = [
+  [t('plan.guestEstimates.under50'), 40],
+  [t('plan.guestEstimates.from50to100'), 80],
+  [t('plan.guestEstimates.from100to150'), 125],
+  [t('plan.guestEstimates.from150to200'), 175],
+  [t('plan.guestEstimates.over200'), 220],
+];
+
+// The budget slider's stops: fine steps where most weddings land, coarser
+// ones above. 5 mil-50 mil by 1 mil, to 150 mil by 5 mil, to 300 mil by 10 mil.
+const BUDGET_STOPS: number[] = [
+  ...Array.from({ length: 46 }, (_, i) => 5000 + i * 1000),
+  ...Array.from({ length: 20 }, (_, i) => 55000 + i * 5000),
+  ...Array.from({ length: 15 }, (_, i) => 160000 + i * 10000),
+];
+const DEFAULT_BUDGET = 30000;
+const budgetStopIndex = (amount: number) => {
+  let best = 0;
+  BUDGET_STOPS.forEach((stop, i) => {
+    if (Math.abs(stop - amount) < Math.abs(BUDGET_STOPS[best] - amount)) best = i;
+  });
+  return best;
+};
+// "R$ 30.000" → "30.000": the symbol sits apart, smaller, beside the number.
+const budgetDigits = (n: number) => formatUsd(n).replace(CURRENCY_SYMBOL, '').trim();
+const BUDGET_FONT = 56;
 const NONE_BOOKED = 'none_booked';
-const TOTAL_STEPS = 7;
+const WIZARD_STEPS = [
+  'role',
+  'couple',
+  'date',
+  'type',
+  'vibe',
+  'season',
+  'guests',
+  'budget',
+  'booked',
+  'worry',
+  'source',
+] as const;
+type WizardStep = typeof WIZARD_STEPS[number];
+
+const ROLE_OPTIONS: {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+}[] = [
+  { id: 'bride', label: t('plan.wizard.roles.bride'), icon: Heart },
+  { id: 'groom', label: t('plan.wizard.roles.groom'), icon: User },
+  { id: 'both', label: t('plan.wizard.roles.both'), icon: Users },
+  { id: 'planner', label: t('plan.wizard.roles.planner'), icon: ClipboardList },
+  { id: 'family', label: t('plan.wizard.roles.family'), icon: HandHeart },
+];
+
+const WEDDING_TYPE_OPTIONS: {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+}[] = [
+  { id: 'civil_party', label: t('plan.wizard.types.civil_party'), icon: Landmark },
+  { id: 'religious_party', label: t('plan.wizard.types.religious_party'), icon: Church },
+  { id: 'mini', label: t('plan.wizard.types.mini'), icon: Sparkles },
+  { id: 'civil_only', label: t('plan.wizard.types.civil_only'), icon: FileSignature },
+  { id: 'destination', label: t('plan.wizard.types.destination'), icon: Plane },
+  { id: 'elopement', label: t('plan.wizard.types.elopement'), icon: Mountain },
+];
+
+const WORRY_OPTIONS: {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+}[] = [
+  { id: 'budget', label: t('plan.wizard.worries.budget'), icon: Wallet },
+  { id: 'forgetting', label: t('plan.wizard.worries.forgetting'), icon: ListChecks },
+  { id: 'guests', label: t('plan.wizard.worries.guests'), icon: Users },
+  { id: 'time', label: t('plan.wizard.worries.time'), icon: Clock },
+  { id: 'photos', label: t('plan.wizard.worries.photos'), icon: Camera },
+  { id: 'vendors', label: t('plan.wizard.worries.vendors'), icon: Store },
+];
 const EMPTY_VIBE: Vibe = { color: null, season: null, style: null, honeymoon: null };
 
 export default function PlanScreen() {
@@ -120,42 +226,67 @@ function SetupWizard() {
   const [partnerA, setPartnerA] = useState(store.partnerA);
   const [partnerB, setPartnerB] = useState(store.partnerB);
   const [date, setDate] = useState<string | null>(null);
+  const [dateEstimated, setDateEstimatedDraft] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showApproxPicker, setShowApproxPicker] = useState(false);
+  const [approxYear, setApproxYear] = useState<number | null>(null);
+  const [approxMonth, setApproxMonth] = useState<number | null>(null);
+  const [role, setRole] = useState<string | null>(store.role);
+  const [weddingType, setWeddingType] = useState<string | null>(store.weddingType);
+  const [worry, setWorry] = useState<string | null>(store.worry);
   const [guestEstimate, setGuestEstimate] = useState<number | null>(null);
-  const [budgetText, setBudgetText] = useState('');
   const [budget, setBudget] = useState<number | null>(null);
   const [notSure, setNotSure] = useState(false);
   const [bookedIds, setBookedIds] = useState<string[]>([]);
   const [building, setBuilding] = useState(false);
   const [checks, setChecks] = useState<number[]>([]);
   const [vibe, setVibeDraft] = useState<Vibe>(store.vibe ?? EMPTY_VIBE);
+  const [source, setSource] = useState<string | null>(null);
+  const posthog = usePostHog();
   const pickVibe = (field: VibeField, id: string) =>
     setVibeDraft((prev) => ({ ...prev, [field]: prev[field] === id ? null : id }));
 
   const today = new Date();
   today.setHours(12, 0, 0, 0);
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+  const stepId = WIZARD_STEPS[step];
+  const approxMonths = Array.from({ length: 12 }, (_, i) => ({
+    month: i + 1,
+    label: new Date(2000, i, 1, 12, 0, 0, 0).toLocaleDateString(LOCALE_TAG, {
+      month: 'short',
+    }),
+  }));
 
   const valid =
-    step === 0
+    stepId === 'couple'
       ? partnerA.trim().length > 0 && partnerB.trim().length > 0
-      : step === 1
+      : stepId === 'date'
         ? date !== null
-        : step === 4
-          ? guestEstimate !== null
-          : step === 5
-            ? budget !== null || notSure
-            : true;
+        : stepId === 'role'
+          ? role !== null
+          : stepId === 'type'
+            ? weddingType !== null
+            : stepId === 'guests'
+              ? guestEstimate !== null
+              : stepId === 'budget'
+                ? budget !== null || notSure
+                : stepId === 'worry'
+                  ? worry !== null
+                  : stepId === 'source'
+                    ? source !== null
+                    : true;
 
   const buildingLines = useMemo(() => {
     const names = `${partnerA.trim()} & ${partnerB.trim()}`;
     return [
-      `Mapping ${PLAN_TASKS.length} tasks to your date`,
+      t('plan.building.mappingTasks', { count: PLAN_TASKS.length }),
       budget !== null
-        ? 'Splitting your budget into 9 categories'
-        : 'Setting up your budget',
-      `Creating guest groups for ${names}`,
-      "Marking what you've already booked",
-      ...(vibe.color || vibe.style ? ['Saving your wedding vibe'] : []),
+        ? t('plan.building.splittingBudget')
+        : t('plan.building.settingUpBudget'),
+      t('plan.building.creatingGuestGroups', { names }),
+      t('plan.building.markingBooked'),
+      ...(vibe.color || vibe.style ? [t('plan.building.savingVibe')] : []),
     ];
   }, [budget, partnerA, partnerB, vibe.color, vibe.style]);
 
@@ -163,21 +294,62 @@ function SetupWizard() {
     setShowDatePicker(false);
     const iso = toISODate(selected);
     setDate(iso);
+    setDateEstimatedDraft(false);
+    setShowApproxPicker(false);
+    setApproxYear(null);
+    setApproxMonth(null);
     // Pre-pick the season from the date; the couple can still change it.
     setVibeDraft((prev) => (prev.season ? prev : { ...prev, season: seasonFromDate(iso) }));
   };
 
-  const selectBudgetChip = (amount: number) => {
+  const handleNoDate = () => {
+    Haptics.selectionAsync();
+    setShowApproxPicker(true);
+  };
+
+  const applyApproxDate = (year: number, month: number) => {
+    const iso = `${year}-${String(month).padStart(2, '0')}-15`;
+    setDate(iso);
+    setDateEstimatedDraft(true);
+    setVibeDraft((prev) => (prev.season ? prev : { ...prev, season: seasonFromDate(iso) }));
+  };
+
+  const selectApproxYear = (year: number) => {
+    Haptics.selectionAsync();
+    setApproxYear(year);
+    if (approxMonth === null) return;
+    // A month already gone this year can't stay picked: clear it.
+    if (year === currentYear && approxMonth <= currentMonth) {
+      setApproxMonth(null);
+      setDate(null);
+      return;
+    }
+    applyApproxDate(year, approxMonth);
+  };
+
+  const selectApproxMonth = (month: number) => {
+    Haptics.selectionAsync();
+    setApproxMonth(month);
+    if (approxYear !== null) applyApproxDate(approxYear, month);
+  };
+
+  const pickBudgetStop = (index: number) => {
+    const amount = BUDGET_STOPS[index];
+    if (amount !== budget) Haptics.selectionAsync();
     setBudget(amount);
-    setBudgetText('');
     setNotSure(false);
   };
 
   const handleNotSure = () => {
     setNotSure(true);
     setBudget(null);
-    setBudgetText('');
   };
+
+  // The budget step opens on a value already, so the big number and the
+  // slider have something to show and Continue works straight away.
+  useEffect(() => {
+    if (stepId === 'budget' && budget === null && !notSure) setBudget(DEFAULT_BUDGET);
+  }, [stepId]);
 
   const toggleBooked = (id: string) => {
     setBookedIds((prev) => {
@@ -194,9 +366,13 @@ function SetupWizard() {
     const b = partnerB.trim();
 
     store.setCouple(a, b);
-    if (date) store.setDate(date);
+    if (date) {
+      store.setDate(date);
+      store.setDateEstimated(dateEstimated);
+    }
     store.setGuestEstimate(guestEstimate);
     store.setVibe(vibe);
+    store.setProfile({ role, weddingType, worry });
 
     if (budget !== null) {
       useBudgetStore.getState().setTotal(budget);
@@ -212,6 +388,24 @@ function SetupWizard() {
     ).flatMap((option) => option.taskIds);
 
     store.markDoneMany([...ids, ...bookedTaskIds]);
+
+    if (source) {
+      // Event property always lands; the person property needs
+      // setPersonProperties, since anonymous profiles drop $set in capture.
+      posthog?.capture('onboarding_source', { ob_source: source });
+      posthog?.setPersonProperties({ ob_source: source });
+      revenueCat.setAttributes({ ob_source: source });
+    }
+
+    const profileAttrs: Record<string, string> = {
+      ob_date_estimated: dateEstimated ? 'true' : 'false',
+    };
+    if (role) profileAttrs.ob_role = role;
+    if (weddingType) profileAttrs.ob_wedding_type = weddingType;
+    if (worry) profileAttrs.ob_worry = worry;
+    posthog?.capture('onboarding_profile', profileAttrs);
+    posthog?.setPersonProperties(profileAttrs);
+    revenueCat.setAttributes(profileAttrs);
   };
 
   const startBuild = () => {
@@ -227,6 +421,9 @@ function SetupWizard() {
     setTimeout(() => {
       commitWizard();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // End of onboarding: the soft paywall (closable), once, right after the
+      // plan is built. Subscribers and builds without RevenueCat skip it.
+      presentPaywallIfNotSubscribed('soft');
     }, buildingLines.length * stepDelay + 250);
   };
 
@@ -239,7 +436,7 @@ function SetupWizard() {
           { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 80 },
         ]}
       >
-        <Text style={styles.setupTitle}>Building your plan…</Text>
+        <Text style={styles.setupTitle}>{t('plan.building.title')}</Text>
 
         {buildingLines.map((line, index) => {
           const checked = checks.includes(index);
@@ -278,7 +475,7 @@ function SetupWizard() {
         style={styles.container}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 120 },
+          { flexGrow: 1, paddingTop: insets.top + 12, paddingBottom: insets.bottom + 120 },
         ]}
         keyboardShouldPersistTaps="handled"
       >
@@ -291,7 +488,7 @@ function SetupWizard() {
             <View style={styles.wizardHeaderSpacer} />
           )}
           <Text style={styles.wizardStepLabel}>
-            Step {step + 1} of {TOTAL_STEPS}
+            {t('plan.wizard.stepLabel', { current: step + 1, total: WIZARD_STEPS.length })}
           </Text>
           <View style={styles.wizardHeaderSpacer} />
         </View>
@@ -300,65 +497,135 @@ function SetupWizard() {
           <View
             style={[
               styles.wizardProgressFill,
-              { width: `${((step + 1) / TOTAL_STEPS) * 100}%` },
+              { width: `${((step + 1) / WIZARD_STEPS.length) * 100}%` },
             ]}
           />
         </View>
 
-        {step === 0 && (
+        {/* Each step is centred vertically between the progress bar and
+            the button, which sits at the bottom. */}
+        <View style={styles.wizardBody}>
+        {stepId === 'role' && (
           <View style={styles.setup}>
-            <Text style={styles.setupTitle}>Who's getting married?</Text>
-            <Text style={styles.setupSubtitle}>Add the couple.</Text>
+            <Text style={styles.setupTitle}>{t('plan.wizard.roleTitle')}</Text>
+            <Text style={styles.setupSubtitle}>{t('plan.wizard.roleSubtitle')}</Text>
+
+            <View style={styles.optionList}>
+              {ROLE_OPTIONS.map((option) => (
+                <OptionCard
+                  key={option.id}
+                  icon={option.icon}
+                  label={option.label}
+                  selected={role === option.id}
+                  onPress={() => setRole(option.id)}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {stepId === 'couple' && (
+          <View style={styles.setup}>
+            <Text style={styles.setupTitle}>{t('plan.wizard.step0Title')}</Text>
+            <Text style={styles.setupSubtitle}>{t('plan.wizard.step0Subtitle')}</Text>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Your name</Text>
+              <Text style={styles.inputLabel}>{t('plan.wizard.yourName')}</Text>
               <TextInput
                 style={styles.input}
                 value={partnerA}
                 onChangeText={setPartnerA}
-                placeholder="Your first name"
+                placeholder={t('plan.wizard.yourFirstNamePlaceholder')}
                 placeholderTextColor={colors.textTertiary}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Partner's name</Text>
+              <Text style={styles.inputLabel}>{t('plan.wizard.partnerName')}</Text>
               <TextInput
                 style={styles.input}
                 value={partnerB}
                 onChangeText={setPartnerB}
-                placeholder="Partner's first name"
+                placeholder={t('plan.wizard.partnerFirstNamePlaceholder')}
                 placeholderTextColor={colors.textTertiary}
               />
             </View>
-
-            <Pressable
-              onPress={() => {
-                store.skipSetup();
-                router.replace('/(tabs)');
-              }}
-              style={styles.skipButton}
-            >
-              <Text style={styles.skipText}>Skip for now</Text>
-            </Pressable>
           </View>
         )}
 
-        {step === 1 && (
+        {stepId === 'date' && (
           <View style={styles.setup}>
-            <Text style={styles.setupTitle}>When is the big day?</Text>
+            <Text style={styles.setupTitle}>{t('plan.wizard.step1Title')}</Text>
             <Text style={styles.setupSubtitle}>
-              Choose the date for your countdown and timeline.
+              {t('plan.wizard.step1Subtitle')}
             </Text>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Wedding date</Text>
+              <Text style={styles.inputLabel}>{t('plan.wizard.weddingDate')}</Text>
               <Pressable style={styles.dateField} onPress={() => setShowDatePicker(true)}>
                 <Text style={date ? styles.dateText : styles.datePlaceholder}>
-                  {date ? formatDate(parseISODate(date)) : 'Select a date'}
+                  {date
+                    ? dateEstimated
+                      ? `~ ${parseISODate(date).toLocaleDateString(LOCALE_TAG, {
+                          month: 'short',
+                          year: 'numeric',
+                        })}`
+                      : formatDate(parseISODate(date))
+                    : t('plan.wizard.selectDate')}
                 </Text>
               </Pressable>
             </View>
+
+            <Pressable style={styles.noDateButton} onPress={handleNoDate}>
+              <Text style={styles.noDateText}>{t('plan.wizard.noDateYet')}</Text>
+            </Pressable>
+
+            {showApproxPicker && (
+              <View style={styles.approxDate}>
+                <Text style={styles.inputLabel}>{t('plan.wizard.approxDateHint')}</Text>
+                <View style={styles.chipGrid}>
+                  {[0, 1, 2, 3].map((offset) => {
+                    const year = currentYear + offset;
+                    return (
+                      <Chip
+                        key={year}
+                        label={String(year)}
+                        selected={approxYear === year}
+                        onPress={() => selectApproxYear(year)}
+                      />
+                    );
+                  })}
+                </View>
+                <View style={styles.chipGrid}>
+                  {approxMonths.map(({ month, label }) => {
+                    const disabled =
+                      (approxYear ?? currentYear) === currentYear && month <= currentMonth;
+                    return (
+                      <Pressable
+                        key={month}
+                        disabled={disabled}
+                        onPress={() => selectApproxMonth(month)}
+                        style={[
+                          styles.chip,
+                          approxMonth === month && styles.chipSelected,
+                          disabled && styles.chipDisabled,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.chipText,
+                            approxMonth === month && styles.chipTextSelected,
+                            disabled && styles.chipTextDisabled,
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
 
             <DateTimePickerModal
               isVisible={showDatePicker}
@@ -374,14 +641,33 @@ function SetupWizard() {
           </View>
         )}
 
-        {step === 2 && (
+        {stepId === 'type' && (
           <View style={styles.setup}>
-            <Text style={styles.setupTitle}>What's the vibe?</Text>
+            <Text style={styles.setupTitle}>{t('plan.wizard.typeTitle')}</Text>
+            <Text style={styles.setupSubtitle}>{t('plan.wizard.typeSubtitle')}</Text>
+
+            <View style={styles.optionList}>
+              {WEDDING_TYPE_OPTIONS.map((option) => (
+                <OptionCard
+                  key={option.id}
+                  icon={option.icon}
+                  label={option.label}
+                  selected={weddingType === option.id}
+                  onPress={() => setWeddingType(option.id)}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {stepId === 'vibe' && (
+          <View style={styles.setup}>
+            <Text style={styles.setupTitle}>{t('plan.wizard.step2Title')}</Text>
             <Text style={styles.setupSubtitle}>
-              Pick a main color and a style. You can change them anytime.
+              {t('plan.wizard.step2Subtitle')}
             </Text>
 
-            <Text style={styles.inputLabel}>Main color</Text>
+            <Text style={styles.inputLabel}>{t('plan.wizard.mainColor')}</Text>
             <View style={styles.swatchGrid}>
               {VIBE_COLORS.map((option) => {
                 const selected = vibe.color === option.id;
@@ -404,7 +690,7 @@ function SetupWizard() {
               })}
             </View>
 
-            <Text style={styles.inputLabel}>Style</Text>
+            <Text style={styles.inputLabel}>{t('plan.wizard.style')}</Text>
             <View style={styles.chipGrid}>
               {VIBE_STYLES.map((option) => (
                 <Chip
@@ -418,14 +704,14 @@ function SetupWizard() {
           </View>
         )}
 
-        {step === 3 && (
+        {stepId === 'season' && (
           <View style={styles.setup}>
-            <Text style={styles.setupTitle}>Season and honeymoon</Text>
+            <Text style={styles.setupTitle}>{t('plan.wizard.step3Title')}</Text>
             <Text style={styles.setupSubtitle}>
-              We guessed the season from your date.
+              {t('plan.wizard.step3Subtitle')}
             </Text>
 
-            <Text style={styles.inputLabel}>Season</Text>
+            <Text style={styles.inputLabel}>{t('plan.wizard.season')}</Text>
             <View style={styles.chipGrid}>
               {VIBE_SEASONS.map((option) => (
                 <Chip
@@ -437,7 +723,7 @@ function SetupWizard() {
               ))}
             </View>
 
-            <Text style={styles.inputLabel}>Dream honeymoon</Text>
+            <Text style={styles.inputLabel}>{t('plan.wizard.dreamHoneymoon')}</Text>
             <View style={styles.chipGrid}>
               {VIBE_HONEYMOONS.map((option) => (
                 <Chip
@@ -451,11 +737,11 @@ function SetupWizard() {
           </View>
         )}
 
-        {step === 4 && (
+        {stepId === 'guests' && (
           <View style={styles.setup}>
-            <Text style={styles.setupTitle}>How many guests, roughly?</Text>
+            <Text style={styles.setupTitle}>{t('plan.wizard.step4Title')}</Text>
             <Text style={styles.setupSubtitle}>
-              This helps you keep an eye on your list headroom.
+              {t('plan.wizard.step4Subtitle')}
             </Text>
 
             <View style={styles.chipGrid}>
@@ -471,52 +757,51 @@ function SetupWizard() {
           </View>
         )}
 
-        {step === 5 && (
+        {stepId === 'budget' && (
           <View style={styles.setup}>
-            <Text style={styles.setupTitle}>What's your total budget?</Text>
+            <Text style={styles.setupTitle}>{t('plan.wizard.step5Title')}</Text>
             <Text style={styles.setupSubtitle}>
-              You can change this later in Budget.
+              {t('plan.wizard.step5Subtitle')}
             </Text>
 
-            <View style={styles.moneyInput}>
-              <Text style={styles.moneyPrefix}>$</Text>
-              <TextInput
-                style={styles.moneyTextInput}
-                value={budgetText}
-                onChangeText={(value) => {
-                  const clean = value.replace(/[^0-9]/g, '');
-                  setBudgetText(clean);
-                  setBudget(clean ? Number(clean) : null);
-                  setNotSure(false);
-                }}
-                placeholder="e.g. 15000"
-                placeholderTextColor={colors.textTertiary}
-                keyboardType="numeric"
+            {/* The amount is the subject of the step: big and centred, with
+                the slider right under it. Digits roll as it changes. */}
+            <View style={[styles.budgetHero, notSure && styles.budgetHeroDimmed]}>
+              <Text style={styles.budgetSymbol}>{CURRENCY_SYMBOL}</Text>
+              <NumericText
+                value={budget ?? DEFAULT_BUDGET}
+                format={budgetDigits}
+                fontSize={BUDGET_FONT}
+                style={styles.budgetValue}
               />
             </View>
 
-            <View style={styles.chipGrid}>
-              {BUDGET_CHIPS.map((amount) => (
-                <Chip
-                  key={amount}
-                  label={compactUsd(amount)}
-                  selected={budget === amount}
-                  onPress={() => selectBudgetChip(amount)}
-                />
-              ))}
+            <View style={styles.budgetSlider}>
+              <StepSlider
+                count={BUDGET_STOPS.length}
+                index={budgetStopIndex(budget ?? DEFAULT_BUDGET)}
+                onChange={pickBudgetStop}
+                dimmed={notSure}
+              />
+              <View style={styles.budgetRange}>
+                <Text style={styles.budgetRangeText}>{compactUsd(BUDGET_STOPS[0])}</Text>
+                <Text style={styles.budgetRangeText}>
+                  {compactUsd(BUDGET_STOPS[BUDGET_STOPS.length - 1])}+
+                </Text>
+              </View>
             </View>
 
             <Pressable onPress={handleNotSure} style={styles.notSureButton}>
-              <Text style={styles.notSureText}>Not sure yet</Text>
+              <Text style={styles.notSureText}>{t('plan.wizard.notSureYet')}</Text>
             </Pressable>
           </View>
         )}
 
-        {step === 6 && (
+        {stepId === 'booked' && (
           <View style={styles.setup}>
-            <Text style={styles.setupTitle}>Already booked anything?</Text>
+            <Text style={styles.setupTitle}>{t('plan.wizard.step6Title')}</Text>
             <Text style={styles.setupSubtitle}>
-              Select anything already locked in — we'll mark those tasks done.
+              {t('plan.wizard.step6Subtitle')}
             </Text>
 
             <View style={styles.chipGrid}>
@@ -530,7 +815,7 @@ function SetupWizard() {
               ))}
 
               <Chip
-                label="Nothing yet"
+                label={t('plan.wizard.nothingYet')}
                 selected={bookedIds.includes(NONE_BOOKED)}
                 onPress={() => toggleBooked(NONE_BOOKED)}
               />
@@ -538,13 +823,73 @@ function SetupWizard() {
           </View>
         )}
 
+        {stepId === 'worry' && (
+          <View style={styles.setup}>
+            <Text style={styles.setupTitle}>{t('plan.wizard.worryTitle')}</Text>
+            <Text style={styles.setupSubtitle}>{t('plan.wizard.worrySubtitle')}</Text>
+
+            <View style={styles.optionList}>
+              {WORRY_OPTIONS.map((option) => (
+                <OptionCard
+                  key={option.id}
+                  icon={option.icon}
+                  label={option.label}
+                  selected={worry === option.id}
+                  onPress={() => setWorry(option.id)}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {stepId === 'source' && (
+          <View style={styles.setup}>
+            <Text style={styles.setupTitle}>{t('plan.wizard.step7Title')}</Text>
+            <Text style={styles.setupSubtitle}>
+              {t('plan.wizard.step7Subtitle')}
+            </Text>
+
+            <View style={styles.sourceList}>
+              {SOURCE_OPTIONS.map((option) => {
+                const selected = source === option.id;
+                return (
+                  <Pressable
+                    key={option.id}
+                    style={[styles.sourceRow, selected && styles.sourceRowSelected]}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setSource(option.id);
+                    }}
+                  >
+                    <SourceLogo option={option.id} />
+                    <Text
+                      style={[styles.sourceLabel, selected && styles.sourceLabelSelected]}
+                    >
+                      {option.label}
+                    </Text>
+                    {selected && (
+                      <View style={styles.sourceCheck}>
+                        <Check size={14} color={colors.white} strokeWidth={3} />
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        </View>
+
         <Pressable
           style={[styles.primaryButton, !valid && styles.primaryButtonDisabled]}
-          onPress={step < TOTAL_STEPS - 1 ? () => setStep((prev) => prev + 1) : startBuild}
+          onPress={step < WIZARD_STEPS.length - 1 ? () => setStep((prev) => prev + 1) : startBuild}
           disabled={!valid}
         >
           <Text style={styles.primaryButtonText}>
-            {step < TOTAL_STEPS - 1 ? 'Continue' : 'Build my plan'}
+            {step < WIZARD_STEPS.length - 1
+              ? t('plan.wizard.continue')
+              : t('plan.wizard.buildMyPlan')}
           </Text>
         </Pressable>
       </ScrollView>
@@ -569,6 +914,38 @@ function Chip({
       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
         {label}
       </Text>
+    </Pressable>
+  );
+}
+
+function OptionCard({
+  icon: Icon,
+  label,
+  selected,
+  onPress,
+}: {
+  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={[styles.optionCard, selected && styles.optionCardSelected]}
+      onPress={() => {
+        Haptics.selectionAsync();
+        onPress();
+      }}
+    >
+      <Icon
+        size={22}
+        color={selected ? colors.accentDeep : colors.textSecondary}
+        strokeWidth={2}
+      />
+      <Text style={[styles.optionCardText, selected && styles.optionCardTextSelected]}>
+        {label}
+      </Text>
+      {selected && <Check size={16} color={colors.accentDeep} strokeWidth={3} />}
     </Pressable>
   );
 }
@@ -610,39 +987,39 @@ function SetupForm({
     <View style={styles.setup}>
       {onCancel && (
         <Pressable onPress={onCancel} style={styles.cancelButton}>
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={styles.cancelText}>{t('plan.cancel')}</Text>
         </Pressable>
       )}
-      <Text style={styles.setupTitle}>Plan your wedding</Text>
-      <Text style={styles.setupSubtitle}>Add the couple and the big day.</Text>
+      <Text style={styles.setupTitle}>{t('plan.form.title')}</Text>
+      <Text style={styles.setupSubtitle}>{t('plan.form.subtitle')}</Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Your name</Text>
+        <Text style={styles.inputLabel}>{t('plan.wizard.yourName')}</Text>
         <TextInput
           style={styles.input}
           value={partnerA}
           onChangeText={setPartnerA}
-          placeholder="Your first name"
+          placeholder={t('plan.wizard.yourFirstNamePlaceholder')}
           placeholderTextColor={colors.textTertiary}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Partner's name</Text>
+        <Text style={styles.inputLabel}>{t('plan.wizard.partnerName')}</Text>
         <TextInput
           style={styles.input}
           value={partnerB}
           onChangeText={setPartnerB}
-          placeholder="Partner's first name"
+          placeholder={t('plan.wizard.partnerFirstNamePlaceholder')}
           placeholderTextColor={colors.textTertiary}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Wedding date</Text>
+        <Text style={styles.inputLabel}>{t('plan.wizard.weddingDate')}</Text>
         <Pressable style={styles.dateField} onPress={() => setShowDatePicker(true)}>
           <Text style={date ? styles.dateText : styles.datePlaceholder}>
-            {date ? formatDate(parseISODate(date)) : 'Select a date'}
+            {date ? formatDate(parseISODate(date)) : t('plan.wizard.selectDate')}
           </Text>
         </Pressable>
       </View>
@@ -664,7 +1041,7 @@ function SetupForm({
         onPress={handleSubmit}
         disabled={!valid}
       >
-        <Text style={styles.primaryButtonText}>Save changes</Text>
+        <Text style={styles.primaryButtonText}>{t('plan.form.saveChanges')}</Text>
       </Pressable>
     </View>
   );
@@ -676,7 +1053,6 @@ function PlanView({ onEdit }: { onEdit: () => void }) {
   const store = usePlannerStore();
   const plannerData = usePlanner();
   const weddingDate = store.weddingDate!;
-  const countdown = useCountdown(weddingDate);
   const guestList = useGuestsStore((s) => s.guests);
   const guests = useMemo(() => guestStats(guestList), [guestList]);
   const budgetTotal = useBudgetStore((s) => s.total);
@@ -697,8 +1073,6 @@ function PlanView({ onEdit }: { onEdit: () => void }) {
 
   const [collapsed, setCollapsed] = useState<Set<string>>(initialCollapsed);
 
-  const coverUri = store.coverUri;
-  const vibeHex = vibeOption('color', store.vibe?.color ?? null)?.hex;
 
   const pickCover = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -723,7 +1097,20 @@ function PlanView({ onEdit }: { onEdit: () => void }) {
   };
 
   const handleToggleDone = (id: string) => {
-    Haptics.selectionAsync();
+    const phase = plannerData?.phases.find((p) =>
+      p.tasks.some((entry) => entry.task.id === id),
+    );
+    const entry = phase?.tasks.find((e) => e.task.id === id);
+    if (entry?.state === 'pending') {
+      const finishesPhase = phase && phase.done + 1 === phase.total;
+      if (finishesPhase) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    } else {
+      Haptics.selectionAsync();
+    }
     store.toggleDone(id);
   };
 
@@ -739,10 +1126,10 @@ function PlanView({ onEdit }: { onEdit: () => void }) {
   };
 
   const handleReset = () => {
-    Alert.alert('Reset plan?', 'This will erase all planning progress and details.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('plan.resetAlert.title'), t('plan.resetAlert.message'), [
+      { text: t('plan.cancel'), style: 'cancel' },
       {
-        text: 'Reset',
+        text: t('plan.reset'),
         style: 'destructive',
         onPress: () => {
           store.reset();
@@ -757,15 +1144,15 @@ function PlanView({ onEdit }: { onEdit: () => void }) {
   const planner = plannerData;
   const tasksSub =
     planner.essentialsLeft > 0
-      ? `${planner.essentialsLeft} essentials left`
-      : 'no essentials left';
+      ? t('plan.progress.essentialsLeft', { count: planner.essentialsLeft })
+      : t('plan.progress.noEssentialsLeft');
 
   const guestEstimate = store.guestEstimate;
   const guestSub = !guests.invited
-    ? 'your list'
+    ? t('plan.progress.yourList')
     : guestEstimate !== null && guests.invited < guestEstimate
-      ? `of ~${guestEstimate} planned`
-      : 'attending';
+      ? t('plan.progress.ofPlanned', { count: guestEstimate })
+      : t('plan.progress.attending');
 
   const nextPhase = planner.next
     ? planner.phases.find((phase) =>
@@ -775,71 +1162,49 @@ function PlanView({ onEdit }: { onEdit: () => void }) {
 
   return (
     <View style={styles.plan}>
-      {/* Hero */}
-      <View style={styles.hero}>
-        {coverUri ? (
-          <Image source={{ uri: coverUri }} style={StyleSheet.absoluteFill} />
-        ) : (
-          <LinearGradient
-            colors={vibeHex ? [`${vibeHex}99`, vibeHex] : [colors.accentBright, colors.accent]}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-          />
-        )}
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.65)']}
-          style={styles.heroGradient}
-          pointerEvents="none"
-        />
-        <View style={styles.heroTopActions}>
-          <Pressable style={styles.heroIconButton} onPress={pickCover}>
-            <Camera size={20} color={colors.white} />
-          </Pressable>
-          <Pressable style={styles.heroIconButton} onPress={onEdit}>
-            <Pencil size={20} color={colors.white} />
-          </Pressable>
-        </View>
-        <View style={styles.heroBottom}>
-          <Text style={styles.heroNames}>
+      {/* Header: the couple, the date and the two wedding-level actions */}
+      <View style={styles.planHeader}>
+        <View style={styles.planHeaderCopy}>
+          <Text style={styles.planHeaderNames} numberOfLines={1}>
             {store.partnerA} & {store.partnerB}
           </Text>
-          <Text style={styles.heroDate}>
-            {formatDate(parseISODate(weddingDate))}
+          <Text style={styles.planHeaderDate}>
+            {store.dateEstimated
+              ? `~ ${parseISODate(weddingDate).toLocaleDateString(LOCALE_TAG, {
+                  month: 'short',
+                  year: 'numeric',
+                })}`
+              : formatDate(parseISODate(weddingDate))}
           </Text>
-          {countdown.isPast ? (
-            <Text style={styles.justMarried}>Just married</Text>
-          ) : (
-            <View style={styles.countdownRow}>
-              <CountdownBox label="DAYS" value={countdown.days} />
-              <CountdownBox label="HRS" value={countdown.hours} />
-              <CountdownBox label="MIN" value={countdown.minutes} />
-              <CountdownBox label="SEC" value={countdown.seconds} />
-            </View>
-          )}
         </View>
+        <PressableScale style={styles.planHeaderButton} onPress={pickCover} hitSlop={6}>
+          <Camera size={18} color={colors.accentDeep} />
+        </PressableScale>
+        <PressableScale style={styles.planHeaderButton} onPress={onEdit} hitSlop={6}>
+          <Pencil size={18} color={colors.accentDeep} />
+        </PressableScale>
       </View>
 
       {/* Progress row */}
       <View style={styles.progressRow}>
         <ProgressCard
           icon={ListChecks}
-          label="Tasks"
+          label={t('plan.progress.tasks')}
           value={`${planner.doneCount}/${planner.total}`}
           sub={tasksSub}
         />
         <ProgressCard
           icon={Users}
-          label="Guests"
-          value={guests.invited ? `${guests.attending}/${guests.invited}` : 'Add'}
+          label={t('plan.progress.guests')}
+          value={guests.invited ? `${guests.attending}/${guests.invited}` : t('plan.progress.add')}
           sub={guestSub}
           onPress={() => router.push('/guests')}
         />
         <ProgressCard
           icon={Wallet}
-          label="Budget"
-          value={budgetTotal ? compactUsd(budgetSpent) : 'Set'}
-          sub={budgetTotal ? `of ${compactUsd(budgetTotal)}` : 'your budget'}
+          label={t('plan.progress.budget')}
+          value={budgetTotal ? compactUsd(budgetSpent) : t('plan.progress.set')}
+          sub={budgetTotal ? t('plan.progress.ofTotal', { total: compactUsd(budgetTotal) }) : t('plan.progress.yourBudget')}
           onPress={() => router.push('/budget')}
         />
       </View>
@@ -848,8 +1213,7 @@ function PlanView({ onEdit }: { onEdit: () => void }) {
       {planner.overdue > 0 && (
         <View style={styles.overdueBanner}>
           <Text style={styles.overdueText}>
-            {planner.overdue} {planner.overdue === 1 ? 'task' : 'tasks'} from
-            earlier phases are still open
+            {t('plan.overdueText', { count: planner.overdue })}
           </Text>
         </View>
       )}
@@ -861,7 +1225,7 @@ function PlanView({ onEdit }: { onEdit: () => void }) {
             style={styles.nextInfo}
             onPress={() => router.push(`/task?id=${planner.next!.id}`)}
           >
-            <Text style={styles.nextLabel}>UP NEXT</Text>
+            <Text style={styles.nextLabel}>{t('plan.next.upNextLabel')}</Text>
             <Text style={styles.nextTitle}>{planner.next.title}</Text>
             <Text style={styles.nextDeadline}>{nextPhase.deadlineLabel}</Text>
             <Text style={styles.nextTip}>{planner.next.tip}</Text>
@@ -885,7 +1249,7 @@ function PlanView({ onEdit }: { onEdit: () => void }) {
               hitSlop={6}
             >
               <Check size={16} color={colors.textPrimary} />
-              <Text style={styles.nextMarkDoneText}>Mark done</Text>
+              <Text style={styles.nextMarkDoneText}>{t('plan.next.markDone')}</Text>
             </Pressable>
           </View>
         </View>
@@ -900,15 +1264,16 @@ function PlanView({ onEdit }: { onEdit: () => void }) {
           <CalendarDays size={20} color={colors.accentDeep} />
         </View>
         <View style={styles.timelineCopy}>
-          <Text style={styles.timelineTitle}>Timeline</Text>
+          <Text style={styles.timelineTitle}>{t('plan.timelineCard.title')}</Text>
           <Text style={styles.timelineSubtitle}>
-            Every task by date, filter by status
+            {t('plan.timelineCard.subtitle')}
           </Text>
         </View>
         <ChevronRight size={18} color={colors.textTertiary} />
       </Pressable>
 
       {/* Phases */}
+      <LayoutAnimationConfig skipEntering>
       <View style={styles.phases}>
         {planner.phases.map((phase) => (
           <PhaseSection
@@ -921,11 +1286,14 @@ function PlanView({ onEdit }: { onEdit: () => void }) {
           />
         ))}
       </View>
+      </LayoutAnimationConfig>
 
       {/* Reset */}
-      <Pressable onPress={handleReset} style={styles.resetButton}>
-        <Text style={styles.resetText}>Reset plan</Text>
-      </Pressable>
+      <Animated.View layout={REFLOW}>
+        <Pressable onPress={handleReset} style={styles.resetButton}>
+          <Text style={styles.resetText}>{t('plan.reset')}</Text>
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }
@@ -954,15 +1322,15 @@ function AboutCard() {
 
   return (
     <View style={styles.aboutCard}>
-      <Text style={styles.aboutTitle}>About our wedding</Text>
+      <Text style={styles.aboutTitle}>{t('plan.about.title')}</Text>
       <View style={styles.aboutGrid}>
         {VIBE_FIELDS.map(({ field, label }) => {
           const Icon = VIBE_ICONS[field];
           const option = vibeOption(field, vibe[field]);
           return (
-            <Pressable
+            <PressableScale
               key={field}
-              style={({ pressed }) => [styles.aboutTile, pressed && { opacity: 0.7 }]}
+              style={styles.aboutTile}
               onPress={() => setEditing(field)}
             >
               {field === 'color' && option?.hex ? (
@@ -970,14 +1338,16 @@ function AboutCard() {
               ) : (
                 <Icon size={20} color={colors.accentDeep} strokeWidth={2} />
               )}
-              <Text style={styles.aboutLabel}>{label.toUpperCase()}</Text>
+              <Text style={styles.aboutLabel} numberOfLines={1} adjustsFontSizeToFit>
+                {label.toUpperCase()}
+              </Text>
               <Text
                 style={[styles.aboutValue, !option && styles.aboutValueEmpty]}
                 numberOfLines={1}
               >
-                {option?.label ?? 'Add'}
+                {option?.label ?? t('plan.about.add')}
               </Text>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </View>
@@ -1006,22 +1376,12 @@ function AboutCard() {
             </View>
             {editing !== null && vibe[editing] ? (
               <Pressable onPress={() => choose(null)} style={styles.notSureButton}>
-                <Text style={styles.notSureText}>Clear</Text>
+                <Text style={styles.notSureText}>{t('plan.about.clear')}</Text>
               </Pressable>
             ) : null}
           </Pressable>
         </Pressable>
       </Modal>
-    </View>
-  );
-}
-
-function CountdownBox({ label, value }: { label: string; value: number }) {
-  const display = value.toString().padStart(2, '0');
-  return (
-    <View style={styles.countdownBox}>
-      <Text style={styles.countdownNumber}>{display}</Text>
-      <Text style={styles.countdownLabel}>{label}</Text>
     </View>
   );
 }
@@ -1040,23 +1400,16 @@ function ProgressCard({
   onPress?: () => void;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.progressCard,
-        pressed && onPress && { opacity: 0.7 },
-      ]}
-      onPress={onPress}
-      disabled={!onPress}
-    >
+    <PressableScale style={styles.progressCard} onPress={onPress} disabled={!onPress}>
       <Icon size={18} color={colors.accentDeep} strokeWidth={2.2} />
       <Text style={styles.progressLabel}>{label}</Text>
       <Text style={styles.progressValue} numberOfLines={1} adjustsFontSizeToFit>
         {value}
       </Text>
-      <Text style={styles.progressSub} numberOfLines={1}>
+      <Text style={styles.progressSub} numberOfLines={2}>
         {sub}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -1076,17 +1429,23 @@ function PhaseSection({
   const pending = phase.tasks.filter((entry) => entry.state === 'pending').length;
 
   return (
-    <View style={styles.phaseSection}>
-      <Pressable style={styles.phaseHeader} onPress={onToggleCollapse}>
+    <Animated.View style={styles.phaseSection} layout={REFLOW}>
+      <Pressable
+        style={styles.phaseHeader}
+        onPress={() => {
+          Haptics.selectionAsync();
+          onToggleCollapse();
+        }}
+      >
         <View style={styles.phaseHeaderLeft}>
           <View style={styles.phaseTitleLine}>
             <Text style={styles.phaseTitle}>
               {phase.phase.title}
-              {phase.isCurrent && <Text style={styles.phaseNow}>  Now</Text>}
+              {phase.isCurrent && <Text style={styles.phaseNow}>  {t('plan.phase.now')}</Text>}
             </Text>
             {phase.isPast && pending > 0 && (
               <View style={styles.overdueTag}>
-                <Text style={styles.overdueTagText}>{pending} overdue</Text>
+                <Text style={styles.overdueTagText}>{t('plan.phase.overdueTag', { count: pending })}</Text>
               </View>
             )}
           </View>
@@ -1097,16 +1456,35 @@ function PhaseSection({
           <Text style={styles.phaseCount}>
             {phase.done}/{phase.total}
           </Text>
-          <Text style={styles.phaseToggle}>{collapsed ? '+' : '-'}</Text>
+          <Animated.View
+            style={{
+              transform: [{ rotate: collapsed ? '-90deg' : '0deg' }],
+              transitionProperty: 'transform',
+              transitionDuration: 200,
+              transitionTimingFunction: 'ease-out',
+            }}
+          >
+            <ChevronDown size={18} color={colors.textSecondary} />
+          </Animated.View>
         </View>
       </Pressable>
 
       <View style={styles.phaseProgressBar}>
-        <View style={[styles.phaseProgressFill, { width: `${phase.percent}%` }]} />
+        <Animated.View
+          style={[
+            styles.phaseProgressFill,
+            {
+              width: `${phase.percent}%`,
+              transitionProperty: 'width',
+              transitionDuration: 260,
+              transitionTimingFunction: 'ease-out',
+            },
+          ]}
+        />
       </View>
 
       {!collapsed && (
-        <>
+        <Animated.View entering={ROWS_IN} exiting={ROWS_OUT} style={styles.phaseRows}>
           {phase.tasks.map((entry) => (
             <TaskRow
               key={entry.task.id}
@@ -1121,13 +1499,23 @@ function PhaseSection({
             onPress={() => router.push(`/task-new?phase=${phase.phase.id}`)}
           >
             <Plus size={16} color={colors.accentDeep} />
-            <Text style={styles.addTaskText}>Add task</Text>
+            <Text style={styles.addTaskText}>{t('plan.phase.addTask')}</Text>
           </Pressable>
-        </>
+        </Animated.View>
       )}
-    </View>
+    </Animated.View>
   );
 }
+
+// Expanding or collapsing a phase: the rows fade in a few points down, and
+// everything below glides to its new place instead of jumping.
+const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
+const REFLOW = LinearTransition.duration(240).easing(EASE_OUT);
+const ROWS_IN = FadeIn.duration(200).easing(EASE_OUT).withInitialValues({
+  opacity: 0,
+  transform: [{ translateY: -6 }],
+});
+const ROWS_OUT = FadeOut.duration(120);
 
 function TaskRow({
   entry,
@@ -1153,20 +1541,16 @@ function TaskRow({
 
   return (
     <View style={styles.taskRow}>
-      <Pressable
-        style={[
-          styles.checkbox,
-          isDone && styles.checkboxDone,
-          isSkipped && styles.checkboxSkipped,
-        ]}
+      <TaskCheck
+        state={state}
         onPress={() => onToggleDone(task.id)}
         onLongPress={() => onLongPress(task.id, state)}
-        delayLongPress={300}
-        hitSlop={10}
-      >
-        {isDone && <Check size={16} color={colors.white} strokeWidth={3} />}
-        {isSkipped && <View style={styles.skipMark} />}
-      </Pressable>
+        style={styles.checkbox}
+        doneStyle={styles.checkboxDone}
+        skippedStyle={styles.checkboxSkipped}
+        doneMark={<Check size={16} color={colors.white} strokeWidth={3} />}
+        skippedMark={<View style={styles.skipMark} />}
+      />
 
       <Pressable
         style={styles.taskContent}
@@ -1191,7 +1575,7 @@ function TaskRow({
 
           {isPending && task.essential && (
             <View style={styles.essentialTag}>
-              <Text style={styles.essentialTagText}>Essential</Text>
+              <Text style={styles.essentialTagText}>{t('plan.taskRow.essential')}</Text>
             </View>
           )}
 
@@ -1210,7 +1594,7 @@ function TaskRow({
           <Text style={styles.taskTip}>{task.tip}</Text>
         ) : null}
 
-        {isSkipped && <Text style={styles.taskSkippedLabel}>Skipped</Text>}
+        {isSkipped && <Text style={styles.taskSkippedLabel}>{t('plan.taskRow.skipped')}</Text>}
       </Pressable>
 
       <ChevronRight size={18} color={colors.textTertiary} style={styles.taskChevron} />
@@ -1219,7 +1603,7 @@ function TaskRow({
 }
 
 function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(LOCALE_TAG, {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -1229,9 +1613,17 @@ function formatDate(date: Date): string {
 
 // ---------- Styles ----------
 
+// Every block's content starts INSET in from the page padding: the cards'
+// inner padding, and the same inset on the free-standing rows (header, phases,
+// tasks), so all text and icons line up on one left edge.
+const INSET = 16;
+
 const styles = StyleSheet.create({
+  // Opaque: with the keyboard up, KeyboardAvoidingView pads the bottom and that
+  // strip showed whatever sat behind the tab (the welcome screen's headline).
   flex: {
     flex: 1,
+    backgroundColor: colors.backgroundPrimary,
   },
   container: {
     flex: 1,
@@ -1242,11 +1634,16 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   // Setup / Wizard
+  wizardBody: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
   setup: {
     gap: 16,
   },
   setupTitle: {
-    fontFamily: typography.fonts.extraBold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h1,
     color: colors.textPrimary,
     marginTop: 8,
@@ -1327,17 +1724,6 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.button,
     color: colors.textPrimary,
   },
-  skipButton: {
-    alignSelf: 'center',
-    paddingVertical: 11,
-    paddingHorizontal: 20,
-    marginTop: 4,
-  },
-  skipText: {
-    fontFamily: typography.fonts.medium,
-    fontSize: typography.sizes.body,
-    color: colors.accentDeep,
-  },
   wizardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1369,7 +1755,7 @@ const styles = StyleSheet.create({
   aboutCard: {
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 20,
-    padding: 16,
+    padding: INSET,
     gap: 12,
     shadowColor: '#2E2429',
     shadowOffset: { width: 0, height: 8 },
@@ -1378,7 +1764,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   aboutTitle: {
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
   },
@@ -1390,7 +1776,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
     borderRadius: 14,
     backgroundColor: colors.surface2,
   },
@@ -1430,7 +1817,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   sheetTitle: {
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h2,
     color: colors.textPrimary,
   },
@@ -1495,27 +1882,126 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: colors.white,
   },
-  moneyInput: {
+  chipDisabled: {
+    opacity: 0.35,
+  },
+  chipTextDisabled: {
+    color: colors.textTertiary,
+  },
+  noDateButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+  },
+  noDateText: {
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.sizes.body,
+    color: colors.accentDeep,
+  },
+  approxDate: {
+    gap: 10,
+  },
+  optionList: {
+    gap: 10,
+  },
+  optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface2,
-    borderRadius: 14,
+    gap: 12,
+    minHeight: 56,
     paddingHorizontal: 16,
-    borderWidth: 1,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: colors.backgroundSecondary,
+    borderWidth: 1.5,
     borderColor: colors.border,
   },
-  moneyPrefix: {
-    fontFamily: typography.fonts.semibold,
-    fontSize: typography.sizes.h3,
-    color: colors.textSecondary,
-    marginRight: 8,
+  optionCardSelected: {
+    backgroundColor: '#FBEEF0',
+    borderColor: colors.accentDeep,
   },
-  moneyTextInput: {
+  optionCardText: {
     flex: 1,
-    paddingVertical: 14,
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.sizes.body,
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.sizes.h3,
     color: colors.textPrimary,
+  },
+  optionCardTextSelected: {
+    fontFamily: typography.fonts.semibold,
+    color: colors.accentDeep,
+  },
+  sourceList: {
+    gap: 10,
+  },
+  sourceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: colors.backgroundSecondary,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  sourceRowSelected: {
+    backgroundColor: '#FBEEF0',
+    borderColor: colors.accentDeep,
+  },
+  sourceLabel: {
+    flex: 1,
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.sizes.h3,
+    color: colors.textPrimary,
+  },
+  sourceLabelSelected: {
+    fontFamily: typography.fonts.semibold,
+    color: colors.accentDeep,
+  },
+  sourceCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.accentDeep,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  budgetHero: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 24,
+  },
+  budgetHeroDimmed: {
+    opacity: 0.35,
+  },
+  budgetSymbol: {
+    fontFamily: typography.fonts.semibold,
+    fontSize: 24,
+    color: colors.textSecondary,
+    marginTop: 10,
+  },
+  budgetValue: {
+    fontFamily: typography.fonts.bold,
+    fontSize: BUDGET_FONT,
+    lineHeight: BUDGET_FONT * 1.15,
+    letterSpacing: -1.5,
+    color: colors.textPrimary,
+    fontVariant: ['tabular-nums'],
+  },
+  budgetSlider: {
+    gap: 8,
+    marginTop: 8,
+  },
+  budgetRange: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  budgetRangeText: {
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.sizes.caption,
+    color: colors.textSecondary,
   },
   notSureButton: {
     alignSelf: 'flex-start',
@@ -1562,78 +2048,33 @@ const styles = StyleSheet.create({
   plan: {
     gap: 20,
   },
-  hero: {
-    height: 300,
-    borderRadius: 28,
-    overflow: 'hidden',
-    backgroundColor: colors.accentBright,
-  },
-  heroGradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  heroTopActions: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
+  planHeader: {
     flexDirection: 'row',
-    gap: 8,
-    zIndex: 2,
-  },
-  heroIconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
+    paddingHorizontal: INSET,
     alignItems: 'center',
+    gap: 10,
   },
-  heroBottom: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-    zIndex: 2,
+  planHeaderCopy: {
+    flex: 1,
   },
-  heroNames: {
-    fontFamily: typography.fonts.extraBold,
-    fontSize: 30,
-    color: colors.white,
-    marginBottom: 4,
+  planHeaderNames: {
+    fontFamily: typography.fonts.title,
+    fontSize: 28,
+    color: colors.textPrimary,
   },
-  heroDate: {
+  planHeaderDate: {
     fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.body,
-    color: colors.accentBright,
-    marginBottom: 12,
-  },
-  justMarried: {
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.sizes.h2,
-    color: colors.white,
-  },
-  countdownRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  countdownBox: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 12,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  countdownNumber: {
-    fontFamily: typography.fonts.bold,
-    fontSize: 22,
-    color: colors.white,
-    fontVariant: ['tabular-nums'],
-  },
-  countdownLabel: {
-    fontFamily: typography.fonts.semibold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.8)',
-    letterSpacing: 1,
+    color: colors.textSecondary,
     marginTop: 2,
+  },
+  planHeaderButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.backgroundSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   progressRow: {
     flexDirection: 'row',
@@ -1643,7 +2084,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 20,
-    padding: 16,
+    padding: INSET,
     shadowColor: '#2E2429',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.06,
@@ -1671,7 +2112,7 @@ const styles = StyleSheet.create({
   overdueBanner: {
     backgroundColor: 'rgba(208,138,131,0.1)',
     borderRadius: 14,
-    padding: 14,
+    padding: INSET,
   },
   overdueText: {
     fontFamily: typography.fonts.medium,
@@ -1681,14 +2122,15 @@ const styles = StyleSheet.create({
   nextCard: {
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 20,
-    padding: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    padding: INSET,
+    gap: 14,
+    shadowColor: '#2E2429',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    elevation: 3,
   },
-  nextInfo: {
-    flex: 1,
-  },
+  nextInfo: {},
   nextLabel: {
     fontFamily: typography.fonts.semibold,
     fontSize: 11,
@@ -1697,7 +2139,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   nextTitle: {
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
     marginBottom: 4,
@@ -1715,8 +2157,10 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   nextActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 8,
-    alignItems: 'flex-end',
   },
   nextActionButton: {
     backgroundColor: colors.accent,
@@ -1750,7 +2194,7 @@ const styles = StyleSheet.create({
     gap: 12,
     backgroundColor: colors.backgroundSecondary,
     borderRadius: 20,
-    padding: 16,
+    padding: INSET,
     shadowColor: '#2E2429',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.06,
@@ -1769,7 +2213,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   timelineTitle: {
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
   },
@@ -1780,6 +2224,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   phaseSection: {
+    gap: 8,
+    paddingHorizontal: INSET,
+  },
+  phaseRows: {
     gap: 8,
   },
   phaseHeader: {
@@ -1797,7 +2245,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   phaseTitle: {
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
   },
@@ -1860,7 +2308,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingVertical: 10,
-    paddingHorizontal: 4,
     gap: 12,
   },
   checkbox: {
@@ -1951,7 +2398,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingVertical: 12,
-    paddingHorizontal: 4,
   },
   addTaskText: {
     fontFamily: typography.fonts.semibold,

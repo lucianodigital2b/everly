@@ -31,9 +31,9 @@ export function useAppleCredentialWatch() {
       if (cancelled) return;
       const { logout } = actions(authStore.getState().dispatch);
       await logout();
-      // Root index re-reads the cleared token and routes to welcome; see the
-      // same handoff in settings' sign-out.
-      router.replace("/");
+      // Straight to welcome: '/' also matches the Home tab, see settings' sign-out.
+      if (router.canDismiss()) router.dismissAll();
+      router.replace("/(auth)/welcome");
     };
 
     (async () => {

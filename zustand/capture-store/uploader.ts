@@ -1,6 +1,7 @@
 import { uploadApi } from "../../services/api";
 import { queryClient } from "../../services/queryClient";
 import { captureStore } from "./index";
+import { t } from '../../i18n';
 
 /**
  * Uploads a roll *while it is being shot*, instead of after.
@@ -106,7 +107,7 @@ async function drain() {
           e?.response?.data?.message ||
           e?.response?.data?.error ||
           e?.message ||
-          "Upload failed";
+          t('uploader.uploadFailed');
         console.warn("[uploader] photo upload failed", e?.response?.status, reason);
         captureStore.getState().markUpload(uri, "failed", reason);
       }

@@ -19,6 +19,7 @@ import { File, Paths } from "expo-file-system";
 import { useQueryClient } from "@tanstack/react-query";
 import { MoreHorizontal, Share2, X } from "lucide-react-native";
 import { eventsApi } from "../services/api";
+import { t } from "../i18n";
 
 const { width: W, height: H } = Dimensions.get("window");
 
@@ -43,7 +44,7 @@ export default function PhotoViewer() {
   const [removing, setRemoving] = useState(false);
 
   const canModerate = !!eventId && !!photoId;
-  const guestLabel = guest?.trim() || "this guest";
+  const guestLabel = guest?.trim() || t("photo.thisGuest");
 
   const handleShare = async () => {
     if (!url || sharing) return;
@@ -61,7 +62,7 @@ export default function PhotoViewer() {
           : { message: url, url: file.uri },
       );
     } catch (e: any) {
-      Alert.alert("Couldn't share", e?.message ?? "Please try again.");
+      Alert.alert(t("photo.couldntShare"), e?.message ?? t("photo.pleaseTryAgain"));
     } finally {
       setSharing(false);
     }
@@ -79,38 +80,38 @@ export default function PhotoViewer() {
       router.back();
     } catch (e: any) {
       setRemoving(false);
-      Alert.alert("Couldn't remove it", e?.message ?? "Please try again.");
+      Alert.alert(t("photo.couldntRemove"), e?.message ?? t("photo.pleaseTryAgain"));
     }
   };
 
   const confirmRemove = () =>
-    Alert.alert("Remove this photo?", "It's deleted from the album for everyone.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Remove", style: "destructive", onPress: () => remove(false) },
+    Alert.alert(t("photo.removeConfirmTitle"), t("photo.removeConfirmMessage"), [
+      { text: t("photo.cancel"), style: "cancel" },
+      { text: t("photo.remove"), style: "destructive", onPress: () => remove(false) },
     ]);
 
   const confirmBlock = () =>
     Alert.alert(
-      `Remove and block ${guestLabel}?`,
-      "Every photo they took is deleted from the album, and they can't add any more to this event.",
+      t("photo.removeBlockConfirmTitle", { guest: guestLabel }),
+      t("photo.removeBlockConfirmMessage"),
       [
-        { text: "Cancel", style: "cancel" },
-        { text: "Remove & Block", style: "destructive", onPress: () => remove(true) },
+        { text: t("photo.cancel"), style: "cancel" },
+        { text: t("photo.removeBlock"), style: "destructive", onPress: () => remove(true) },
       ],
     );
 
   const report = async () => {
-    const subject = encodeURIComponent("Everly — Report a photo");
+    const subject = encodeURIComponent(t("photo.reportSubject"));
     const body = encodeURIComponent(
-      `Event ${eventId}, photo ${photoId}.\n\nWhat's wrong with it:\n`,
+      t("photo.reportBody", { eventId, photoId }),
     );
     const mail = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
     if (await Linking.canOpenURL(mail)) {
       Linking.openURL(mail);
     } else {
       Alert.alert(
-        "No mail app",
-        `Email ${SUPPORT_EMAIL} with event ${eventId}, photo ${photoId}, and we'll review it within 24 hours.`,
+        t("photo.noMailApp"),
+        t("photo.reportFallback", { email: SUPPORT_EMAIL, eventId, photoId }),
       );
     }
   };
@@ -120,10 +121,10 @@ export default function PhotoViewer() {
       ActionSheetIOS.showActionSheetWithOptions(
         {
           options: [
-            "Remove Photo",
-            `Remove All from ${guestLabel} & Block`,
-            "Report Photo",
-            "Cancel",
+            t("photo.removePhoto"),
+            t("photo.removeAllFromGuest", { guest: guestLabel }),
+            t("photo.reportPhoto"),
+            t("photo.cancel"),
           ],
           destructiveButtonIndex: [0, 1],
           cancelButtonIndex: 3,
@@ -138,12 +139,12 @@ export default function PhotoViewer() {
     }
     // Android alerts hold three buttons at most, so the cancel is the scrim.
     Alert.alert(
-      "Photo",
+      t("photo.menuTitle"),
       undefined,
       [
-        { text: "Report", onPress: report },
-        { text: "Remove & Block", style: "destructive", onPress: confirmBlock },
-        { text: "Remove", style: "destructive", onPress: confirmRemove },
+        { text: t("photo.report"), onPress: report },
+        { text: t("photo.removeBlock"), style: "destructive", onPress: confirmBlock },
+        { text: t("photo.remove"), style: "destructive", onPress: confirmRemove },
       ],
       { cancelable: true },
     );
@@ -173,7 +174,7 @@ export default function PhotoViewer() {
           style={styles.roundBtn}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="Close"
+          accessibilityLabel={t("photo.close")}
         >
           <X size={22} color="#fff" />
         </Pressable>
@@ -186,7 +187,7 @@ export default function PhotoViewer() {
               style={styles.roundBtn}
               hitSlop={10}
               accessibilityRole="button"
-              accessibilityLabel="Share photo"
+              accessibilityLabel={t("photo.sharePhoto")}
             >
               {sharing ? (
                 <ActivityIndicator size="small" color="#fff" />
@@ -203,7 +204,7 @@ export default function PhotoViewer() {
               style={styles.roundBtn}
               hitSlop={10}
               accessibilityRole="button"
-              accessibilityLabel="Remove or report photo"
+              accessibilityLabel={t("photo.removeOrReport")}
             >
               {removing ? (
                 <ActivityIndicator size="small" color="#fff" />

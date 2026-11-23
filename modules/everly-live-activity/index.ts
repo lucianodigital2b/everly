@@ -19,6 +19,9 @@ type EverlyLiveActivityModule = {
   start(options: EverlyActivityOptions): Promise<string | null>;
   end(eventId: string): Promise<void>;
   endAll(): Promise<void>;
+  /** Stores the Home Screen widget snapshot (JSON) in the App Group and
+   *  reloads the widget. False when the App Group isn't available. */
+  setWidgetSnapshot(json: string): boolean;
 };
 
 // Optional: the native module only exists in a dev/production build on iOS, so

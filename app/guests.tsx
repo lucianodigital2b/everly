@@ -18,6 +18,7 @@ import { router } from 'expo-router';
 import {
   Download,
   MessageCircle,
+  Plus,
   Printer,
   Search,
   Share as ShareIcon,
@@ -41,7 +42,9 @@ import {
   whatsappUrl,
   type Guest,
   type RsvpStatus,
-} from '../zustand/guests';
+} from '../zustand/guests';
+import { PremiumOnly } from '../components/paywall/PremiumOnly';
+import { t } from '../i18n';
 
 const DEFAULT_GROUP_IDS = ['couple', 'family', 'friends', 'work'];
 
@@ -54,13 +57,20 @@ type GuestSection = {
 };
 
 const VIEW_OPTIONS: { id: ViewMode; label: string }[] = [
-  { id: 'groups', label: 'Groups' },
-  { id: 'rsvp', label: 'RSVP' },
-  { id: 'menu', label: 'Menu' },
+  { id: 'groups', label: t('guests.viewGroups') },
+  { id: 'rsvp', label: t('guests.viewRsvp') },
+  { id: 'menu', label: t('guests.viewMenu') },
 ];
 
 function statusLabel(status: RsvpStatus): string {
-  return status.charAt(0).toUpperCase() + status.slice(1);
+  switch (status) {
+    case 'attending':
+      return t('guests.statusAttending');
+    case 'waiting':
+      return t('guests.statusWaiting');
+    default:
+      return status;
+  }
 }
 
 const statusPillColors: Record<
@@ -72,13 +82,9 @@ const statusPillColors: Record<
     backgroundColor: 'rgba(127,168,140,0.14)',
     color: colors.success,
   },
-  declined: {
-    backgroundColor: 'rgba(208,138,131,0.14)',
-    color: colors.error,
-  },
 };
 
-export default function GuestsScreen() {
+function GuestsScreen() {
   const insets = useSafeAreaInsets();
   const guests = useGuestsStore((state) => state.guests);
   const groups = useGuestsStore((state) => state.groups);
@@ -104,7 +110,7 @@ export default function GuestsScreen() {
   }, [partnerA, partnerB]);
 
   const coupleTitle =
-    partnerA && partnerB ? `${partnerA} & ${partnerB}` : 'us';
+    partnerA && partnerB ? `${partnerA} & ${partnerB}` : t('guests.us');
   const stats = useMemo(() => guestStats(guests), [guests]);
   const nonCoupleGuests = useMemo(
     () => guests.filter((guest) => guest.coupleSlot === null),
@@ -137,7 +143,7 @@ export default function GuestsScreen() {
     }
 
     if (view === 'rsvp') {
-      const order: RsvpStatus[] = ['attending', 'waiting', 'declined'];
+      const order: RsvpStatus[] = ['attending', 'waiting'];
       return order
         .map((status) => ({
           id: status,
@@ -155,7 +161,7 @@ export default function GuestsScreen() {
 
     menuSections.push({
       id: 'unset',
-      name: 'Not chosen',
+      name: t('guests.menuNotChosen'),
       data: filteredGuests.filter((guest) => guest.menu === 'unset'),
     });
 
@@ -173,22 +179,22 @@ export default function GuestsScreen() {
       await task();
     } catch (error) {
       console.log('Guest list export failed:', error);
-      Alert.alert('Could not export', 'Please try again.');
+      Alert.alert(t('guests.couldNotExport'), t('guests.tryAgain'));
     }
   };
 
   const handleDownload = () => {
     void Haptics.selectionAsync();
-    Alert.alert('Download guest list', 'Choose a format.', [
+    Alert.alert(t('guests.downloadTitle'), t('guests.chooseFormat'), [
       {
-        text: 'PDF',
+        text: t('guests.pdf'),
         onPress: () => runExport(() => shareGuestListPdf(guests, groups, coupleTitle)),
       },
       {
-        text: 'Spreadsheet (CSV)',
+        text: t('guests.csv'),
         onPress: () => runExport(() => shareGuestListCsv(guests, groups)),
       },
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('guests.cancel'), style: 'cancel' },
     ]);
   };
 
@@ -210,25 +216,25 @@ export default function GuestsScreen() {
       removeGroup(section.id);
     };
 
-    Alert.alert(section.name, 'Rename or delete this group?', [
+    Alert.alert(section.name, t('guests.renameOrDeleteGroup'), [
       {
-        text: 'Rename',
+        text: t('guests.rename'),
         onPress: () => {
           setRenameGroupId(section.id);
           setRenameValue(section.name);
         },
       },
       {
-        text: 'Delete',
+        text: t('guests.delete'),
         style: 'destructive',
         onPress: () => {
-          Alert.alert('Delete group?', 'Guests will move to Friends.', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Delete', style: 'destructive', onPress: handleDelete },
+          Alert.alert(t('guests.deleteGroupTitle'), t('guests.deleteGroupBody'), [
+            { text: t('guests.cancel'), style: 'cancel' },
+            { text: t('guests.delete'), style: 'destructive', onPress: handleDelete },
           ]);
         },
       },
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('guests.cancel'), style: 'cancel' },
     ]);
   };
 
@@ -243,21 +249,22 @@ export default function GuestsScreen() {
   };
 
   const statItems = [
-    { label: 'Invited', value: stats.invited },
-    { label: 'Attending', value: stats.attending },
-    { label: 'Waiting', value: stats.waiting },
-    { label: 'Declined', value: stats.declined },
+    { label: t('guests.statInvited'), value: stats.invited },
+    { label: t('guests.statAttending'), value: stats.attending },
+    { label: t('guests.statWaiting'), value: stats.waiting },
   ];
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Text style={styles.emptyTitle}>
-        {guests.length === 0 ? 'No guests yet' : 'No matches'}
+        {guests.length === 0
+          ? t('guests.emptyTitle')
+          : t('guests.noMatchesTitle')}
       </Text>
       <Text style={styles.emptyText}>
         {guests.length === 0
-          ? 'Add your first guest or paste a list.'
-          : 'Try a different search or filter.'}
+          ? t('guests.emptyBody')
+          : t('guests.noMatchesBody')}
       </Text>
       {guests.length === 0 && (
         <View style={styles.emptyButtons}>
@@ -265,13 +272,13 @@ export default function GuestsScreen() {
             style={styles.emptyButton}
             onPress={() => router.push({ pathname: '/guest-edit' })}
           >
-            <Text style={styles.emptyButtonText}>Add guest</Text>
+            <Text style={styles.emptyButtonText}>{t('guests.addGuest')}</Text>
           </Pressable>
           <Pressable
             style={[styles.emptyButton, styles.emptyButtonSecondary]}
             onPress={() => router.push('/guest-import')}
           >
-            <Text style={styles.emptyButtonText}>Paste a list</Text>
+            <Text style={styles.emptyButtonText}>{t('guests.pasteList')}</Text>
           </Pressable>
         </View>
       )}
@@ -285,13 +292,13 @@ export default function GuestsScreen() {
           style={styles.emptyButton}
           onPress={() => router.push({ pathname: '/guest-edit' })}
         >
-          <Text style={styles.emptyButtonText}>Add guest</Text>
+          <Text style={styles.emptyButtonText}>{t('guests.addGuest')}</Text>
         </Pressable>
         <Pressable
           style={[styles.emptyButton, styles.emptyButtonSecondary]}
           onPress={() => router.push('/guest-import')}
         >
-          <Text style={styles.emptyButtonText}>Paste a list</Text>
+          <Text style={styles.emptyButtonText}>{t('guests.pasteList')}</Text>
         </Pressable>
       </View>
     </View>
@@ -305,12 +312,14 @@ export default function GuestsScreen() {
       <View style={styles.container}>
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <BackButton fallback="/(tabs)/plan" />
-          <Text style={styles.title}>Guests</Text>
+          <Text style={styles.title}>{t('guests.title')}</Text>
           <View style={styles.headerActions}>
             <Pressable
               style={styles.headerButton}
-              onPress={() => router.push('/guest-import')}
+              onPress={() => router.push({ pathname: '/guest-edit' })}
               hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t('guests.addGuest')}
             >
               <UserPlus size={20} color={colors.textPrimary} />
             </Pressable>
@@ -373,12 +382,12 @@ export default function GuestsScreen() {
                     <Text style={styles.guestName}>
                       {item.name}
                       {item.plusOne ? (
-                        <Text style={styles.plusOneLabel}>  plus one</Text>
+                        <Text style={styles.plusOneLabel}>{t('guests.plusOne')}</Text>
                       ) : null}
                     </Text>
                     {item.coupleSlot ? (
                       <View style={styles.coupleBadge}>
-                        <Text style={styles.coupleBadgeText}>Couple</Text>
+                        <Text style={styles.coupleBadgeText}>{t('guests.couple')}</Text>
                       </View>
                     ) : null}
                   </View>
@@ -461,61 +470,81 @@ export default function GuestsScreen() {
                 {statItems.map((stat) => (
                   <View key={stat.label} style={styles.statCard}>
                     <Text style={styles.statValue}>{stat.value}</Text>
-                    <Text style={styles.statLabel}>{stat.label}</Text>
+                    <Text
+                      style={styles.statLabel}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
+                    >
+                      {stat.label}
+                    </Text>
                   </View>
                 ))}
               </View>
 
               <Text style={styles.ageStats}>
-                {`${stats.adults} adults${
-                  stats.children ? ` · ${stats.children} kids` : ''
-                }${stats.babies ? ` · ${stats.babies} babies` : ''}`}
+                {stats.children && stats.babies
+                  ? t('guests.ageStatsAll', {
+                      adults: stats.adults,
+                      children: stats.children,
+                      babies: stats.babies,
+                    })
+                  : stats.children
+                    ? t('guests.ageStatsAdultsChildren', {
+                        adults: stats.adults,
+                        children: stats.children,
+                      })
+                    : stats.babies
+                      ? t('guests.ageStatsAdultsBabies', {
+                          adults: stats.adults,
+                          babies: stats.babies,
+                        })
+                      : t('guests.ageStatsAdults', { adults: stats.adults })}
               </Text>
 
               {guests.length > 0 ? (
                 <View style={styles.exportRow}>
                   <Pressable style={styles.exportButton} onPress={handleDownload}>
                     <Download size={16} color={colors.textPrimary} />
-                    <Text style={styles.exportButtonText}>Download</Text>
+                    <Text style={styles.exportButtonText}>{t('guests.download')}</Text>
                   </Pressable>
                   <View style={styles.exportDivider} />
                   <Pressable style={styles.exportButton} onPress={handlePrint}>
                     <Printer size={16} color={colors.textPrimary} />
-                    <Text style={styles.exportButtonText}>Print</Text>
+                    <Text style={styles.exportButtonText}>{t('guests.print')}</Text>
                   </Pressable>
                 </View>
               ) : null}
 
               {view !== 'rsvp' && (
                 <View style={styles.filtersRow}>
-                  {(['All', 'Attending', 'Waiting', 'Declined'] as const).map(
-                    (chip) => {
-                      const chipValue =
-                        chip === 'All'
-                          ? 'all'
-                          : (chip.toLowerCase() as RsvpStatus);
-                      const selected = filter === chipValue;
-                      return (
-                        <Pressable
-                          key={chip}
+                  {([
+                    { label: t('guests.filterAll'), value: 'all' },
+                    { label: t('guests.filterAttending'), value: 'attending' },
+                    { label: t('guests.filterWaiting'), value: 'waiting' },
+                  ] as const).map((chip) => {
+                    const chipValue = chip.value;
+                    const selected = filter === chipValue;
+                    return (
+                      <Pressable
+                        key={chipValue}
+                        style={[
+                          styles.filterChip,
+                          selected && styles.filterChipSelected,
+                        ]}
+                        onPress={() => setFilter(chipValue)}
+                      >
+                        <Text
                           style={[
-                            styles.filterChip,
-                            selected && styles.filterChipSelected,
+                            styles.filterChipText,
+                            selected && styles.filterChipTextSelected,
                           ]}
-                          onPress={() => setFilter(chipValue)}
                         >
-                          <Text
-                            style={[
-                              styles.filterChipText,
-                              selected && styles.filterChipTextSelected,
-                            ]}
-                          >
-                            {chip}
-                          </Text>
-                        </Pressable>
-                      );
-                    },
-                  )}
+                          {chip.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               )}
 
@@ -525,7 +554,7 @@ export default function GuestsScreen() {
                   style={styles.searchInput}
                   value={search}
                   onChangeText={setSearch}
-                  placeholder="Search guests"
+                  placeholder={t('guests.searchPlaceholder')}
                   placeholderTextColor={colors.textTertiary}
                   autoCorrect={false}
                 />
@@ -538,14 +567,14 @@ export default function GuestsScreen() {
                     autoFocus
                     value={renameValue}
                     onChangeText={setRenameValue}
-                    placeholder="Group name"
+                    placeholder={t('guests.groupNamePlaceholder')}
                     placeholderTextColor={colors.textTertiary}
                   />
                   <Pressable
                     style={styles.renameSave}
                     onPress={handleRenameSubmit}
                   >
-                    <Text style={styles.renameSaveText}>Save</Text>
+                    <Text style={styles.renameSaveText}>{t('guests.save')}</Text>
                   </Pressable>
                   <Pressable
                     style={styles.renameCancel}
@@ -554,7 +583,7 @@ export default function GuestsScreen() {
                       setRenameValue('');
                     }}
                   >
-                    <Text style={styles.renameCancelText}>Cancel</Text>
+                    <Text style={styles.renameCancelText}>{t('guests.cancel')}</Text>
                   </Pressable>
                 </View>
               ) : null}
@@ -574,9 +603,12 @@ export default function GuestsScreen() {
 
         <Pressable
           style={[styles.fab, { bottom: insets.bottom + 24 }]}
-          onPress={() => router.push({ pathname: '/guest-edit' })}
+          onPress={() => router.push('/guest-import')}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('guests.fabAddList')}
         >
-          <Text style={styles.fabText}>+ Add guest</Text>
+          <Plus size={28} color={colors.textPrimary} strokeWidth={2.4} />
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -602,7 +634,7 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     textAlign: 'center',
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
   },
@@ -900,7 +932,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   emptyTitle: {
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
   },
@@ -937,19 +969,25 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.accent,
-    borderRadius: 22,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
     shadowColor: colors.accentDeep,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 5,
   },
-  fabText: {
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.sizes.button,
-    color: colors.textPrimary,
-  },
 });
+
+// Premium screen: see constants/premium.ts.
+export default function GuestsScreenRoute() {
+  return (
+    <PremiumOnly title={t('guests.premiumTitle')}>
+      <GuestsScreen />
+    </PremiumOnly>
+  );
+}

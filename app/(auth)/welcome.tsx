@@ -1,36 +1,20 @@
 import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  Image,
-  Dimensions,
-  StyleSheet,
-  Platform,
-  type ViewStyle,
-} from "react-native";
-import Animated, {
-  Easing,
-  cancelAnimation,
-  interpolate,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withTiming,
-  type SharedValue,
-} from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, StyleSheet, Platform } from "react-native";
+import Animated, { FadeIn, useReducedMotion } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { QrCode } from "lucide-react-native";
 import Svg, { Path } from "react-native-svg";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { router } from "expo-router";
 import { Button } from "../../components/Button";
+import { WelcomeAnimation } from "../../components/WelcomeAnimation";
 import { colors } from "../../constants/colors";
+import { typography } from "../../constants/typography";
 import { authStore } from "../../zustand/auth-store";
 import { usePlannerStore } from "../../zustand/planner";
 import actions from "../../zustand/auth-store/actions";
+import { t } from "../../i18n";
 
 // Apple's mark, which lucide doesn't carry.
 const AppleIcon = ({ color = "#000" }: { color?: string }) => (
@@ -42,187 +26,12 @@ const AppleIcon = ({ color = "#000" }: { color?: string }) => (
   </Svg>
 );
 
-import {
-  WELCOME_HERO_IMAGES,
-  VINTAGE_FILTER,
-  VINTAGE_WASH,
-} from "../../constants/sampleImages";
-
-const { width: SCREEN_W } = Dimensions.get("window");
-
-// ── Auto-sliding arc of hero cards ───────────────────────────────────────────
-// The photos ride an endless conveyor: each one enters off the top-left, flows
-// down through the arc's five cascade slots, and exits off the bottom-right,
-// looping seamlessly so it reads as an automatic slideshow.
-const CARD_W = SCREEN_W * 0.44;
-const CARD_H = CARD_W * 1.3;
-const TOP_INSET = 6; // gap between the highest card and the arc's top edge
-const LOOP_MS = 24000; // time for one photo to travel the whole path
-
-// Five resting slots along the asymmetric cascade: peak just left of centre,
-// then tumbling down to the right, the last curling back lowest. `cx` = centre
-// X as a fraction of the screen; `top` in px (0 = peak); `rot` in degrees.
-const SLOT_LAYOUT = [
-  { cx: 0.04, top: 44, rot: -10 },
-  { cx: 0.33, top: 0, rot: -6 }, //  peak
-  { cx: 0.62, top: 40, rot: 7 },
-  { cx: 0.92, top: 74, rot: 15 },
-  { cx: 0.8, top: 95, rot: 20 }, //  lowest
-];
-const SLOTS = SLOT_LAYOUT.map((c) => ({
-  x: c.cx * SCREEN_W - CARD_W / 2,
-  y: c.top + TOP_INSET,
-  rot: c.rot,
-}));
-const ARC_H = Math.max(...SLOTS.map((s) => s.y + CARD_H)) + 8;
-
-// Off-screen points that bookend the conveyor path.
-const ENTRY = { x: -SCREEN_W * 0.5, y: -CARD_H * 0.35, rot: -18 };
-const EXIT = { x: SCREEN_W * 1.15, y: ARC_H + CARD_H * 0.2, rot: 30 };
-
-// One period of the path as keyframes (u ∈ [0,1]); the trailing entry keyframe
-// at u = 1 closes the loop, so f(1) === f(0). Both ENTRY and EXIT sit fully
-// off-screen, so the exit→entry hop is never seen and the cards stay fully
-// opaque the whole way — they slide in and out like a carousel rather than
-// fading. Each card samples the path at `(driver + its own phase) mod 1`;
-// because the path closes on itself, that wrap is invisible. The modulo is what
-// the old core-Animated version had to fake by doubling every keyframe array —
-// a worklet can just do the arithmetic.
-const U = [0, 0.08, 0.28, 0.48, 0.68, 0.86, 0.999, 1];
-const PATH_X = [ENTRY.x, SLOTS[0].x, SLOTS[1].x, SLOTS[2].x, SLOTS[3].x, SLOTS[4].x, EXIT.x, ENTRY.x];
-const PATH_Y = [ENTRY.y, SLOTS[0].y, SLOTS[1].y, SLOTS[2].y, SLOTS[3].y, SLOTS[4].y, EXIT.y, ENTRY.y];
-const PATH_ROT = [ENTRY.rot, SLOTS[0].rot, SLOTS[1].rot, SLOTS[2].rot, SLOTS[3].rot, SLOTS[4].rot, EXIT.rot, ENTRY.rot];
-const PATH_SCALE = [0.82, 1, 1, 1, 1, 1, 0.82, 0.82];
-
-const CARD_COUNT = WELCOME_HERO_IMAGES.length; // phases evenly spaced → conveyor
-
-// One card on the conveyor. Memoised and driven entirely from the UI thread, so
-// nothing in this subtree re-renders while the loop runs — which is what keeps
-// the photos from flickering when the text above them updates.
-const HeroCard = React.memo(function HeroCard({
-  uri,
-  phase,
-  driver,
-  frozen,
-}: {
-  uri: string;
-  phase: number;
-  driver: SharedValue<number>;
-  frozen: { x: number; y: number; rot: number } | null;
-}) {
-  const animated = useAnimatedStyle<ViewStyle>(() => {
-    if (frozen) {
-      return {
-        transform: [
-          { translateX: frozen.x },
-          { translateY: frozen.y },
-          { rotate: `${frozen.rot}deg` },
-          { scale: 1 },
-        ] as ViewStyle["transform"],
-      };
-    }
-    const u = (driver.get() + phase) % 1;
-    return {
-      transform: [
-        { translateX: interpolate(u, U, PATH_X) },
-        { translateY: interpolate(u, U, PATH_Y) },
-        { rotate: `${interpolate(u, U, PATH_ROT)}deg` },
-        { scale: interpolate(u, U, PATH_SCALE) },
-      ] as ViewStyle["transform"],
-    };
-  });
-
-  return (
-    <Animated.View
-      style={[styles.arcCard, animated]}
-      renderToHardwareTextureAndroid
-      shouldRasterizeIOS
-    >
-      <Image
-        source={{ uri }}
-        style={[StyleSheet.absoluteFill, { filter: VINTAGE_FILTER } as any]}
-        resizeMode="cover"
-        // Android cross-fades a decoded image in over 300ms by default; on a
-        // card that is already moving, that reads as a flicker.
-        fadeDuration={0}
-      />
-      <View style={styles.wash} />
-    </Animated.View>
-  );
-});
-
-// Typewriter title
-const LINE1 = "beautiful";
-const LINE2 = "moments";
-const TOTAL = LINE1.length + 1 + LINE2.length; // +1 for the space
-
-// The reveal ticks ~19 times in the first 1.3s. It lives in its own component so
-// those re-renders stop here and never reach the conveyor above — a parent
-// re-render rebuilds every card's style array, and that was the flicker.
-const TypewriterTitle = React.memo(function TypewriterTitle() {
-  const reduced = useReducedMotion();
-  const [count, setCount] = useState(reduced ? TOTAL : 0);
-
-  useEffect(() => {
-    if (reduced) {
-      setCount(TOTAL);
-      return;
-    }
-    const type = setInterval(() => {
-      setCount((v) => {
-        if (v >= TOTAL) {
-          clearInterval(type);
-          return v;
-        }
-        return v + 1;
-      });
-    }, 68);
-    return () => clearInterval(type);
-  }, [reduced]);
-
-  // Every character stays mounted and is revealed by opacity alone, so the line
-  // never re-measures and the centring never jitters.
-  const chars = (word: string, offset: number) =>
-    [...word].map((ch, i) => (
-      <Text key={i} style={{ opacity: count > offset + i ? 1 : 0 }}>
-        {ch}
-      </Text>
-    ));
-
-  return (
-    <Text style={styles.title}>
-      <Text style={styles.titleThin}>{chars(LINE1, 0)}</Text>
-      <Text> </Text>
-      <Text style={styles.titleBold}>{chars(LINE2, LINE1.length + 1)}</Text>
-    </Text>
-  );
-});
-
+// Same layout as Bebê Enxoval's welcome: the task animation on top, the
+// promise under it, the actions at the bottom. Insets by hand, since the video
+// runs edge to edge.
 export default function Welcome() {
+  const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
-
-  // Single shared driver (0 → 1, looping) powers the conveyor, on the UI thread.
-  const t = useSharedValue(0);
-  const sub = useSharedValue(0);
-
-  useEffect(() => {
-    if (reduced) return;
-    t.set(
-      withRepeat(
-        withTiming(1, { duration: LOOP_MS, easing: Easing.linear }),
-        -1,
-        false
-      )
-    );
-    return () => cancelAnimation(t);
-  }, [reduced, t]);
-
-  useEffect(() => {
-    sub.set(withDelay(900, withTiming(1, { duration: 600 })));
-    return () => cancelAnimation(sub);
-  }, [sub]);
-
-  const subtitleStyle = useAnimatedStyle(() => ({ opacity: sub.get() }));
 
   // Social auth — handlers already live in the auth store.
   const dispatch = authStore((s) => s.dispatch);
@@ -257,142 +66,92 @@ export default function Welcome() {
     }
   };
 
+  const enter = reduced ? undefined : FadeIn.duration(500).delay(250);
+
   return (
-    <SafeAreaView className="flex-1 bg-backgroundPrimary" edges={["top", "bottom"]}>
+    <View style={styles.screen}>
       <StatusBar style="dark" />
 
-      <View className="flex-1 px-8">
-        {/* Wordmark */}
-        <View className="items-center pt-2">
-          <Text style={styles.wordmark}>
-            ever<Text style={{ color: colors.accent }}>ly</Text>
-          </Text>
-        </View>
-
-        {/* Card stage: photos ride an endless conveyor through the arc.
-            Under Reduce Motion the arc simply sits still, filled. */}
-        <View style={styles.arcStage} pointerEvents="none">
-          {WELCOME_HERO_IMAGES.map((uri, i) => (
-            <HeroCard
-              key={uri}
-              uri={uri}
-              phase={i / CARD_COUNT}
-              driver={t}
-              frozen={reduced ? SLOTS[i % SLOTS.length] : null}
-            />
-          ))}
-        </View>
-
-        {/* Title + subtitle — below the cards */}
-        <View style={styles.textBlock}>
-          <TypewriterTitle />
-          <Animated.Text style={[styles.subtitle, subtitleStyle]}>
-            Create an event, gather everyone's photos, and reveal the album
-            together.
-          </Animated.Text>
-        </View>
-
-        {/* Push the actions to the bottom */}
-        <View style={{ flex: 1 }} />
-
-        {/* Actions — Apple is the only account path; QR joins without one. */}
-        <View className="gap-3 pb-4">
-          {appleAvailable && (
-            <>
-              <Button
-                title="Continue with Apple"
-                variant="secondary"
-                icon={<AppleIcon color={colors.textPrimary} />}
-                isLoading={signingIn}
-                disabled={isLoading && !signingIn}
-                onPress={handleApple}
-              />
-
-              {/* Divider. Hidden with the Apple button: off iOS there is nothing
-                  above the guest path for it to separate. */}
-              <View className="flex-row items-center gap-3 my-1">
-                <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-                <Text style={styles.orLabel}>or</Text>
-                <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-              </View>
-            </>
-          )}
-
-          {/* Guest — scan a QR to join an event, no account needed */}
-          <Button
-            title="Scan a QR to join"
-            variant="outline"
-            icon={<QrCode size={20} color={colors.accentDeep} strokeWidth={2.2} />}
-            onPress={() => router.push("/scan")}
-          />
-        </View>
+      {/* Starts below the status bar, with the wordmark above it. The
+          animation takes only the height the copy and buttons leave. */}
+      <View style={[styles.top, { paddingTop: insets.top + 8 }]}>
+        <Text style={styles.wordmark} maxFontSizeMultiplier={1.2}>
+          ever<Text style={{ color: colors.accent }}>ly</Text>
+        </Text>
+        <WelcomeAnimation />
       </View>
-    </SafeAreaView>
+
+      <Animated.View entering={enter} style={styles.copy}>
+        <Text style={styles.title} maxFontSizeMultiplier={1.25}>
+          {t("welcome.title")}
+        </Text>
+        <Text style={styles.subtitle} maxFontSizeMultiplier={1.3}>
+          {t("welcome.subtitle")}
+        </Text>
+      </Animated.View>
+
+      {/* Apple is the only account path; QR joins an event without one. */}
+      <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, 16) + 4 }]}>
+        {appleAvailable && (
+          <Button
+            title={t("welcome.continueWithApple")}
+            variant="secondary"
+            icon={<AppleIcon color={colors.textPrimary} />}
+            isLoading={signingIn}
+            disabled={isLoading && !signingIn}
+            onPress={handleApple}
+          />
+        )}
+        <Button
+          title={t("welcome.scanQrToJoin")}
+          variant="outline"
+          icon={<QrCode size={20} color={colors.accentDeep} strokeWidth={2.2} />}
+          onPress={() => router.push("/scan")}
+        />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.backgroundPrimary,
+  },
   wordmark: {
     fontFamily: "Script",
-    fontSize: 44,
-    lineHeight: 56,
+    fontSize: 40,
+    lineHeight: 52,
     color: colors.textPrimary,
+    textAlign: "center",
   },
-  orLabel: {
-    fontFamily: "Inter-Medium",
-    fontSize: 12,
-    color: colors.textTertiary,
+  top: {
+    flex: 1,
+    minHeight: 0,
   },
-  // Full-bleed arc layer. Negative margin cancels the parent's px-8 so the
-  // cards can run off the true screen edges; overflow stays visible.
-  arcStage: {
-    width: SCREEN_W,
-    height: ARC_H,
-    marginLeft: -32,
-    overflow: "visible",
-  },
-  arcCard: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    width: CARD_W,
-    height: CARD_H,
-    borderRadius: 26,
-    overflow: "hidden",
-    borderWidth: 5,
-    borderColor: "#FFFFFF",
-    backgroundColor: colors.surface2,
-    shadowColor: "#3A2E33",
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.24,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  wash: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: VINTAGE_WASH,
-  },
-  textBlock: {
-    alignItems: "center",
-    paddingTop: 8,
-    paddingBottom: 22,
+  copy: {
+    gap: 12,
+    paddingHorizontal: 32,
+    paddingTop: 12,
+    paddingBottom: 24,
   },
   title: {
-    fontSize: 34,
-    lineHeight: 40,
-    letterSpacing: -1,
+    fontFamily: typography.fonts.title,
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: -0.5,
     color: colors.textPrimary,
     textAlign: "center",
   },
-  titleThin: { fontFamily: "Inter-ExtraLight" },
-  titleBold: { fontFamily: "Inter-ExtraBold" },
   subtitle: {
-    fontFamily: "Inter-Regular",
-    fontSize: 15,
+    fontFamily: typography.fonts.regular,
+    fontSize: 16,
+    lineHeight: 23,
     color: colors.textSecondary,
     textAlign: "center",
-    lineHeight: 22,
-    marginTop: 12,
-    paddingHorizontal: 8,
+  },
+  actions: {
+    gap: 12,
+    paddingHorizontal: 32,
   },
 });

@@ -1,0 +1,8 @@
+{
+  "CFBundleDisplayName": "Everly",
+  "NSCameraUsageDescription": "O Everly precisa da câmera para tirar as fotos dos eventos.",
+  "NSMicrophoneUsageDescription": "O Everly precisa do microfone para gravar vídeos.",
+  "NSPhotoLibraryUsageDescription": "O Everly precisa acessar suas fotos para enviá-las aos eventos.",
+  "NSUserNotificationsUsageDescription": "O Everly precisa enviar notificações sobre novidades e revelações dos eventos.",
+  "NSUserTrackingUsageDescription": "O Everly usa isso para medir o desempenho dos anúncios e melhorar sua experiência. Seus dados nunca são vendidos."
+}

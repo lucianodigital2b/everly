@@ -1,4 +1,5 @@
 import React, { useRef, useState } from "react";
+import { t, LOCALE_TAG } from '../../i18n';
 import {
   ActivityIndicator,
   Alert,
@@ -13,13 +14,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import * as ImagePicker from "expo-image-picker";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import Reanimated, {
   Easing as ReEasing,
-  LinearTransition,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -30,23 +29,20 @@ import Reanimated, {
 import { scheduleOnRN } from "react-native-worklets";
 import { useQueryClient } from "@tanstack/react-query";
 import { ScreenWrapper } from "../../components/ScreenWrapper";
-import { PhonePreview } from "../../components/PhonePreview";
 import { ShotsPerPerson } from "../../components/ShotsPerPerson";
-import { CoverPicker } from "../../components/CoverPicker";
 import { SuccessSheet } from "../../components/SuccessSheet";
-import { Input } from "../../components/Input";
 import { useIsFocused, useRouter } from "expo-router";
 import { colors } from "../../constants/colors";
 import { joinLink } from "../../constants/links";
 import { FILTERS, getFilterMatrix, type FilterKey } from "../../constants/filters";
 import { FilteredImage } from "../../components/FilteredImage";
-import { TiltedEventTypeCards } from "../../components/TiltedEventTypeCards";
 import { eventsApi } from "../../services/api";
 import { revenueCat } from "../../services/revenuecat";
 import { appsFlyerService } from "../../services/appsflyer";
 import { captureStore } from "../../zustand/capture-store";
 import { retryFailedUploads } from "../../zustand/capture-store/uploader";
 import { authStore } from "../../zustand/auth-store";
+import { parseISODate, usePlannerStore } from "../../zustand/planner";
 import {
   COVER_PRESETS,
   coverUploadFile,
@@ -54,7 +50,6 @@ import {
   isHostedCover,
   REVEAL_PREVIEW_IMAGES,
 } from "../../constants/sampleImages";
-import { suggestEventNames } from "../../constants/nameSuggestions";
 import {
   GUEST_TIERS,
   type GuestTier as GuestTierShape,
@@ -75,118 +70,50 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
 
+// The wedding itself (couple, date, cover photo) comes from the planner, so the
+// wizard only asks what is specific to the album.
 const STEPS = [
   {
-    title: "What's the\noccasion?",
-    subtitle: "Give your moment a name and type.",
+    title: t('create.steps.reveal.title'),
+    subtitle: t('create.steps.reveal.subtitle'),
   },
   {
-    title: "Choose the\nreveal moment.",
-    // Replaced at render time by the copy for the selected mode — see REVEAL_COPY.
-    subtitle: "Decide when guests get to see the gallery.",
+    title: t('create.steps.shots.title'),
+    subtitle: t('create.steps.shots.subtitle'),
   },
   {
-    title: "How many\nshots?",
-    subtitle: "Limit photos per guest, or leave blank for unlimited.",
+    title: t('create.steps.mood.title'),
+    subtitle: t('create.steps.mood.subtitle'),
   },
   {
-    title: "Set\nthe mood.",
-    subtitle: "All guests will shoot with this filter for a cohesive album.",
-  },
-  {
-    title: "Add a\ncover photo.",
-    subtitle: "This is how your event will look to guests.",
-  },
-  {
-    title: "Who's\ninvited?",
-    subtitle: "Choose how many guests can join your event.",
+    title: t('create.steps.invited.title'),
+    subtitle: t('create.steps.invited.subtitle'),
   },
 ];
 
-// Ordered roughly by how often people actually create them. Every entry needs a
-// photo in EVENT_TYPE_IMAGE and, ideally, a suggestion pack in
-// constants/nameSuggestions.ts — a type with neither still works, it just falls
-// back to a blank card and the generic names.
-const EVENT_TYPES = [
-  "Wedding",
-  "Birthday",
-  "Party",
-  "Trip",
-  "Anniversary",
-  "Graduation",
-  "Engagement",
-  "Baby Shower",
-  "Sweet 15",
-  "Reunion",
-  "Corporate",
-  "Holiday",
-  "Other",
-];
 // `mode` is sent to the API as `reveal_time`, so those strings are fixed.
 const REVEAL_OPTIONS = [
-  { mode: "Instant", icon: Zap, line1: "During", line2: "the event" },
-  { mode: "End of Event", icon: Hourglass, line1: "After", line2: "the event" },
-  { mode: "Scheduled", icon: CalendarClock, line1: "At a set", line2: "time" },
+  { mode: "Instant", icon: Zap, line1: t('create.revealOptions.instant.line1'), line2: t('create.revealOptions.instant.line2') },
+  { mode: "End of Event", icon: Hourglass, line1: t('create.revealOptions.end.line1'), line2: t('create.revealOptions.end.line2') },
+  { mode: "Scheduled", icon: CalendarClock, line1: t('create.revealOptions.scheduled.line1'), line2: t('create.revealOptions.scheduled.line2') },
 ] as const;
 
 // The subtitle under the step heading describes the choice that's selected,
 // so the preview above and the words below always say the same thing.
 const REVEAL_COPY: Record<string, string> = {
-  "": "Pick when the photos become visible. Until then, nobody sees a thing.",
-  Instant:
-    "Every photo appears the moment it's taken — guests watch the album fill up live.",
-  "End of Event":
-    "Photos stay hidden until the event ends. Then the whole gallery opens at once.",
-  Scheduled:
-    "Photos stay hidden until the time you set. Then the whole gallery opens at once.",
+  "": t('create.revealCopy.empty'),
+  Instant: t('create.revealCopy.instant'),
+  "End of Event": t('create.revealCopy.end'),
+  Scheduled: t('create.revealCopy.scheduled'),
 };
 
-// ─── Name-idea motion ─────────────────────────────────────────────────────────
+// ─── Step motion ──────────────────────────────────────────────────────────────
 
 const IDEA_EASE = ReEasing.bezier(0.23, 1, 0.32, 1);
 /** The row sits just under the name field, so it comes from and leaves upward. */
-const IDEA_SLIDE = 14;
-
-// Taking a suggestion fills the field and the row has no reason to exist any
-// more — but vanishing on the same frame as the tap reads as a glitch. It slides
-// back up behind the field instead.
-const ideasIn = (reduced: boolean) => () => {
-  "worklet";
-  return {
-    initialValues: {
-      opacity: 0,
-      transform: [{ translateY: reduced ? 0 : -IDEA_SLIDE }],
-    },
-    animations: {
-      opacity: withTiming(1, { duration: 200, easing: IDEA_EASE }),
-      transform: [
-        { translateY: withSpring(0, { duration: 400, dampingRatio: 0.85 }) },
-      ],
-    },
-  };
-};
-
-const ideasOut = (reduced: boolean) => () => {
-  "worklet";
-  return {
-    initialValues: { opacity: 1, transform: [{ translateY: 0 }] },
-    animations: {
-      opacity: withTiming(0, { duration: 160, easing: IDEA_EASE }),
-      transform: [
-        {
-          translateY: withTiming(reduced ? 0 : -IDEA_SLIDE, {
-            duration: 200,
-            easing: IDEA_EASE,
-          }),
-        },
-      ],
-    },
-  };
-};
-
 // A step block leaves the tree the instant the wizard commits the next step —
 // but any descendant still running an `exiting` animation (the shot counter's
-// rolling digits on step 2, the name-idea chips on step 0) makes Reanimated
+// rolling digits on the shots step) makes Reanimated
 // hold the *whole* outgoing block in the tree until that finishes. The step
 // content all shares one animated container, so the incoming step's fade-in
 // then fades the leftover back in with it: the camera deck from "How many
@@ -500,26 +427,6 @@ const FILTER_HERO_H = Math.round(FILTER_HERO_W * 1.24);
 const FILTER_THUMB = 60;
 
 const styles = StyleSheet.create({
-  ideaRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: -14,
-    marginBottom: 24,
-  },
-  idea: {
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: colors.surface2,
-    borderWidth: 1,
-    borderColor: "rgba(46,36,41,0.06)",
-  },
-  ideaText: {
-    fontFamily: "Inter-Medium",
-    fontSize: 13,
-    color: colors.accentDeep,
-  },
   divider: {
     height: 1,
     backgroundColor: "rgba(30,24,16,0.07)",
@@ -665,20 +572,40 @@ type WizardForm = {
   publicGallery: boolean;
 };
 
+// The album's name: the couple, as the planner has them.
+const weddingAlbumName = () => {
+  const { partnerA, partnerB } = usePlannerStore.getState();
+  const a = partnerA.trim();
+  const b = partnerB.trim();
+  if (a && b) return `${a} & ${b}`;
+  return a || b || t('create.defaultAlbumName');
+};
+
+// The album closes (and an "End of Event" reveal flips) on the wedding night.
+const weddingNightEnd = (): Date | null => {
+  const { weddingDate } = usePlannerStore.getState();
+  if (!weddingDate) return null;
+  const end = parseISODate(weddingDate);
+  end.setHours(23, 59, 0, 0);
+  return end;
+};
+
+// Read at call time, not at import: the planner store hydrates from storage
+// after this module loads.
 const emptyForm = (): WizardForm => ({
-  name: "",
-  type: "",
-  expires_at: null,
-  revealMode: "",
+  name: weddingAlbumName(),
+  type: "Wedding",
+  expires_at: weddingNightEnd(),
+  // A wedding album is meant to be opened together after the party.
+  revealMode: "End of Event",
   revealDate: null,
   // A roll of 10 — enough for a night out, few enough that guests aim. "" is
   // unlimited, so the default has to be spelled out.
   shotLimit: "10",
   participantLimit: "",
   filter: "none",
-  // The mock is never shown empty: it opens on the first stock cover so the
-  // step reads as "swap this photo" rather than "figure out what goes here".
-  coverImage: COVER_PRESETS[0].uri,
+  // The couple's photo from the planner; a stock wedding cover until there is one.
+  coverImage: usePlannerStore.getState().coverUri ?? COVER_PRESETS[0].uri,
   publicGallery: true,
 });
 
@@ -695,12 +622,13 @@ const emptyForm = (): WizardForm => ({
 const draft: {
   step: number;
   tierIndex: number;
-  form: WizardForm;
+  form: WizardForm | null;
   createdEvent: PendingCreatedEvent | null;
 } = {
   step: 0,
   tierIndex: 0,
-  form: emptyForm(),
+  // Filled on first mount, once the planner store has hydrated.
+  form: null,
   createdEvent: null,
 };
 
@@ -840,7 +768,7 @@ const GuestStepper = ({
               marginTop: 4,
             }}
           >
-            {tier.participants === "custom" ? "unlimited guests" : "guests"}
+            {tier.participants === "custom" ? t('create.guestStepper.unlimitedGuests') : t('create.guestStepper.guests')}
           </Text>
         </Reanimated.View>
 
@@ -942,7 +870,7 @@ const GuestStepper = ({
             textAlign: "center",
           }}
         >
-          {tier.price === 0 ? "Free" : `$${tier.price.toFixed(2)} one-time`}
+          {tier.price === 0 ? t('create.guestStepper.free') : t('create.guestStepper.oneTime', { price: `$${tier.price.toFixed(2)}` })}
         </Text>
       </Reanimated.View>
     </View>
@@ -989,7 +917,9 @@ export default function CreateScreen() {
   // to report failures — nothing in this screen waits on it.
   const uploads = captureStore((s) => s.uploads);
   const pendingUploads = uploads.filter((u) => u.status === "pending").length;
-  const [formData, setFormData] = useState<WizardForm>(draft.form);
+  const [formData, setFormData] = useState<WizardForm>(
+    () => draft.form ?? (draft.form = emptyForm()),
+  );
 
   // Mirror the answers into the draft on every change, so whatever the screen
   // survives — or doesn't — the next mount restores them.
@@ -1124,45 +1054,19 @@ export default function CreateScreen() {
     if (step === 0) {
       // Create is a tab root — nothing to pop. Fall back to the events tab.
       if (router.canGoBack()) router.back();
-      else router.replace("/(tabs)");
+      else router.replace("/(tabs)/albums");
     } else animateToStep(step - 1);
   };
 
-  // Rebuilt only when the account name or the chosen type changes.
-  const nameIdeas = React.useMemo(
-    () => suggestEventNames(user?.name, formData.type),
-    [user?.name, formData.type]
-  );
-
   const canContinue = () => {
     if (step === 0)
-      return formData.name.trim().length > 0 && formData.type.length > 0;
-    if (step === 1)
       return (
         formData.revealMode.length > 0 &&
-        (formData.revealMode !== "Scheduled" || formData.revealDate !== null)
+        (formData.revealMode !== "Scheduled" || formData.revealDate !== null) &&
+        // "End of Event" flips when the event ends: without an end it never would.
+        (formData.revealMode !== "End of Event" || formData.expires_at !== null)
       );
     return true;
-  };
-
-  // ─── Image picker ────────────────────────────────────────────────────────────
-
-  const pickCoverImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return;
-
-    // Portrait 9:16 — the cover fills a phone screen (in the step-4 mock and in
-    // the guest's event view), so a landscape crop would be letterboxed away.
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [9, 16],
-      quality: 0.85,
-    });
-
-    if (!result.canceled) {
-      setFormData((prev) => ({ ...prev, coverImage: result.assets[0].uri }));
-    }
   };
 
   // ─── Back from the camera ──────────────────────────────────
@@ -1199,8 +1103,8 @@ export default function CreateScreen() {
     // copy of the destination and keeps going.
     captureStore.getState().clear();
 
-    // Switch to the events tab *before* opening the event, so backing out of it
-    // lands on the home list. Pushing straight from here left the create tab
+    // Switch to the albums tab *before* opening the event, so backing out of it
+    // lands on the album list. Pushing straight from here left the create tab
     // underneath, and the wizard has already reset itself by this point — so
     // closing the freshly made event dropped the user on a blank step 1, which
     // reads as being asked to create it all over again.
@@ -1225,14 +1129,12 @@ export default function CreateScreen() {
 
     Alert.alert(
       failedUploads.length === uploads.length
-        ? "Your photos didn't upload"
-        : "Some photos didn't upload",
-      `${failedUploads.length} of ${uploads.length} failed${
-        failedUploads[0]?.error ? ` — ${failedUploads[0].error}` : ""
-      }.`,
+        ? t('create.uploadAlert.allTitle')
+        : t('create.uploadAlert.someTitle'),
+      `${t('create.uploadAlert.message', { failed: failedUploads.length, total: uploads.length })}${failedUploads[0]?.error ? t('create.uploadAlert.errorSuffix', { error: failedUploads[0].error }) : ''}.`,
       [
-        { text: "Not now", style: "cancel" },
-        { text: "Try again", onPress: () => retryFailedUploads() },
+        { text: t('create.uploadAlert.buttons.notNow'), style: "cancel" },
+        { text: t('create.uploadAlert.buttons.tryAgain'), onPress: () => retryFailedUploads() },
       ],
     );
   }, [pendingUploads, failedUploads.length, uploads.length]);
@@ -1252,6 +1154,10 @@ export default function CreateScreen() {
     name: formData.name,
     plan_id: GUEST_TIERS[tierIndex].planId,
     reveal_time: formData.revealMode || undefined,
+    reveal_at:
+      formData.revealMode === "Scheduled"
+        ? formData.revealDate?.toISOString()
+        : undefined,
     expires_at: formData.expires_at?.toISOString() ?? undefined,
     shot_limit: formData.shotLimit
       ? parseInt(formData.shotLimit, 10)
@@ -1434,26 +1340,26 @@ export default function CreateScreen() {
   ) => {
     const copy = {
       cancelled: [
-        "Purchase cancelled",
-        "You weren't charged. Your event is saved with the free 5-guest limit — try again, choose another pack, or continue and upgrade later.",
+        t('create.purchaseFallback.cancelled.title'),
+        t('create.purchaseFallback.cancelled.message'),
       ],
       unavailable: [
-        "Guest pack unavailable",
-        "We couldn't load this pack from the store. Your event is saved with the free 5-guest limit — try again, choose another pack, or continue and upgrade later.",
+        t('create.purchaseFallback.unavailable.title'),
+        t('create.purchaseFallback.unavailable.message'),
       ],
       failed: [
-        "Purchase didn't complete",
-        "The store couldn't finish the purchase. Your event is saved with the free 5-guest limit — try again, choose another pack, or continue and upgrade later.",
+        t('create.purchaseFallback.failed.title'),
+        t('create.purchaseFallback.failed.message'),
       ],
     }[reason];
 
     Alert.alert(copy[0], copy[1], [
-      { text: "Try again", onPress: () => void handleCreate() },
+      { text: t('create.purchaseFallback.buttons.tryAgain'), onPress: () => void handleCreate() },
       {
-        text: "Continue with 5 guests",
+        text: t('create.purchaseFallback.buttons.continueWith5'),
         onPress: () => void continueWithFreeTier(event),
       },
-      { text: "Choose another pack", style: "cancel" },
+      { text: t('create.purchaseFallback.buttons.chooseAnother'), style: "cancel" },
     ]);
   };
 
@@ -1488,8 +1394,8 @@ export default function CreateScreen() {
         e?.response?.data?.message ||
         e?.response?.data?.error ||
         e?.message ||
-        "Something went wrong. Please try again.";
-      Alert.alert("Couldn't create event", message);
+        t('create.createAlert.fallbackMessage');
+      Alert.alert(t('create.createAlert.title'), message);
     } finally {
       setIsCreating(false);
     }
@@ -1497,19 +1403,8 @@ export default function CreateScreen() {
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-  // The caption under the title on the cover mock. Always today's date, set
-  // like a plate — day, month spelled out, year, parted by hairline dots — and
-  // uppercased by the preview's own style. Stand-in dressing for the preview,
-  // the same way the mock's status bar wears the current time; the event's real
-  // dates are its own fields.
-  const coverDateLabel = React.useMemo(() => {
-    const now = new Date();
-    const month = now.toLocaleString("en-US", { month: "long" });
-    return `${now.getDate()} · ${month} · ${now.getFullYear()}`;
-  }, []);
-
   const expiresAtLabel = formData.expires_at
-    ? formData.expires_at.toLocaleString("en-US", {
+    ? formData.expires_at.toLocaleString(LOCALE_TAG, {
         weekday: "long",
         year: "numeric",
         month: "long",
@@ -1520,7 +1415,7 @@ export default function CreateScreen() {
     : null;
 
   const revealDateLabel = formData.revealDate
-    ? formData.revealDate.toLocaleString("en-US", {
+    ? formData.revealDate.toLocaleString(LOCALE_TAG, {
         month: "short",
         day: "numeric",
         year: "numeric",
@@ -1626,66 +1521,13 @@ export default function CreateScreen() {
                 marginBottom: 32,
               }}
             >
-              {step === 1
-                ? (REVEAL_COPY[formData.revealMode] ?? STEPS[1].subtitle)
+              {step === 0
+                ? (REVEAL_COPY[formData.revealMode] ?? STEPS[0].subtitle)
                 : STEPS[step].subtitle}
             </Text>
 
-            {/* ── Step 0: Basics ── */}
+            {/* ── Step 0: Reveal ── */}
             {step === 0 && (
-              <Reanimated.View exiting={stepBlockOut}>
-                <Input
-                  label="Event Name"
-                  placeholder="e.g. Sarah & James's Wedding"
-                  value={formData.name}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, name: text })
-                  }
-                  onClear={() => setFormData({ ...formData, name: "" })}
-                  containerStyle="mb-6"
-                  autoFocus={isFocused}
-                />
-
-                {/* Starter names, in the phone's language. They sharpen once a
-                    type is picked, and step aside the moment anything is typed. */}
-                {formData.name.trim().length === 0 && nameIdeas.length > 0 && (
-                  <Reanimated.View
-                    style={styles.ideaRow}
-                    entering={ideasIn(reducedMotion)}
-                    exiting={ideasOut(reducedMotion)}
-                  >
-                    {nameIdeas.map((idea) => (
-                      <TouchableOpacity
-                        key={idea}
-                        activeOpacity={0.75}
-                        onPress={() => setFormData({ ...formData, name: idea })}
-                        style={styles.idea}
-                      >
-                        <Text style={styles.ideaText}>{idea}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </Reanimated.View>
-                )}
-
-                {/* Closes the gap the row leaves behind, instead of snapping up
-                    the moment it's gone. */}
-                <Reanimated.View
-                  layout={
-                    reducedMotion ? undefined : LinearTransition.duration(260)
-                  }
-                >
-                  <SectionLabel>Event Type</SectionLabel>
-                  <TiltedEventTypeCards
-                    types={EVENT_TYPES}
-                    selected={formData.type}
-                    onSelect={(type) => setFormData({ ...formData, type })}
-                  />
-                </Reanimated.View>
-              </Reanimated.View>
-            )}
-
-            {/* ── Step 1: Reveal ── */}
-            {step === 1 && (
               <View>
                 <RevealPreview mode={formData.revealMode} />
 
@@ -1704,10 +1546,10 @@ export default function CreateScreen() {
 
                 {formData.revealMode === "Scheduled" && (
                   <View style={{ marginTop: 26 }}>
-                    <SectionLabel>Reveal Date & Time</SectionLabel>
+                    <SectionLabel>{t('create.sectionLabels.revealDateTime')}</SectionLabel>
                     <DatePickerRow
                       value={revealDateLabel}
-                      placeholder="Select reveal date & time"
+                      placeholder={t('create.datePicker.placeholders.reveal')}
                       onPress={() => setDatePickerOpen("reveal")}
                     />
                   </View>
@@ -1715,16 +1557,16 @@ export default function CreateScreen() {
 
                 <View style={styles.divider} />
 
-                <SectionLabel>Event Ends</SectionLabel>
+                <SectionLabel>{t('create.sectionLabels.eventEnds')}</SectionLabel>
                 <DatePickerRow
                   value={expiresAtLabel}
-                  placeholder="Select an end date & time"
+                  placeholder={t('create.datePicker.placeholders.expires')}
                   onPress={() => setDatePickerOpen("expires_at")}
                 />
 
                 <View style={styles.divider} />
 
-                <SectionLabel>Who can see the photos</SectionLabel>
+                <SectionLabel>{t('create.sectionLabels.whoCanSee')}</SectionLabel>
                 <View style={styles.toggleRow}>
                   <Switch
                     value={formData.publicGallery}
@@ -1740,17 +1582,17 @@ export default function CreateScreen() {
                   />
                   <Text style={styles.toggleText}>
                     {formData.publicGallery
-                      ? "Everyone can see every photo."
-                      : "Guests only see the photos they took."}
+                      ? t('create.toggle.everyoneSees')
+                      : t('create.toggle.guestsOnly')}
                   </Text>
                 </View>
               </View>
             )}
 
-            {/* ── Step 2: Shot limit ── */}
-            {step === 2 && (
+            {/* ── Step 1: Shot limit ── */}
+            {step === 1 && (
               <Reanimated.View exiting={stepBlockOut}>
-                <SectionLabel>Shots per person</SectionLabel>
+                <SectionLabel>{t('create.sectionLabels.shotsPerPerson')}</SectionLabel>
                 <ShotsPerPerson
                   value={formData.shotLimit}
                   onChange={(shotLimit) =>
@@ -1759,17 +1601,17 @@ export default function CreateScreen() {
                 />
                 <HintText>
                   {formData.shotLimit
-                    ? `Every guest gets ${formData.shotLimit} shots. Scarcity is the point — they'll make each one count.`
-                    : "Guests can shoot as much as they like. Pick a limit if you'd rather they made each frame count."}
+                    ? t('create.hints.shotLimit.withLimit', { count: formData.shotLimit })
+                    : t('create.hints.shotLimit.unlimited')}
                 </HintText>
               </Reanimated.View>
             )}
 
-            {/* ── Step 3: Filter ── */}
+            {/* ── Step 2: Filter ── */}
             {/* The cover leads and the presets follow: the big card shows the
                 chosen look on the actual event photo, the row under it is just
                 swatches of the same frame. */}
-            {step === 3 && (
+            {step === 2 && (
               <View style={{ alignItems: "center" }}>
                 <FilterHero
                   uri={formData.coverImage ?? FILTER_PREVIEW_URI}
@@ -1807,32 +1649,8 @@ export default function CreateScreen() {
               </View>
             )}
 
-            {/* ── Step 4: Cover photo + Preview ── */}
-            {/* The picker and the preview are the same object: the device mock
-                *is* the tap target, so the photo lands where it will live. */}
-            {step === 4 && (
-              <View style={{ flex: 1, justifyContent: "center" }}>
-                <PhonePreview
-                  title={formData.name}
-                  date={coverDateLabel}
-                  coverUri={formData.coverImage}
-                  filter={formData.filter}
-                  onPress={pickCoverImage}
-                />
-                <View style={{ marginTop: 22 }}>
-                  <CoverPicker
-                    value={formData.coverImage}
-                    onSelect={(coverImage) =>
-                      setFormData({ ...formData, coverImage })
-                    }
-                    onPickOwn={pickCoverImage}
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* ── Step 5: Who's invited (stepper) ── */}
-            {step === 5 && (
+            {/* ── Step 3: Who's invited (stepper) ── */}
+            {step === 3 && (
               <View
                 style={{ flex: 1, justifyContent: "center", paddingBottom: 80 }}
               >
@@ -1851,8 +1669,8 @@ export default function CreateScreen() {
                 />
                 <HintText>
                   {GUEST_TIERS[tierIndex].price === 0
-                    ? "Starter is free — upgrade anytime after creating your event."
-                    : "One-time charge. No subscription required."}
+                    ? t('create.tierHint.free')
+                    : t('create.tierHint.paid')}
                 </HintText>
               </View>
             )}
@@ -1961,9 +1779,9 @@ export default function CreateScreen() {
 
       <SuccessSheet
         visible={successEvent !== null}
-        title="Parabéns"
-        subtitle="Seu evento foi criado. Envie o link abaixo para os convidados."
-        actionLabel="Continuar"
+        title={t('create.success.title')}
+        subtitle={t('create.success.subtitle')}
+        actionLabel={t('create.success.actionLabel')}
         link={successEvent?.token ? joinLink(successEvent.token) : undefined}
         onDismiss={dismissSuccessSheet}
       />

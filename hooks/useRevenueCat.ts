@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { revenueCat } from '../services/revenuecat';
+import { t } from '../i18n';
 
 type RCInfo = any;
 type RCOfferings = any;
@@ -27,7 +28,7 @@ export const useRevenueCat = () => {
       setOfferings(offs);
       setGuestPacks(packs);
     } catch (e: any) {
-      setError(e?.message ?? 'Unknown error');
+      setError(e?.message ?? t('revenueCat.unknownError'));
     } finally {
       setLoading(false);
     }

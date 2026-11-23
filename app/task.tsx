@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Trash2 } from 'lucide-react-native';
 import { BackButton } from '../components/BackButton';
+import { t } from '../i18n';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
 import {
@@ -76,11 +77,11 @@ export default function TaskScreen() {
       <View style={styles.container}>
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <BackButton fallback="/(tabs)/plan" />
-          <Text style={styles.headerTitle}>Task</Text>
+          <Text style={styles.headerTitle}>{t('task.headerTitle')}</Text>
           <View style={styles.topBarRight} />
         </View>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Task not found</Text>
+          <Text style={styles.emptyTitle}>{t('task.notFound')}</Text>
         </View>
       </View>
     );
@@ -114,10 +115,10 @@ export default function TaskScreen() {
   };
 
   const handleRemove = () => {
-    Alert.alert('Remove task?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('task.removeAlert.title'), t('task.removeAlert.message'), [
+      { text: t('task.removeAlert.cancel'), style: 'cancel' },
       {
-        text: 'Remove',
+        text: t('task.removeAlert.remove'),
         style: 'destructive',
         onPress: () => {
           removeCustomTask(task.id);
@@ -138,7 +139,7 @@ export default function TaskScreen() {
     <View style={styles.container}>
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
         <BackButton fallback="/(tabs)/plan" />
-        <Text style={styles.headerTitle}>Task</Text>
+        <Text style={styles.headerTitle}>{t('task.headerTitle')}</Text>
         <View style={styles.topBarRight}>
           {task.custom ? (
             <Pressable onPress={handleRemove} hitSlop={8}>
@@ -161,7 +162,7 @@ export default function TaskScreen() {
           </View>
           {task.essential ? (
             <View style={[styles.pill, styles.essentialPill]}>
-              <Text style={[styles.pillText, styles.essentialText]}>Essential</Text>
+              <Text style={[styles.pillText, styles.essentialText]}>{t('task.essential')}</Text>
             </View>
           ) : null}
         </View>
@@ -188,7 +189,7 @@ export default function TaskScreen() {
                 mark?.state === 'done' && styles.statusButtonTextDone,
               ]}
             >
-              {mark?.state === 'done' ? 'Done ✓' : 'Mark done'}
+              {mark?.state === 'done' ? t('task.status.done') : t('task.status.markDone')}
             </Text>
           </Pressable>
           <Pressable
@@ -204,7 +205,7 @@ export default function TaskScreen() {
                 mark?.state === 'skipped' && styles.statusButtonTextSkipped,
               ]}
             >
-              {mark?.state === 'skipped' ? 'Unskip' : 'Skip'}
+              {mark?.state === 'skipped' ? t('task.status.unskip') : t('task.status.skip')}
             </Text>
           </Pressable>
         </View>
@@ -220,24 +221,24 @@ export default function TaskScreen() {
 
         {task.tip ? (
           <View style={styles.card}>
-            <Text style={styles.cardLabel}>Tip</Text>
+            <Text style={styles.cardLabel}>{t('task.tip')}</Text>
             <Text style={styles.tipText}>{task.tip}</Text>
           </View>
         ) : null}
 
         {task.custom ? (
           <View style={styles.card}>
-            <Text style={styles.cardLabel}>Task title</Text>
+            <Text style={styles.cardLabel}>{t('task.custom.taskTitle')}</Text>
             <TextInput
               style={styles.input}
               value={titleDraft}
               onChangeText={setTitleDraft}
               onBlur={handleTitleBlur}
-              placeholder="Task title"
+              placeholder={t('task.custom.taskTitlePlaceholder')}
               placeholderTextColor={colors.textTertiary}
             />
 
-            <Text style={styles.cardLabel}>Phase</Text>
+            <Text style={styles.cardLabel}>{t('task.custom.phase')}</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -269,7 +270,7 @@ export default function TaskScreen() {
         ) : null}
 
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Notes</Text>
+          <Text style={styles.cardLabel}>{t('task.notes')}</Text>
           <TextInput
             style={[styles.input, styles.noteInput]}
             value={noteDraft}
@@ -277,7 +278,7 @@ export default function TaskScreen() {
               setNoteDraft(text);
               setNote(task.id, text);
             }}
-            placeholder="Add details, links, pronunciations..."
+            placeholder={t('task.notesPlaceholder')}
             placeholderTextColor={colors.textTertiary}
             multiline
           />
@@ -285,10 +286,10 @@ export default function TaskScreen() {
 
         {task.budgetCategoryId || taskExpenses.length > 0 ? (
           <View style={styles.card}>
-            <Text style={styles.cardLabel}>Costs</Text>
+            <Text style={styles.cardLabel}>{t('task.costs.title')}</Text>
             {allocated !== undefined ? (
               <Text style={styles.allocatedText}>
-                Planned for this category: {compactUsd(allocated)}
+                {t('task.costs.planned', { amount: compactUsd(allocated) })}
               </Text>
             ) : null}
             {taskExpenses.map((expense) => (
@@ -299,7 +300,10 @@ export default function TaskScreen() {
               >
                 <Text style={styles.expenseLabel}>{expense.label}</Text>
                 <Text style={styles.expenseAmount}>
-                  {formatUsd(expense.estimated)} · paid {formatUsd(expense.paid)}
+                  {t('task.costs.expenseAmount', {
+                    estimated: formatUsd(expense.estimated),
+                    paid: formatUsd(expense.paid),
+                  })}
                 </Text>
               </Pressable>
             ))}
@@ -313,7 +317,7 @@ export default function TaskScreen() {
                 )
               }
             >
-              <Text style={styles.addCostText}>Add cost</Text>
+              <Text style={styles.addCostText}>{t('task.costs.addCost')}</Text>
             </Pressable>
           </View>
         ) : null}
@@ -338,7 +342,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
   },
@@ -360,7 +364,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyTitle: {
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: typography.sizes.h3,
     color: colors.textPrimary,
   },
@@ -391,7 +395,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fonts.semibold,
   },
   title: {
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.title,
     fontSize: 28,
     lineHeight: 34,
     color: colors.textPrimary,

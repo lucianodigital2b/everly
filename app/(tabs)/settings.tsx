@@ -3,12 +3,15 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Lin
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
-import { CreditCard, Bell, HelpCircle, Shield, Trash2, ChevronRight, LogOut } from 'lucide-react-native';
+import { CreditCard, Bell, HelpCircle, Shield, Trash2, ChevronRight, LogOut, Sparkles, Globe } from 'lucide-react-native';
+import { loadDemoWedding } from '../../utils/devSeed';
 import { colors } from '../../constants/colors';
 import { authApi } from '../../services/api';
+import { wipeLocalData } from '../../utils/wipeLocalData';
 import { useRevenueCat } from '../../hooks/useRevenueCat';
 import { authStore } from '../../zustand/auth-store';
 import actions from '../../zustand/auth-store/actions';
+import { t, LANGUAGE } from '../../i18n';
 
 const SUPPORT_EMAIL = 'luciano@getclevernote.app';
 const PRIVACY_URL = 'https://everly.koffeecode.com/privacy';
@@ -24,7 +27,7 @@ const CARD_SHADOW = {
   elevation: 3,
 };
 
-const SettingItem = ({ icon: Icon, label, onPress, isDestructive = false }: any) => (
+const SettingItem = ({ icon: Icon, label, onPress, isDestructive = false, value }: any) => (
   <TouchableOpacity
     onPress={onPress}
     className="flex-row items-center justify-between py-4 border-b border-white/10"
@@ -37,7 +40,12 @@ const SettingItem = ({ icon: Icon, label, onPress, isDestructive = false }: any)
         {label}
       </Text>
     </View>
-    <ChevronRight size={20} color={colors.textSecondary} />
+    <View className="flex-row items-center">
+      {value ? (
+        <Text className="font-sans text-sm text-textSecondary mr-1">{value}</Text>
+      ) : null}
+      <ChevronRight size={20} color={colors.textSecondary} />
+    </View>
   </TouchableOpacity>
 );
 
@@ -51,49 +59,54 @@ export default function SettingsScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t("settings.signOutTitle"), t("settings.signOutMessage"), [
+      { text: t("settings.cancel"), style: 'cancel' },
       {
-        text: 'Sign Out',
+        text: t("settings.signOutTitle"),
         style: 'destructive',
         onPress: async () => {
           await logout();
-          // Root index re-reads the (now cleared) token and routes to welcome;
-          // sending straight to sign-in skips that gate and hides the guest path.
-          router.replace('/');
+          // Straight to welcome: '/' also matches the Home tab (app/(tabs)/index),
+          // so replacing to '/' left the signed-out user inside the app.
+          if (router.canDismiss()) router.dismissAll();
+          router.replace('/(auth)/welcome');
         },
       },
     ]);
   };
 
   const handleHelp = async () => {
-    const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Everly — Help')}`;
+    const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(t('settings.helpSubject'))}`;
     if (await Linking.canOpenURL(url)) {
       Linking.openURL(url);
     } else {
-      Alert.alert('No mail app', `Reach us at ${SUPPORT_EMAIL}.`);
+      Alert.alert(t('settings.noMailApp'), t('settings.reachUs', { email: SUPPORT_EMAIL }));
     }
   };
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Delete Account',
-      'This permanently deletes your account, your events and every photo your guests uploaded. This cannot be undone.',
+      t("settings.deleteAccountTitle"),
+      t("settings.deleteAccountMessage"),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t("settings.cancel"), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t("settings.delete"),
           style: 'destructive',
           onPress: async () => {
             setIsDeleting(true);
             try {
               await authApi.deleteAccount();
+              // The plan, budget and guest list are stored only on this phone;
+              // the server delete can't reach them.
+              await wipeLocalData();
               await logout();
-              router.replace('/');
+              if (router.canDismiss()) router.dismissAll();
+              router.replace('/(auth)/welcome');
             } catch (e: any) {
               Alert.alert(
-                "Couldn't delete account",
-                e?.response?.data?.message ?? 'Please try again, or contact support.'
+                t("settings.deleteAccountErrorTitle"),
+                e?.response?.data?.message ?? t("settings.deleteAccountErrorFallback")
               );
             } finally {
               setIsDeleting(false);
@@ -106,7 +119,7 @@ export default function SettingsScreen() {
 
   return (
     <ScreenWrapper>
-      <Text className="text-3xl font-serif text-textPrimary mt-6 mb-8">Settings</Text>
+      <Text className="text-3xl font-serif text-textPrimary mt-6 mb-8">{t("settings.title")}</Text>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Account — the signed-in user, not a link to a screen that doesn't exist */}
@@ -118,34 +131,52 @@ export default function SettingsScreen() {
           </View>
           <View className="flex-1">
             <Text className="font-sansSemiBold text-base text-textPrimary" numberOfLines={1}>
-              {user?.name ?? 'Your account'}
+              {user?.name ?? t("settings.yourAccount")}
             </Text>
             <Text className="font-sans text-xs text-textSecondary mt-0.5" numberOfLines={1}>
-              {user?.email ?? '—'}
+              {user?.email ?? t("settings.noEmail")}
             </Text>
           </View>
         </View>
 
         <View className="bg-backgroundSecondary rounded-3xl p-6 mb-6" style={CARD_SHADOW}>
-          <SettingItem icon={CreditCard} label="Purchases" onPress={openCustomerCenter} />
-          <SettingItem icon={Bell} label="Notifications" onPress={() => Linking.openSettings()} />
-          <SettingItem icon={HelpCircle} label="Help" onPress={handleHelp} />
-          <SettingItem icon={Shield} label="Privacy Policy" onPress={() => Linking.openURL(PRIVACY_URL)} />
+          <SettingItem icon={CreditCard} label={t("settings.purchases")} onPress={openCustomerCenter} />
+          <SettingItem icon={Bell} label={t("settings.notifications")} onPress={() => Linking.openSettings()} />
+          {/* iOS per-app language (Settings > Everly > Language): the app declares en + pt
+              in app.json "locales", and i18n reads it at launch; iOS relaunches the app on change. */}
+          <SettingItem
+            icon={Globe}
+            label={t("settings.language")}
+            value={LANGUAGE === 'pt' ? 'Português' : 'English'}
+            onPress={() => Linking.openSettings()}
+          />
+          <SettingItem icon={HelpCircle} label={t("settings.help")} onPress={handleHelp} />
+          <SettingItem icon={Shield} label={t("settings.privacyPolicy")} onPress={() => Linking.openURL(PRIVACY_URL)} />
+          {__DEV__ ? (
+            <SettingItem
+              icon={Sparkles}
+              label={t("settings.loadDemoWedding")}
+              onPress={() => {
+                loadDemoWedding();
+                router.push('/(tabs)/plan');
+              }}
+            />
+          ) : null}
         </View>
 
         <View className="bg-backgroundSecondary rounded-3xl p-6" style={CARD_SHADOW}>
-          <SettingItem icon={LogOut} label="Sign Out" onPress={handleLogout} isDestructive />
+          <SettingItem icon={LogOut} label={t("settings.signOutTitle")} onPress={handleLogout} isDestructive />
           {isDeleting ? (
             <View className="py-4 items-center">
               <ActivityIndicator color={colors.error} />
             </View>
           ) : (
-            <SettingItem icon={Trash2} label="Delete Account" onPress={handleDeleteAccount} isDestructive />
+            <SettingItem icon={Trash2} label={t("settings.deleteAccountTitle")} onPress={handleDeleteAccount} isDestructive />
           )}
         </View>
 
         <Text className="text-center text-textSecondary font-sansSemiBold text-xs mt-8">
-          Everly v{Constants.expoConfig?.version}
+          {t("settings.appVersion", { version: Constants.expoConfig?.version })}
         </Text>
       </ScrollView>
     </ScreenWrapper>

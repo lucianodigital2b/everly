@@ -47,11 +47,24 @@ export type RevenueCatOffering = any;
 export type RevenueCatCustomerInfo = any;
 export type RevenueCatPackage = any;
 
-// Only public SDK keys belong in the app: appl_… (iOS) and goog_… (Android).
-// A secret key (sk_…) is rejected by the backend and must never ship.
+// Dev and preview builds run under suffixed bundle ids (com.get.everly.dev,
+// see app.config.js). StoreKit resolves products against the *running* id and
+// no store record exists for `.dev`, so every product comes back invalid and
+// the paywall / guest packs show no plans.
+//
+// Debug bundles therefore use RevenueCat's Test Store (EXPO_PUBLIC_RC_TEST, a
+// `test_` key): same offerings, same package ids, purchases simulated by a
+// RevenueCat dialog. Debug only on purpose: the SDK refuses a Test Store key in
+// a release build. Never add it to an EAS environment.
+const TEST_STORE_KEY = process.env.EXPO_PUBLIC_RC_TEST;
+export const USING_TEST_STORE = __DEV__ && !!TEST_STORE_KEY;
+
+// Only public SDK keys belong in the app: appl_… (iOS), goog_… (Android) and
+// test_… (Test Store, debug only). A secret key (sk_…) must never ship.
 const getApiKeyForPlatform = (explicit?: string) => {
   const key =
     explicit ??
+    (USING_TEST_STORE ? TEST_STORE_KEY : undefined) ??
     (Platform.OS === "ios"
       ? process.env.EXPO_PUBLIC_RC_IOS
       : Platform.OS === "android"
@@ -306,8 +319,70 @@ const hasActiveEntitlement = (
   return !!active;
 };
 
+// ── Premium subscription (offering "premium", entitlement "premium") ─────────
+// Separate from the guest packs, which stay in the current `default` offering
+// and are sold as a one-off upsell on top of the subscription.
+const PREMIUM_OFFERING_ID = "premium";
+
+const isReady = () => !!Purchases;
+
+/** True only once `configure()` actually ran with an API key. A hard paywall
+ *  must never go up without it: no plan could load, so the wall would leave
+ *  nothing on screen that works (dev builds without .env.local, Expo Go). */
+const isConfigured = async (): Promise<boolean> => {
+  if (!Purchases) return false;
+  try {
+    return !!(await Purchases.isConfigured?.());
+  } catch {
+    return false;
+  }
+};
+
+const getPremiumPackages = async (): Promise<RevenueCatPackage[]> => {
+  if (!Purchases) return [];
+  try {
+    const offerings = await Purchases.getOfferings();
+    return offerings?.all?.[PREMIUM_OFFERING_ID]?.availablePackages ?? [];
+  } catch (e) {
+    console.warn("[RevenueCat] getPremiumPackages failed", e);
+    return [];
+  }
+};
+
+/**
+ * Subscriber attributes (e.g. ob_source from the plan wizard), so a purchase
+ * in RevenueCat can be traced back to where the couple heard about Everly.
+ * No-op when the SDK is missing or not configured yet.
+ */
+const setAttributes = async (attributes: Record<string, string | null>) => {
+  if (!Purchases) return;
+  try {
+    if (!(await Purchases.isConfigured?.())) return;
+    await Purchases.setAttributes(attributes);
+  } catch (e) {
+    console.warn("[RevenueCat] setAttributes failed", e);
+  }
+};
+
+const addCustomerInfoUpdateListener = (listener: (info: any) => void) => {
+  if (!Purchases) return () => {};
+  Purchases.addCustomerInfoUpdateListener(listener);
+  return () => Purchases?.removeCustomerInfoUpdateListener?.(listener);
+};
+
+const removeCustomerInfoUpdateListener = (listener: (info: any) => void) => {
+  if (!Purchases) return;
+  Purchases.removeCustomerInfoUpdateListener(listener);
+};
+
 export const revenueCat = {
   configure,
+  isReady,
+  isConfigured,
+  getPremiumPackages,
+  setAttributes,
+  addCustomerInfoUpdateListener,
+  removeCustomerInfoUpdateListener,
   logIn,
   logOut,
   linkAppsFlyer,

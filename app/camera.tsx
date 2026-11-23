@@ -38,14 +38,15 @@ import {
   startUploadSession,
 } from "../zustand/capture-store/uploader";
 import { authStore } from "../zustand/auth-store";
+import { t } from "../i18n";
 
 // ── Control cycles ──────────────────────────────────────────────────────────
 type Flash = "off" | "on" | "auto";
 const FLASH_NEXT: Record<Flash, Flash> = { off: "on", on: "auto", auto: "off" };
 const FLASH_LABEL: Record<Flash, string> = {
-  off: "Off",
-  on: "On",
-  auto: "Auto",
+  off: t("camera.flash.off"),
+  on: t("camera.flash.on"),
+  auto: t("camera.flash.auto"),
 };
 
 const TIMERS = [0, 3, 10] as const;
@@ -270,13 +271,13 @@ export default function CameraScreen() {
       <SafeAreaView style={styles.permWrap}>
         <StatusBar style="light" />
         <Camera size={40} color={colors.accentBright} strokeWidth={1.5} />
-        <Text style={styles.permTitle}>Camera access</Text>
+        <Text style={styles.permTitle}>{t("camera.permissionTitle")}</Text>
         <Text style={styles.permText}>
-          Everly needs your camera to capture photos for this event.
+          {t("camera.permissionText")}
         </Text>
         <View style={{ width: "100%", marginTop: 20, gap: 10 }}>
-          <Button title="Allow camera" onPress={requestPermission} />
-          <Button title="Not now" variant="outline" onPress={finish} />
+          <Button title={t("camera.allowCamera")} onPress={requestPermission} />
+          <Button title={t("camera.notNow")} variant="outline" onPress={finish} />
         </View>
       </SafeAreaView>
     );
@@ -377,7 +378,7 @@ export default function CameraScreen() {
             <View style={styles.uploadPill} pointerEvents="none">
               <View style={styles.uploadDot} />
               <Text style={styles.uploadText}>
-                Uploading {uploadingCount}
+                {t("camera.uploading", { count: uploadingCount })}
               </Text>
             </View>
           )}
@@ -385,7 +386,7 @@ export default function CameraScreen() {
           {done && (
             <View style={styles.noShots}>
               <Text style={styles.noShotsText}>
-                You've used all {total} shots
+                {t("camera.allShotsUsed", { count: total })}
               </Text>
             </View>
           )}
@@ -396,7 +397,7 @@ export default function CameraScreen() {
           {/* Control row */}
           <View style={styles.controlRow}>
             <MetalButton
-              label="Flash"
+              label={t("camera.flashLabel")}
               onPress={() => setFlash((f) => FLASH_NEXT[f])}
             >
               {flash === "off" ? (
@@ -412,7 +413,7 @@ export default function CameraScreen() {
             </MetalButton>
 
             <MetalButton
-              label={timerSecs === 0 ? "Timer" : `${timerSecs}s`}
+              label={timerSecs === 0 ? t("camera.timer") : t("camera.timerSeconds", { seconds: timerSecs })}
               onPress={() => setTimerIdx((i) => (i + 1) % TIMERS.length)}
             >
               <Timer
@@ -423,7 +424,7 @@ export default function CameraScreen() {
             </MetalButton>
 
             <MetalButton
-              label="Flip"
+              label={t("camera.flip")}
               onPress={() =>
                 setFacing((f) => (f === "back" ? "front" : "back"))
               }
@@ -431,7 +432,7 @@ export default function CameraScreen() {
               <RefreshCw size={22} color="#fff" strokeWidth={1.9} />
             </MetalButton>
 
-            <MetalButton label="Grid" onPress={() => setGrid((g) => !g)}>
+            <MetalButton label={t("camera.grid")} onPress={() => setGrid((g) => !g)}>
               <Grid3x3
                 size={22}
                 color={grid ? colors.accentBright : "#fff"}
@@ -453,7 +454,9 @@ export default function CameraScreen() {
             >
               <Check size={16} color="#fff" strokeWidth={2.6} />
               <Text style={styles.doneText}>
-                Done{captured.length > 0 ? ` · ${captured.length}` : ""}
+                {captured.length > 0
+                  ? t("camera.doneWithCount", { count: captured.length })
+                  : t("camera.done")}
               </Text>
             </Pressable>
 

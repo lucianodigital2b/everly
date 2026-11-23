@@ -23,6 +23,7 @@ import Reanimated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
+import { t, LOCALE_TAG } from '../i18n';
 import {
   Aperture,
   Calendar,
@@ -51,18 +52,18 @@ import { CoverPicker } from "./CoverPicker";
 const REVEAL_OPTIONS = [
   {
     mode: "Instant",
-    label: "During the event",
-    hint: "Every photo appears the moment it's taken.",
+    label: t('eventSettings.revealOptions.instant.label'),
+    hint: t('eventSettings.revealOptions.instant.hint'),
   },
   {
     mode: "End of Event",
-    label: "After the event",
-    hint: "The whole gallery opens at once when the event ends.",
+    label: t('eventSettings.revealOptions.end.label'),
+    hint: t('eventSettings.revealOptions.end.hint'),
   },
   {
     mode: "Scheduled",
-    label: "At a set time",
-    hint: "The gallery opens at the time you choose.",
+    label: t('eventSettings.revealOptions.scheduled.label'),
+    hint: t('eventSettings.revealOptions.scheduled.hint'),
   },
 ] as const;
 
@@ -93,8 +94,8 @@ interface EventSettingsSheetProps {
 }
 
 const formatDate = (value?: string | null) => {
-  if (!value) return "Not set";
-  return new Date(value).toLocaleDateString("en-US", {
+  if (!value) return t('eventSettings.formatDate.notSet');
+  return new Date(value).toLocaleDateString(LOCALE_TAG, {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -104,10 +105,10 @@ const formatDate = (value?: string | null) => {
 };
 
 const guestLabel = (limit: number | null | undefined) =>
-  limit == null ? "Unlimited" : `Up to ${limit} guests`;
+  limit == null ? t('eventSettings.guestLabel.unlimited') : t('eventSettings.guestLabel.upTo', { limit });
 
 const shotLabel = (limit: number | null | undefined) =>
-  limit == null ? "Unlimited" : `${limit} photo${limit === 1 ? "" : "s"}`;
+  limit == null ? t('eventSettings.shotLabel.unlimited') : t('eventSettings.shotLabel.photo', { count: limit });
 
 // ─── Rows ─────────────────────────────────────────────────────────────────────
 
@@ -338,8 +339,8 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
         e?.response?.data?.message ||
         e?.response?.data?.error ||
         e?.message ||
-        "Couldn't save that change.";
-      Alert.alert("Change not saved", message);
+        t('eventSettings.save.alert.fallback');
+      Alert.alert(t('eventSettings.save.alert.title'), message);
     } finally {
       setSaving(false);
     }
@@ -349,8 +350,8 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert(
-        "Photo access needed",
-        "Allow photo access to use one of your own pictures as the cover.",
+        t('eventSettings.pickOwnCover.permission.title'),
+        t('eventSettings.pickOwnCover.permission.message'),
       );
       return;
     }
@@ -368,7 +369,7 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
   const saveNameAndCover = () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      Alert.alert("Name required", "An event needs a name.");
+      Alert.alert(t('eventSettings.name.requiredAlert.title'), t('eventSettings.name.requiredAlert.message'));
       return;
     }
     const changedCover = cover !== event.cover_image_url;
@@ -407,8 +408,8 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
       const match = packs.find((p: any) => p.lookupKey === tier.lookupKey);
       if (!match) {
         Alert.alert(
-          "Guest pack unavailable",
-          "We couldn't load this pack from the store. Try again in a moment.",
+          t('eventSettings.buyTier.unavailable.title'),
+          t('eventSettings.buyTier.unavailable.message'),
         );
         return;
       }
@@ -418,8 +419,8 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
         // A dismissed store sheet is not an error worth a dialog.
         if (isUserCancelled(res.error)) return;
         Alert.alert(
-          "Purchase didn't complete",
-          "The store couldn't finish the purchase. You weren't charged.",
+          t('eventSettings.buyTier.failed.title'),
+          t('eventSettings.buyTier.failed.message'),
         );
         return;
       }
@@ -429,14 +430,14 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
       await refresh();
       setPanel("root");
       Alert.alert(
-        "Guests added",
-        "The new allowance appears as soon as the store confirms the purchase.",
+        t('eventSettings.buyTier.success.title'),
+        t('eventSettings.buyTier.success.message'),
       );
     } catch (e: any) {
       if (isUserCancelled(e)) return;
       Alert.alert(
-        "Purchase didn't complete",
-        e?.message ?? "The store couldn't finish the purchase.",
+        t('eventSettings.buyTier.failed.title'),
+        e?.message ?? t('eventSettings.buyTier.failed.message'),
       );
     } finally {
       setSaving(false);
@@ -445,12 +446,12 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
 
   const confirmDelete = () => {
     Alert.alert(
-      "Delete event?",
-      "The event and every photo in it are removed for good. This can't be undone.",
+      t('eventSettings.delete.title'),
+      t('eventSettings.delete.message'),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t('eventSettings.delete.cancel'), style: "cancel" },
         {
-          text: "Delete",
+          text: t('eventSettings.delete.confirm'),
           style: "destructive",
           onPress: async () => {
             try {
@@ -459,8 +460,8 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
               onDeleted();
             } catch (e: any) {
               Alert.alert(
-                "Couldn't delete",
-                e?.response?.data?.message ?? e?.message ?? "Try again.",
+                t('eventSettings.delete.errorTitle'),
+                e?.response?.data?.message ?? e?.message ?? t('eventSettings.delete.errorFallback'),
               );
             }
           },
@@ -474,57 +475,57 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
     FILTERS.find((f) => f.key === (event.filter ?? "none")) ?? FILTERS[0];
   const revealLabel =
     REVEAL_OPTIONS.find((o) => o.mode === event.reveal_time)?.label ??
-    "After the event";
+    t('eventSettings.revealOptions.end.label');
 
   // ── Panels ──
   const panels: Record<Panel, { title: string; body: React.ReactNode }> = {
     root: {
-      title: "Event settings",
+      title: t('eventSettings.root.title'),
       body: (
         <>
           <Row
             icon={ImageIcon}
-            label="Name & cover"
+            label={t('eventSettings.rows.nameAndCover')}
             value={event.name}
             onPress={() => setPanel("name")}
           />
           <Row
             icon={Calendar}
-            label="End date"
+            label={t('eventSettings.rows.endDate')}
             value={formatDate(event.expires_at)}
             onPress={() => setPanel("expires")}
           />
           <Row
             icon={Hourglass}
-            label="Reveal time"
+            label={t('eventSettings.rows.revealTime')}
             value={revealLabel}
             onPress={() => setPanel("reveal")}
           />
           <Row
             icon={Aperture}
-            label="Camera style"
+            label={t('eventSettings.rows.cameraStyle')}
             value={currentFilter.label}
             onPress={() => setPanel("filter")}
           />
           <Row
             icon={Users}
-            label="Participants"
+            label={t('eventSettings.rows.participants')}
             value={guestLabel(event.participant_limit)}
             onPress={() => setPanel("guests")}
           />
           <Row
             icon={Camera}
-            label="Shots per person"
+            label={t('eventSettings.rows.shotsPerPerson')}
             value={shotLabel(event.shot_limit)}
             onPress={() => setPanel("shots")}
           />
           <ToggleRow
             icon={Unlock}
-            label="Everyone sees every photo"
+            label={t('eventSettings.toggle.everyoneSees')}
             hint={
               event.public
-                ? "Guests browse the whole gallery."
-                : "Guests only see the photos they took."
+                ? t('eventSettings.toggle.hint.all')
+                : t('eventSettings.toggle.hint.private')
             }
             value={!!event.public}
             disabled={saving}
@@ -532,7 +533,7 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
           />
           <Row
             icon={Trash2}
-            label="Delete event"
+            label={t('eventSettings.rows.deleteEvent')}
             onPress={confirmDelete}
             danger
             last
@@ -542,14 +543,14 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
     },
 
     name: {
-      title: "Name & cover",
+      title: t('eventSettings.name.title'),
       body: (
         <View style={styles.panelBody}>
-          <Text style={styles.fieldLabel}>Event name</Text>
+          <Text style={styles.fieldLabel}>{t('eventSettings.name.fieldLabel')}</Text>
           <TextInput
             value={name}
             onChangeText={setName}
-            placeholder="Sarah & James"
+            placeholder={t('eventSettings.name.placeholder')}
             placeholderTextColor={colors.textTertiary}
             style={styles.input}
             maxLength={255}
@@ -567,7 +568,7 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
             {saving ? (
               <ActivityIndicator color={colors.textPrimary} />
             ) : (
-              <Text style={styles.primaryLabel}>Save</Text>
+              <Text style={styles.primaryLabel}>{t('eventSettings.name.save')}</Text>
             )}
           </Pressable>
         </View>
@@ -575,12 +576,11 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
     },
 
     expires: {
-      title: "End date",
+      title: t('eventSettings.expires.title'),
       body: (
         <View style={styles.panelBody}>
           <Text style={styles.panelHint}>
-            When the event closes. Guests can't upload after it, and an
-            "after the event" reveal opens the gallery at this moment.
+            {t('eventSettings.expires.hint')}
           </Text>
           <Pressable
             onPress={() => setDatePicker("expires")}
@@ -596,7 +596,7 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
     },
 
     reveal: {
-      title: "Reveal time",
+      title: t('eventSettings.reveal.title'),
       body: (
         <View style={styles.panelBody}>
           {REVEAL_OPTIONS.map((option) => (
@@ -632,11 +632,11 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
     },
 
     filter: {
-      title: "Camera style",
+      title: t('eventSettings.filter.title'),
       body: (
         <View style={styles.panelBody}>
           <Text style={styles.panelHint}>
-            Every guest shoots in this look, so the album stays of a piece.
+            {t('eventSettings.filter.hint')}
           </Text>
           {FILTERS.map((preset) => (
             <Option
@@ -651,13 +651,11 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
     },
 
     guests: {
-      title: "Participants",
+      title: t('eventSettings.guests.title'),
       body: (
         <View style={styles.panelBody}>
           <Text style={styles.panelHint}>
-            A guest pack raises this event's guest limit to that number. It's a
-            one-off purchase, not a subscription — and the allowance only moves
-            up.
+            {t('eventSettings.guests.hint')}
           </Text>
           {GUEST_TIERS.map((tier) => {
             const isCurrent = currentTier?.planId === tier.planId;
@@ -675,10 +673,10 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
                 key={tier.planId}
                 label={
                   tier.participants === "custom"
-                    ? "Unlimited guests"
-                    : `${tier.participants} guests`
+                    ? t('eventSettings.guests.unlimitedGuests')
+                    : t('eventSettings.guests.guests', { count: tier.participants })
                 }
-                hint={isCurrent ? "Current allowance" : tier.title}
+                hint={isCurrent ? t('eventSettings.guests.currentAllowance') : tier.title}
                 trailing={
                   isCurrent || !bigger
                     ? undefined
@@ -698,17 +696,16 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
     },
 
     shots: {
-      title: "Shots per person",
+      title: t('eventSettings.shots.title'),
       body: (
         <View style={styles.panelBody}>
           <Text style={styles.panelHint}>
-            How many photos each guest may take. Lower limits make people choose
-            their moment.
+            {t('eventSettings.shots.hint')}
           </Text>
           {SHOT_STOPS.map((stop) => (
             <Option
               key={String(stop)}
-              label={stop === null ? "Unlimited" : `${stop} photos`}
+              label={stop === null ? t('eventSettings.shots.unlimited') : t('eventSettings.shots.photos', { count: stop })}
               selected={(event.shot_limit ?? null) === stop}
               // `stop` is sent as-is: null is what clears the limit, and
               // `undefined` would drop the key and leave the old one in place.
@@ -758,7 +755,7 @@ export const EventSettingsSheet: React.FC<EventSettingsSheetProps> = ({
                 onPress={() => setPanel("root")}
                 style={styles.headerSide}
                 accessibilityRole="button"
-                accessibilityLabel="Back to settings"
+                accessibilityLabel={t('eventSettings.backToSettings')}
               >
                 <ChevronLeft size={22} color={colors.textPrimary} />
               </Pressable>

@@ -26,13 +26,33 @@ const getScheme = () => {
   return 'everly';
 };
 
+// Inside a running `expo start` / `expo run:*` dev server only, skip the
+// fingerprint runtime version. The CLI recomputes the fingerprint on *every*
+// manifest request (no cache) and on this Windows machine that takes ~10-12s,
+// while the dev client gives up after 10s (EXDevLauncherDefaultRequestTimeout),
+// so scanning the QR code timed out. The dev client ignores runtimeVersion when
+// loading from a local Metro server, so a fixed string is safe there.
+// EXPO_DEV_SERVER_ORIGIN is set by the CLI once the dev server is listening and
+// is never set for `eas build`, `eas update` or a plain fingerprint resolve, so
+// builds and OTA updates keep `policy: fingerprint` and the same hash.
+const IN_DEV_SERVER = Boolean(process.env.EXPO_DEV_SERVER_ORIGIN);
+
 export default ({ config }) => ({
   ...config,
+  ...(IN_DEV_SERVER ? { runtimeVersion: 'local-dev-server' } : null),
   name: getAppName(),
   scheme: getScheme(),
   ios: {
     ...config.ios,
     bundleIdentifier: getUniqueIdentifier(),
+    // Shared with the widget extension (targets/activity), which
+    // @bacons/apple-targets syncs to the same group: the app writes the plan
+    // snapshot here and the Home Screen widget reads it. One group per variant,
+    // derived the same way on the Swift side (see EverlyShared.appGroup).
+    entitlements: {
+      ...(config.ios && config.ios.entitlements),
+      'com.apple.security.application-groups': [`group.${getUniqueIdentifier()}`],
+    },
   },
   android: {
     ...config.android,

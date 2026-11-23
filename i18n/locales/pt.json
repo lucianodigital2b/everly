@@ -1,0 +1,1569 @@
+{
+  "plan": {
+    "building": {
+      "title": "Criando seu plano…",
+      "mappingTasks_one": "Mapeando {{count}} tarefa para a sua data",
+      "mappingTasks_other": "Mapeando {{count}} tarefas para a sua data",
+      "splittingBudget": "Dividindo seu orçamento em 9 categorias",
+      "settingUpBudget": "Configurando seu orçamento",
+      "creatingGuestGroups": "Criando grupos de convidados para {{names}}",
+      "markingBooked": "Marcando o que você já contratou",
+      "savingVibe": "Salvando o estilo do casamento"
+    },
+    "guestEstimates": {
+      "under50": "Menos de 50",
+      "from50to100": "50-100",
+      "from100to150": "100-150",
+      "from150to200": "150-200",
+      "over200": "200+"
+    },
+    "wizard": {
+      "stepLabel": "Etapa {{current}} de {{total}}",
+      "step0Title": "Quem vai casar?",
+      "step0Subtitle": "Adicione o casal.",
+      "yourName": "Seu nome",
+      "yourFirstNamePlaceholder": "Seu primeiro nome",
+      "partnerName": "Nome do seu par",
+      "partnerFirstNamePlaceholder": "Primeiro nome do seu par",
+      "skipForNow": "Pular por enquanto",
+      "step1Title": "Quando é o grande dia?",
+      "step1Subtitle": "Escolha a data para a contagem regressiva e a linha do tempo.",
+      "weddingDate": "Data do casamento",
+      "selectDate": "Selecione uma data",
+      "step2Title": "Qual é o estilo?",
+      "step2Subtitle": "Escolha uma cor principal e um estilo. Você pode mudar quando quiser.",
+      "mainColor": "Cor principal",
+      "style": "Estilo",
+      "step3Title": "Estação e lua de mel",
+      "step3Subtitle": "Adivinhamos a estação pela sua data.",
+      "season": "Estação",
+      "dreamHoneymoon": "Lua de mel dos sonhos",
+      "step4Title": "Quantos convidados, mais ou menos?",
+      "step4Subtitle": "Isso ajuda você a acompanhar a margem da sua lista.",
+      "step5Title": "Qual é o orçamento total?",
+      "step5Subtitle": "Você pode mudar isso depois em Orçamento.",
+      "budgetPlaceholder": "ex.: 15000",
+      "notSureYet": "Ainda não sei",
+      "step6Title": "Já contratou algo?",
+      "step6Subtitle": "Selecione o que já está fechado e marcaremos essas tarefas como concluídas.",
+      "nothingYet": "Nada ainda",
+      "continue": "Continuar",
+      "buildMyPlan": "Criar meu plano",
+      "step7Title": "Como você conheceu o Everly?",
+      "step7Subtitle": "Um toque só, e ajuda a gente demais.",
+      "sourceAppStore": "Busca na App Store",
+      "sourceFriend": "Amigo ou família",
+      "sourceOther": "Outro",
+      "roleTitle": "Quem está organizando?",
+      "roleSubtitle": "A gente ajusta o plano pra você.",
+      "typeTitle": "Que tipo de casamento?",
+      "typeSubtitle": "Escolha o mais parecido.",
+      "worryTitle": "O que mais te preocupa?",
+      "worrySubtitle": "A gente começa por isso.",
+      "noDateYet": "Ainda não definimos a data",
+      "approxDateHint": "Mais ou menos quando?",
+      "roles": {
+        "bride": "A noiva",
+        "groom": "O noivo",
+        "both": "Nós dois",
+        "planner": "Cerimonialista",
+        "family": "Família ou madrinha"
+      },
+      "types": {
+        "civil_party": "Civil + festa",
+        "religious_party": "Religioso + festa",
+        "mini": "Mini wedding",
+        "civil_only": "Só o civil",
+        "destination": "Destination wedding",
+        "elopement": "Elopement (só nós dois)"
+      },
+      "worries": {
+        "budget": "Estourar o orçamento",
+        "forgetting": "Esquecer alguma coisa importante",
+        "guests": "Lista de convidados e família",
+        "time": "Falta de tempo",
+        "photos": "Não ter as fotos dos convidados",
+        "vendors": "Achar bons fornecedores"
+      }
+    },
+    "form": {
+      "title": "Planeje seu casamento",
+      "subtitle": "Adicione o casal e o grande dia.",
+      "saveChanges": "Salvar alterações"
+    },
+    "cancel": "Cancelar",
+    "progress": {
+      "tasks": "Tarefas",
+      "guests": "Convidados",
+      "budget": "Orçamento",
+      "add": "Adicionar",
+      "set": "Definir",
+      "yourList": "sua lista",
+      "ofPlanned": "de ~{{count}} planejados",
+      "attending": "confirmados",
+      "essentialsLeft": "{{count}} itens essenciais restantes",
+      "noEssentialsLeft": "nenhum item essencial restante",
+      "ofTotal": "de {{total}}",
+      "yourBudget": "seu orçamento"
+    },
+    "overdueText_one": "{{count}} tarefa de fases anteriores ainda está pendente",
+    "overdueText_other": "{{count}} tarefas de fases anteriores ainda estão pendentes",
+    "next": {
+      "upNextLabel": "A SEGUIR",
+      "markDone": "Marcar como feita"
+    },
+    "about": {
+      "title": "Sobre o nosso casamento",
+      "add": "Adicionar",
+      "clear": "Limpar"
+    },
+    "timelineCard": {
+      "title": "Linha do tempo",
+      "subtitle": "Cada tarefa por data, filtre por status"
+    },
+    "phase": {
+      "now": "Agora",
+      "overdueTag": "{{count}} atrasadas",
+      "addTask": "Adicionar tarefa"
+    },
+    "taskRow": {
+      "essential": "Essencial",
+      "skipped": "Pulada"
+    },
+    "resetAlert": {
+      "title": "Redefinir plano?",
+      "message": "Isso apagará todo o progresso e detalhes do planejamento."
+    },
+    "reset": "Redefinir plano"
+  },
+  "task": {
+    "headerTitle": "Tarefa",
+    "notFound": "Tarefa não encontrada",
+    "removeAlert": {
+      "title": "Remover tarefa?",
+      "message": "Isso não pode ser desfeito.",
+      "cancel": "Cancelar",
+      "remove": "Remover"
+    },
+    "essential": "Essencial",
+    "status": {
+      "done": "Concluída ✓",
+      "markDone": "Marcar como feita",
+      "unskip": "Desfazer pular",
+      "skip": "Pular"
+    },
+    "tip": "Dica",
+    "custom": {
+      "taskTitle": "Título da tarefa",
+      "taskTitlePlaceholder": "Título da tarefa",
+      "phase": "Fase"
+    },
+    "notes": "Notas",
+    "notesPlaceholder": "Adicione detalhes, links, pronúncias...",
+    "costs": {
+      "title": "Custos",
+      "planned": "Planejado para esta categoria: {{amount}}",
+      "expenseAmount": "{{estimated}} · pago {{paid}}",
+      "addCost": "Adicionar custo"
+    }
+  },
+  "taskNew": {
+    "headerTitle": "Nova tarefa",
+    "taskTitle": "Título da tarefa",
+    "taskTitlePlaceholder": "ex.: Peça uma foto da família para a tia Beth",
+    "phase": "Fase",
+    "addTask": "Adicionar tarefa"
+  },
+  "timeline": {
+    "headerTitle": "Linha do tempo",
+    "emptyTitle": "Defina a data do casamento primeiro",
+    "goToPlan": "Ir para o plano",
+    "summaryDone": "{{done}} de {{total}} concluídas",
+    "summaryEssentialsLeft": " · {{count}} itens essenciais restantes",
+    "filters": {
+      "toDo": "A fazer ({{count}})",
+      "done": "Concluídas ({{count}})",
+      "all": "Todas ({{count}})"
+    },
+    "essentialsToggle": "Essenciais",
+    "jumpChip": "{{title}} · {{count}}",
+    "now": "Agora",
+    "overdueTag": "{{count}} atrasadas",
+    "upNext": "A SEGUIR",
+    "markDone": "Marcar como feita",
+    "skip": "Pular",
+    "emptyTodo": "Tudo pronto por aqui",
+    "emptyOther": "Nada aqui",
+    "essential": "Essencial",
+    "addTask": "+ Adicionar tarefa"
+  },
+  "weddingPlan": {
+    "phases": {
+      "p12": {
+        "title": "10-12+ meses antes",
+        "subtitle": "Planejamento geral e reservas"
+      },
+      "p7": {
+        "title": "7-9 meses antes",
+        "subtitle": "Garanta seus principais fornecedores"
+      },
+      "p4": {
+        "title": "4-6 meses antes",
+        "subtitle": "Detalhes e decisões finais"
+      },
+      "p2": {
+        "title": "2-3 meses antes",
+        "subtitle": "Papelada, convites e provas"
+      },
+      "p1": {
+        "title": "Último mês",
+        "subtitle": "Finalize tudo e aproveite"
+      },
+      "w2": {
+        "title": "Últimas 2 semanas",
+        "subtitle": "Encerre os detalhes finais"
+      },
+      "d0": {
+        "title": "Dia do casamento",
+        "subtitle": "Esteja presente e celebre"
+      },
+      "after": {
+        "title": "Depois do casamento",
+        "subtitle": "Agradecimentos, fotos e novos nomes"
+      }
+    },
+    "categories": {
+      "planning": "Planejamento",
+      "ceremony": "Cerimônia",
+      "reception": "Recepção",
+      "photo": "Foto",
+      "music": "Música",
+      "attire": "Vestuário",
+      "beauty": "Beleza",
+      "flowers": "Flores",
+      "paper": "Papelaria",
+      "legal": "Documentação",
+      "rings": "Alianças",
+      "honeymoon": "Lua de mel",
+      "guests": "Convidados",
+      "camera": "Câmera"
+    },
+    "tasks": {
+      "set_budget": {
+        "title": "Definir orçamento total",
+        "tip": "Decida quanto vocês podem gastar antes de fechar qualquer fornecedor.",
+        "actionLabel": "Abrir orçamento"
+      },
+      "draft_guest_list": {
+        "title": "Rascunhar lista de convidados",
+        "tip": "Faça uma estimativa cedo para que as cotações de local e buffet fiquem realistas.",
+        "actionLabel": "Abrir lista de convidados"
+      },
+      "choose_wedding_date": {
+        "title": "Escolher a data do casamento",
+        "tip": "Escolha uma data que funcione para as famílias e para o local dos sonhos."
+      },
+      "book_ceremony_venue": {
+        "title": "Reservar local da cerimônia",
+        "tip": "Reserve o lugar onde vocês dirão os votos.",
+        "actionLabel": "Adicionar custo"
+      },
+      "book_reception_venue": {
+        "title": "Reservar local da recepção",
+        "tip": "Garanta o espaço para jantar e dança, se for separado da cerimônia.",
+        "actionLabel": "Adicionar custo"
+      },
+      "hire_planner": {
+        "title": "Contratar assessoria",
+        "tip": "Uma cerimonialista pode economizar tempo e reduzir o estresse se o orçamento permitir.",
+        "actionLabel": "Adicionar custo"
+      },
+      "book_photographer": {
+        "title": "Reservar fotógrafo",
+        "tip": "Reserve cedo porque os bons fotógrafos têm agenda cheia.",
+        "actionLabel": "Adicionar custo"
+      },
+      "book_videographer": {
+        "title": "Reservar cinegrafista",
+        "tip": "Registre o dia em movimento para revivê-lo.",
+        "actionLabel": "Adicionar custo"
+      },
+      "book_caterer": {
+        "title": "Fechar buffet",
+        "tip": "Faça degustação e confirme se atendem ao número de convidados.",
+        "actionLabel": "Adicionar custo"
+      },
+      "start_wedding_website": {
+        "title": "Criar site do casamento",
+        "tip": "Crie um site simples com a história do casal, detalhes de viagem e links de lista de presentes."
+      },
+      "research_marriage_license": {
+        "title": "Pesquisar requisitos para habilitação",
+        "tip": "Verifique as regras do cartório agora para não ter surpresas quando for dar entrada."
+      },
+      "book_florist": {
+        "title": "Contratar florista",
+        "tip": "Compartilhe fotos de inspiração e combinem o orçamento de flores.",
+        "actionLabel": "Adicionar custo"
+      },
+      "book_dj_band": {
+        "title": "Fechar DJ ou banda",
+        "tip": "Ouça amostras ou assista a uma apresentação antes de fechar.",
+        "actionLabel": "Adicionar custo"
+      },
+      "send_save_the_dates": {
+        "title": "Enviar save the dates",
+        "tip": "Avise os convidados sobre a data cedo para que possam se planejar.",
+        "actionLabel": "Adicionar custo"
+      },
+      "buy_wedding_dress": {
+        "title": "Comprar vestido de noiva",
+        "tip": "Encomende cedo, pois vestidos sob medida podem levar meses.",
+        "actionLabel": "Adicionar custo"
+      },
+      "book_officiant": {
+        "title": "Contratar celebrante",
+        "tip": "Encontre alguém que personalize a cerimônia para vocês.",
+        "actionLabel": "Adicionar custo"
+      },
+      "choose_wedding_party": {
+        "title": "Escolher padrinhos e madrinhas",
+        "tip": "Convide seus amigos e familiares mais próximos para ficarem ao seu lado."
+      },
+      "book_hotel_block": {
+        "title": "Reservar quartos em hotel",
+        "tip": "Reserve um grupo de quartos para convidados de fora.",
+        "actionLabel": "Adicionar custo"
+      },
+      "plan_honeymoon": {
+        "title": "Planejar lua de mel",
+        "tip": "Decidam o destino e comecem a reservar voos e hotéis."
+      },
+      "create_gift_registry": {
+        "title": "Criar lista de presentes",
+        "tip": "Cadastre presentes que vocês realmente usarão e amarão."
+      },
+      "order_wedding_rings": {
+        "title": "Encomendar alianças",
+        "tip": "Ajuste o tamanho e encomende com antecedência.",
+        "actionLabel": "Adicionar custo"
+      },
+      "schedule_engagement_photos": {
+        "title": "Agendar fotos de noivado",
+        "tip": "Use-as no site, convites e save the dates."
+      },
+      "book_hair_makeup": {
+        "title": "Contratar cabelo e maquiagem",
+        "tip": "As provas ajudam a encontrar o visual perfeito para o dia.",
+        "actionLabel": "Adicionar custo"
+      },
+      "book_ceremony_musicians": {
+        "title": "Contratar músicos da cerimônia",
+        "tip": "Música ao vivo dá um toque especial à cerimônia.",
+        "actionLabel": "Adicionar custo"
+      },
+      "order_invitations": {
+        "title": "Encomendar convites",
+        "tip": "Encomende cedo para ter tempo de preencher e enviar.",
+        "actionLabel": "Adicionar custo"
+      },
+      "finalize_menu": {
+        "title": "Fechar cardápio com o buffet",
+        "tip": "Confirme pratos, restrições alimentares e estilo de serviço."
+      },
+      "schedule_cake_tasting": {
+        "title": "Agendar degustação de bolo",
+        "tip": "Experimente alguns sabores e modelos antes de encomendar."
+      },
+      "book_rehearsal_dinner": {
+        "title": "Reservar jantar de ensaio",
+        "tip": "Reserve um lugar para a véspera do casamento.",
+        "actionLabel": "Adicionar custo"
+      },
+      "plan_ceremony_details": {
+        "title": "Planejar detalhes da cerimônia",
+        "tip": "Defina leituras, músicas e quem fará o quê durante a cerimônia."
+      },
+      "order_wedding_cake": {
+        "title": "Encomendar bolo de casamento",
+        "tip": "Faça o pedido quando tiver uma estimativa final de convidados.",
+        "actionLabel": "Adicionar custo"
+      },
+      "buy_wedding_party_gifts": {
+        "title": "Comprar presentes para padrinhos",
+        "tip": "Agradeça madrinhas e padrinhos com mimos especiais.",
+        "actionLabel": "Adicionar custo"
+      },
+      "schedule_dress_fittings": {
+        "title": "Agendar provas do vestido",
+        "tip": "Marque provas para o vestido ficar perfeito no grande dia."
+      },
+      "plan_day_of_timeline": {
+        "title": "Montar cronograma do dia",
+        "tip": "Desenhe a programação desde a produção até a última dança."
+      },
+      "write_wedding_vows": {
+        "title": "Escrever votos",
+        "tip": "Comece cedo para refinar e treinar em voz alta."
+      },
+      "apply_marriage_license": {
+        "title": "Dar entrada na habilitação",
+        "tip": "Faça isso dentro do prazo exigido antes do casamento."
+      },
+      "mail_invitations": {
+        "title": "Enviar convites",
+        "tip": "Envie de 6 a 8 semanas antes do casamento.",
+        "actionLabel": "Abrir lista de convidados"
+      },
+      "final_dress_fitting": {
+        "title": "Prova final do vestido",
+        "tip": "Garanta que o vestido esteja perfeito e pronto para retirada."
+      },
+      "confirm_final_headcount": {
+        "title": "Confirmar número final de convidados",
+        "tip": "Informe o número exato ao buffet e ao local.",
+        "actionLabel": "Abrir lista de convidados"
+      },
+      "create_seating_chart": {
+        "title": "Montar mapa de mesas",
+        "tip": "Organize os convidados para gerar boas conversas.",
+        "actionLabel": "Abrir lista de convidados"
+      },
+      "pay_final_vendor_balances": {
+        "title": "Pagar saldos finais dos fornecedores",
+        "tip": "Quite todos os pagamentos antes do dia do casamento.",
+        "actionLabel": "Ver pagamentos"
+      },
+      "pack_emergency_kit": {
+        "title": "Montar kit de emergência",
+        "tip": "Inclua alfinetes, lenços, balas e kit de costura."
+      },
+      "pick_up_dress": {
+        "title": "Retirar vestido de noiva",
+        "tip": "Leve para casa e guarde em local seguro e limpo."
+      },
+      "set_up_everly_guest_camera": {
+        "title": "Configurar câmera Everly",
+        "tip": "Os convidados escaneiam um QR e todas as fotos caem em um álbum.",
+        "actionLabel": "Criar evento de câmera"
+      },
+      "relax_and_get_excited": {
+        "title": "Relaxe e curta a ansiedade boa",
+        "tip": "Vocês fizeram tudo. Aproveitem os últimos dias de noivado."
+      },
+      "final_vendor_confirmations": {
+        "title": "Confirmações finais com fornecedores",
+        "tip": "Ligue ou mande mensagem para confirmar horários e detalhes."
+      },
+      "write_toasts_schedule": {
+        "title": "Definir ordem dos brindes",
+        "tip": "Decida quem fala e quando para a recepção fluir bem."
+      },
+      "break_in_shoes": {
+        "title": "Amaciar sapatos",
+        "tip": "Use em casa por algumas horas para evitar bolhas no dia."
+      },
+      "share_guest_camera_qr": {
+        "title": "Compartilhar QR da câmera",
+        "tip": "Inclua em placas, programas ou mensagem de boas-vindas.",
+        "actionLabel": "Abrir evento da câmera"
+      },
+      "deliver_seating_to_venue": {
+        "title": "Entregar mapa de mesas ao local",
+        "tip": "Envie antes da impressão."
+      },
+      "pack_for_honeymoon": {
+        "title": "Fazer mala para lua de mel",
+        "tip": "Passaportes, carregadores e roupas para viajar sem estresse."
+      },
+      "prepare_vendor_tips": {
+        "title": "Preparar gorjetas dos fornecedores",
+        "tip": "Organize dinheiro ou envelopes de agradecimento."
+      },
+      "get_manicure": {
+        "title": "Fazer as unhas",
+        "tip": "Marque uma manicure relaxante um ou dois dias antes."
+      },
+      "eat_breakfast": {
+        "title": "Tomar café da manhã",
+        "tip": "Comece o dia com calma e energia."
+      },
+      "hand_off_rings": {
+        "title": "Entregar alianças",
+        "tip": "Dê as alianças ao padrinho ou pessoa de confiança cedo."
+      },
+      "remind_guests_camera": {
+        "title": "Lembrar convidados da câmera",
+        "tip": "Adicione um aviso ou peça ao mestre de cerimônias para mencionar."
+      },
+      "download_guest_photos": {
+        "title": "Baixar fotos dos convidados",
+        "tip": "Salve antes que o link expire.",
+        "actionLabel": "Ver suas fotos"
+      },
+      "send_thank_you_notes": {
+        "title": "Enviar agradecimentos",
+        "tip": "Notas à mão parecem pessoais, mesmo curtas."
+      },
+      "review_vendors": {
+        "title": "Avaliar fornecedores",
+        "tip": "Deixe avaliações honestas para ajudar outros casais."
+      },
+      "update_name_documents": {
+        "title": "Atualizar documentos",
+        "tip": "Comece pela certidão atualizada se for mudar de nome."
+      },
+      "preserve_dress_bouquet": {
+        "title": "Preservar vestido ou buquê",
+        "tip": "Contrate rápido enquanto o buquê está fresco."
+      },
+      "reveal_film_with_guests": {
+        "title": "Revelar filme com convidados",
+        "tip": "Compartilhe um vídeo ou convide para ver a galeria."
+      },
+      "share_guest_photos_album": {
+        "title": "Compartilhar álbum de fotos",
+        "tip": "Envie o álbum a todos que contribuíram."
+      }
+    },
+    "bookedOptions": {
+      "venue": {
+        "label": "Local"
+      },
+      "photographer": {
+        "label": "Fotógrafo"
+      },
+      "caterer": {
+        "label": "Buffet"
+      },
+      "dress": {
+        "label": "Vestido / visual"
+      },
+      "dj_band": {
+        "label": "DJ / banda"
+      },
+      "florist": {
+        "label": "Florista"
+      },
+      "officiant": {
+        "label": "Celebrante"
+      },
+      "rings": {
+        "label": "Alianças"
+      }
+    },
+    "months": {
+      "jan": "jan",
+      "feb": "fev",
+      "mar": "mar",
+      "apr": "abr",
+      "may": "mai",
+      "jun": "jun",
+      "jul": "jul",
+      "aug": "ago",
+      "sep": "set",
+      "oct": "out",
+      "nov": "nov",
+      "dec": "dez"
+    },
+    "deadline": {
+      "after": "Depois de {{month}} {{day}}",
+      "byMonthYear": "Até {{month}} de {{year}}",
+      "on": "Em {{month}} {{day}}",
+      "byMonthDay": "Até {{month}} {{day}}"
+    }
+  },
+  "vibe": {
+    "colors": {
+      "blush": "Rosé",
+      "sage": "Sálvia",
+      "dustyBlue": "Azul acinzentado",
+      "terracotta": "Terracota",
+      "lavender": "Lavanda",
+      "burgundy": "Bordô",
+      "emerald": "Esmeralda",
+      "gold": "Dourado",
+      "ivory": "Marfim",
+      "blackWhite": "Preto & branco"
+    },
+    "seasons": {
+      "spring": "Primavera",
+      "summer": "Verão",
+      "fall": "Outono",
+      "winter": "Inverno"
+    },
+    "styles": {
+      "classic": "Clássico",
+      "rustic": "Rústico",
+      "boho": "Boho",
+      "modern": "Moderno",
+      "garden": "Jardim / ao ar livre",
+      "beach": "Praia",
+      "glam": "Glam",
+      "minimal": "Minimalista"
+    },
+    "honeymoons": {
+      "beach": "Praia e ilhas",
+      "europe": "Europa",
+      "adventure": "Aventura",
+      "city": "Cidade",
+      "roadTrip": "Viagem de carro",
+      "staycation": "Perto de casa",
+      "undecided": "Ainda não sei"
+    },
+    "fields": {
+      "color": "Cor",
+      "season": "Estação",
+      "style": "Estilo",
+      "honeymoon": "Lua de mel"
+    }
+  },
+  "budgetData": {
+    "categories": {
+      "venue": "Local",
+      "catering": "Comida & bebidas",
+      "photo": "Foto & vídeo",
+      "attire": "Vestuário & beleza",
+      "flowers": "Flores & decoração",
+      "music": "Música",
+      "rings": "Alianças",
+      "paper": "Convites",
+      "other": "Outros"
+    },
+    "suggestions": {
+      "venue": {
+        "rental": "Aluguel do local",
+        "ceremonyFee": "Taxa da cerimônia",
+        "chairsTables": "Cadeiras & mesas",
+        "deposit": "Sinal do local"
+      },
+      "catering": {
+        "perGuest": "Buffet por pessoa",
+        "barDrinks": "Bar & bebidas",
+        "weddingCake": "Bolo de casamento",
+        "serviceStaff": "Equipe de serviço"
+      },
+      "photo": {
+        "photographer": "Fotógrafo",
+        "videographer": "Cinegrafista",
+        "engagementShoot": "Ensaio de noivado",
+        "album": "Álbum"
+      },
+      "attire": {
+        "dress": "Vestido de noiva",
+        "suitOrTux": "Terno ou fraque",
+        "alterations": "Ajustes",
+        "hairMakeup": "Cabelo & maquiagem",
+        "shoesAccessories": "Sapatos & acessórios"
+      },
+      "flowers": {
+        "bouquets": "Buquês",
+        "centerpieces": "Centros de mesa",
+        "ceremonyArch": "Arco da cerimônia",
+        "boutonnieres": "Boutonnières"
+      },
+      "music": {
+        "dj": "DJ",
+        "band": "Banda",
+        "ceremonyMusicians": "Músicos da cerimônia",
+        "soundLighting": "Som & iluminação"
+      },
+      "rings": {
+        "engagementRing": "Anel de noivado",
+        "weddingBands": "Alianças",
+        "engraving": "Gravação"
+      },
+      "paper": {
+        "saveTheDates": "Save the dates",
+        "invitations": "Convites",
+        "postage": "Envio",
+        "signage": "Placas"
+      },
+      "other": {
+        "officiant": "Celebrante",
+        "marriageLicense": "Habilitação",
+        "favors": "Lembrancinhas",
+        "transportation": "Transporte",
+        "honeymoon": "Lua de mel"
+      }
+    }
+  },
+  "guestsData": {
+    "groups": {
+      "family": "Família",
+      "friends": "Amigos",
+      "work": "Trabalho"
+    },
+    "partnerFamily": "Família de {{name}}",
+    "partnerFriends": "Amigos de {{name}}",
+    "partnerWork": "Trabalho de {{name}}",
+    "mutualFriends": "Amigos em comum",
+    "couple": "Casal",
+    "menu": {
+      "adult": "Menu adulto",
+      "kids": "Menu infantil",
+      "vegetarian": "Vegetariano",
+      "vegan": "Vegano",
+      "glutenFree": "Sem glúten",
+      "notChosen": "Não escolhido"
+    },
+    "status": {
+      "waiting": "Aguardando",
+      "attending": "Confirmado",
+      "declined": "Recusado"
+    },
+    "guestListTitle": "Lista de convidados de {{coupleTitle}}",
+    "totals": "Totais: {{invited}} convidados, {{attending}} confirmados, {{waiting}} aguardando",
+    "rsvpDateFallback": "nosso dia de casamento",
+    "rsvpMessage": "Oi {{guestName}}! Você está convidado para celebrar com {{coupleTitle}} em {{dateText}}. Confirme sua presença!"
+  },
+  "guestExport": {
+    "guestListTitle": "Lista de convidados: {{coupleTitle}}",
+    "summary": "{{invited}} convidados · {{attending}} confirmados · {{waiting}} aguardando · {{adults}} adultos, {{kids}} crianças, {{babies}} bebês",
+    "noGuests": "Nenhum convidado ainda.",
+    "otherGroup": "Outros",
+    "status": {
+      "waiting": "Aguardando",
+      "attending": "Confirmado",
+      "declined": "Recusado"
+    },
+    "age": {
+      "adult": "Adulto",
+      "child": "Criança",
+      "baby": "Bebê"
+    },
+    "col": {
+      "name": "Nome",
+      "group": "Grupo",
+      "rsvp": "RSVP",
+      "plusOne": "Acompanhante",
+      "age": "Idade",
+      "menu": "Menu",
+      "phone": "Telefone",
+      "email": "E-mail",
+      "address": "Endereço",
+      "note": "Observação"
+    },
+    "yes": "Sim",
+    "no": "Não",
+    "guestList": "Lista de convidados"
+  },
+  "trialReminder": {
+    "title": "Seu teste termina amanhã",
+    "body": "Amanhã será cobrado {{price}}. Cancele nos Ajustes se não quiser continuar."
+  },
+  "updates": {
+    "devTitle": "Atualizações",
+    "devMessage": "Atualizações não estão disponíveis no modo de desenvolvimento.",
+    "updateAvailableTitle": "Atualização disponível",
+    "updateAvailableMessage": "Uma nova versão do app está disponível. Deseja atualizar agora?",
+    "later": "Depois",
+    "update": "Atualizar",
+    "downloadedTitle": "Atualização baixada",
+    "downloadedMessage": "A atualização foi baixada. O app será reiniciado para aplicar.",
+    "restartNow": "Reiniciar agora",
+    "downloadErrorTitle": "Erro de atualização",
+    "downloadErrorMessage": "Falha ao baixar a atualização. Tente novamente mais tarde.",
+    "noUpdatesTitle": "Nenhuma atualização",
+    "noUpdatesMessage": "Você já está usando a versão mais recente do app.",
+    "checkErrorTitle": "Erro de atualização",
+    "checkErrorMessage": "Não foi possível verificar atualizações. Tente novamente mais tarde."
+  },
+  "revenueCat": {
+    "unknownError": "Erro desconhecido"
+  },
+  "filters": {
+    "natural": "Natural",
+    "warm": "Quente",
+    "film": "Filme",
+    "bw": "P&B"
+  },
+  "premium": {
+    "features": {
+      "guestList": "Lista de convidados com RSVPs, menus e grupos",
+      "importExport": "Importar convidados colando uma lista e exportar para PDF",
+      "budgetTracker": "Controle de orçamento para cada fornecedor e pagamento",
+      "timeline": "Linha do tempo de cada tarefa por data"
+    }
+  },
+  "auth": {
+    "appleTokenMissing": "A Apple não retornou um token de identidade",
+    "invalidServerResponse": "Resposta inválida do servidor",
+    "networkError": "Não foi possível conectar ao Everly. Verifique sua conexão e tente novamente.",
+    "appleSignInFailed": "Falha no login com a Apple",
+    "appleSignInFailedTitle": "Falha no login com a Apple"
+  },
+  "uploader": {
+    "uploadFailed": "Falha no upload"
+  },
+  "create": {
+    "steps": {
+      "reveal": {
+        "title": "Escolha o\nmomento da revelação.",
+        "subtitle": "Decida quando os convidados verão a galeria."
+      },
+      "shots": {
+        "title": "Quantas\nfotos?",
+        "subtitle": "Limite as fotos por convidado ou deixe em branco para ilimitado."
+      },
+      "mood": {
+        "title": "Defina\no clima.",
+        "subtitle": "Todos os convidados fotografarão com este filtro para um álbum coeso."
+      },
+      "invited": {
+        "title": "Quem está\nconvidado?",
+        "subtitle": "Escolha quantos convidados podem entrar no seu evento."
+      }
+    },
+    "revealOptions": {
+      "instant": {
+        "line1": "Durante",
+        "line2": "o evento"
+      },
+      "end": {
+        "line1": "Depois",
+        "line2": "do evento"
+      },
+      "scheduled": {
+        "line1": "Em um",
+        "line2": "horário"
+      }
+    },
+    "revealCopy": {
+      "empty": "Escolha quando as fotos ficarão visíveis. Até lá, ninguém vê nada.",
+      "instant": "Cada foto aparece no momento em que é tirada - os convidados veem o álbum encher ao vivo.",
+      "end": "As fotos ficam ocultas até o evento terminar. Então toda a galeria abre de uma vez.",
+      "scheduled": "As fotos ficam ocultas até o horário que você definir. Então toda a galeria abre de uma vez."
+    },
+    "sectionLabels": {
+      "revealDateTime": "Data e hora da revelação",
+      "eventEnds": "Fim do evento",
+      "whoCanSee": "Quem pode ver as fotos",
+      "shotsPerPerson": "Fotos por pessoa"
+    },
+    "datePicker": {
+      "placeholders": {
+        "reveal": "Selecione a data e hora da revelação",
+        "expires": "Selecione uma data e hora de término"
+      }
+    },
+    "toggle": {
+      "everyoneSees": "Todos podem ver cada foto.",
+      "guestsOnly": "Os convidados só veem as fotos que tiraram."
+    },
+    "hints": {
+      "shotLimit": {
+        "withLimit": "Cada convidado recebe {{count}} fotos. A escassez é o objetivo - eles farão cada uma valer a pena.",
+        "unlimited": "Os convidados podem fotografar o quanto quiserem. Escolha um limite se preferir que cada frame conte."
+      }
+    },
+    "guestStepper": {
+      "unlimitedGuests": "convidados ilimitados",
+      "guests": "convidados",
+      "free": "Grátis",
+      "oneTime": "{{price}} pagamento único"
+    },
+    "uploadAlert": {
+      "allTitle": "Suas fotos não foram enviadas",
+      "someTitle": "Algumas fotos não foram enviadas",
+      "message": "{{failed}} de {{total}} falharam",
+      "errorSuffix": " - {{error}}",
+      "buttons": {
+        "notNow": "Agora não",
+        "tryAgain": "Tentar novamente"
+      }
+    },
+    "purchaseFallback": {
+      "cancelled": {
+        "title": "Compra cancelada",
+        "message": "Você não foi cobrado. Seu evento está salvo com o limite gratuito de 5 convidados - tente novamente, escolha outro pacote ou continue e faça upgrade depois."
+      },
+      "unavailable": {
+        "title": "Pacote de convidados indisponível",
+        "message": "Não foi possível carregar este pacote da loja. Seu evento está salvo com o limite gratuito de 5 convidados - tente novamente, escolha outro pacote ou continue e faça upgrade depois."
+      },
+      "failed": {
+        "title": "Compra não concluída",
+        "message": "A loja não conseguiu concluir a compra. Seu evento está salvo com o limite gratuito de 5 convidados - tente novamente, escolha outro pacote ou continue e faça upgrade depois."
+      },
+      "buttons": {
+        "tryAgain": "Tentar novamente",
+        "continueWith5": "Continuar com 5 convidados",
+        "chooseAnother": "Escolher outro pacote"
+      }
+    },
+    "createAlert": {
+      "title": "Não foi possível criar o evento",
+      "fallbackMessage": "Algo deu errado. Por favor, tente novamente."
+    },
+    "success": {
+      "title": "Parabéns",
+      "subtitle": "Seu evento foi criado. Envie o link abaixo para os convidados.",
+      "actionLabel": "Continuar"
+    },
+    "tierHint": {
+      "free": "O Starter é grátis, faça upgrade quando quiser depois de criar o evento.",
+      "paid": "Cobrança única. Não é assinatura."
+    },
+    "defaultAlbumName": "Nosso Casamento"
+  },
+  "eventSettings": {
+    "revealOptions": {
+      "instant": {
+        "label": "Durante o evento",
+        "hint": "Cada foto aparece no momento em que é tirada."
+      },
+      "end": {
+        "label": "Depois do evento",
+        "hint": "Toda a galeria abre de uma vez quando o evento termina."
+      },
+      "scheduled": {
+        "label": "Em um horário definido",
+        "hint": "A galeria abre no horário que você escolher."
+      }
+    },
+    "formatDate": {
+      "notSet": "Não definido"
+    },
+    "guestLabel": {
+      "unlimited": "Ilimitado",
+      "upTo": "Até {{limit}} convidados"
+    },
+    "shotLabel": {
+      "unlimited": "Ilimitado",
+      "photo_one": "{{count}} foto",
+      "photo_other": "{{count}} fotos"
+    },
+    "root": {
+      "title": "Configurações do evento"
+    },
+    "rows": {
+      "nameAndCover": "Nome e capa",
+      "endDate": "Data de término",
+      "revealTime": "Momento da revelação",
+      "cameraStyle": "Estilo da câmera",
+      "participants": "Participantes",
+      "shotsPerPerson": "Fotos por pessoa",
+      "deleteEvent": "Excluir evento"
+    },
+    "toggle": {
+      "everyoneSees": "Todos veem todas as fotos",
+      "hint": {
+        "all": "Os convidados navegam por toda a galeria.",
+        "private": "Os convidados só veem as fotos que tiraram."
+      }
+    },
+    "name": {
+      "title": "Nome e capa",
+      "fieldLabel": "Nome do evento",
+      "placeholder": "Sarah e James",
+      "save": "Salvar",
+      "requiredAlert": {
+        "title": "Nome obrigatório",
+        "message": "Um evento precisa de um nome."
+      }
+    },
+    "expires": {
+      "title": "Data de término",
+      "hint": "Quando o evento fecha. Os convidados não podem mais enviar fotos depois disso, e uma revelação \"depois do evento\" abre a galeria neste momento."
+    },
+    "reveal": {
+      "title": "Momento da revelação"
+    },
+    "filter": {
+      "title": "Estilo da câmera",
+      "hint": "Cada convidado fotografa com este visual, para que o álbum mantenha unidade."
+    },
+    "guests": {
+      "title": "Participantes",
+      "hint": "Um pacote de convidados aumenta o limite de convidados deste evento para esse número. É uma compra única, não uma assinatura - e o limite só aumenta.",
+      "unlimitedGuests": "Convidados ilimitados",
+      "guests": "{{count}} convidados",
+      "currentAllowance": "Limite atual"
+    },
+    "shots": {
+      "title": "Fotos por pessoa",
+      "hint": "Quantas fotos cada convidado pode tirar. Limites menores fazem as pessoas escolherem o momento.",
+      "unlimited": "Ilimitado",
+      "photos": "{{count}} fotos"
+    },
+    "backToSettings": "Voltar às configurações",
+    "save": {
+      "alert": {
+        "title": "Alteração não salva",
+        "fallback": "Não foi possível salvar essa alteração."
+      }
+    },
+    "pickOwnCover": {
+      "permission": {
+        "title": "Acesso às fotos necessário",
+        "message": "Permita o acesso às fotos para usar uma das suas próprias imagens como capa."
+      }
+    },
+    "buyTier": {
+      "unavailable": {
+        "title": "Pacote de convidados indisponível",
+        "message": "Não foi possível carregar este pacote da loja. Tente novamente em instantes."
+      },
+      "failed": {
+        "title": "Compra não concluída",
+        "message": "A loja não conseguiu concluir a compra. Você não foi cobrado."
+      },
+      "success": {
+        "title": "Convidados adicionados",
+        "message": "A nova permissão aparecerá assim que a loja confirmar a compra."
+      }
+    },
+    "delete": {
+      "title": "Excluir evento?",
+      "message": "O evento e todas as fotos nele serão removidos para sempre. Isso não pode ser desfeito.",
+      "cancel": "Cancelar",
+      "confirm": "Excluir",
+      "errorTitle": "Não foi possível excluir",
+      "errorFallback": "Tente novamente."
+    }
+  },
+  "coverPicker": {
+    "label": "Traga a sua própria ou escolha uma capa"
+  },
+  "shots": {},
+  "success": {
+    "copyInviteAccessibility": "Copiar link do convite",
+    "linkCopied": "Link copiado",
+    "sendToGuests": "Enviar aos convidados"
+  },
+  "budget": {
+    "overBudget": "{{amount}} acima do orçamento",
+    "leftToPlan": "{{amount}} restantes para planejar",
+    "noDueDate": "Sem data de vencimento",
+    "overdueDate": "Vencido · {{date}}",
+    "dueDate": "Vence {{date}}",
+    "unknownCategory": "Desconhecida",
+    "categoryDueText": "{{category}} · {{dueText}}",
+    "markPaid": "Marcar como pago",
+    "setupTitle": "Qual é o seu orçamento total?",
+    "setupSubtitle": "Você pode ajustar depois conforme o planejamento avança.",
+    "setBudget": "Definir orçamento",
+    "spent": "GASTO",
+    "edit": "Editar",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "ofTotalBudget": "de {{amount}} do orçamento total",
+    "paid": "Pago",
+    "stillToPayAmount": "Ainda a pagar {{amount}}",
+    "stillToPay": "Ainda a pagar",
+    "whereItGoes": "Para onde vai",
+    "planned": "planejado",
+    "addExpensesToSeeBreakdown": "Adicione despesas para ver a distribuição do orçamento.",
+    "categories": "Categorias",
+    "categoryMeta": "{{planned}} planejados de {{allocated}} · {{paid}} pagos",
+    "overShare": "{{amount}} acima do valor reservado",
+    "noExpensesInCategory": "Nenhuma despesa nesta categoria.",
+    "suggestions": "Sugestões",
+    "addExpense": "+ Adicionar despesa",
+    "noPayments": "Nenhum pagamento ainda. Adicione custos com data de vencimento para acompanhá-los aqui.",
+    "overdue": "Vencidas",
+    "upcoming": "Próximas",
+    "paidInFullCount_one": "Pago integralmente ({{count}})",
+    "paidInFullCount_other": "Pagos integralmente ({{count}})",
+    "categoryPaidInFull": "{{category}} · Pago integralmente",
+    "title": "Orçamento",
+    "tabBudget": "Orçamento",
+    "tabPayments": "Pagamentos"
+  },
+  "expenseEdit": {
+    "title": "Orçamento",
+    "editExpense": "Editar despesa",
+    "addExpense": "Adicionar despesa",
+    "removeAlertTitle": "Remover despesa?",
+    "removeAlertBody": "Essa ação não pode ser desfeita.",
+    "cancel": "Cancelar",
+    "remove": "Remover",
+    "label": "Descrição",
+    "labelPlaceholder": "Degustação de bolo, entrada do local, etc.",
+    "linkedToPlanTask": "Vinculada a uma tarefa do plano",
+    "category": "Categoria",
+    "estimatedCost": "Custo estimado",
+    "amountPaid": "Valor pago",
+    "markAsPaidInFull": "Marcar como pago integralmente",
+    "dueDate": "Data de vencimento",
+    "setDueDate": "Definir data de vencimento",
+    "save": "Salvar",
+    "removeExpense": "Remover despesa"
+  },
+  "home": {
+    "footer": "Que seja um dia lindo."
+  },
+  "homeHeader": {
+    "yourWedding": "Seu casamento",
+    "noDateSet": "Sem data definida",
+    "yourInitial": "S"
+  },
+  "homeHero": {
+    "planYourWedding": "Planeje seu casamento",
+    "setDateStartChecklist": "Defina a data e comece sua lista",
+    "startNow": "Começar agora →",
+    "justGettingStarted": "Começando agora",
+    "makingGoodProgress": "Bom progresso",
+    "almostThere": "Quase lá",
+    "allSet": "Tudo pronto!",
+    "justMarried": "Recém-casados",
+    "today": "Hoje",
+    "dayToGo_one": "falta 1 dia",
+    "dayToGo_other": "faltam {{count}} dias",
+    "percentDone": "{{percent}}% concluído",
+    "eyebrow": "Seu casamento",
+    "daysToGoLabel_one": "dia para o sim",
+    "daysToGoLabel_other": "dias para o sim",
+    "completeLabel": "concluído",
+    "tasksDone": "Tarefas prontas",
+    "guestsConfirmed": "Confirmados",
+    "addGuestsLabel": "Adicionar convidados",
+    "percentPlanned": "{{percent}}% planejado",
+    "seeAlbum": "Ver o álbum →",
+    "daysUnit_one": "dia",
+    "daysUnit_other": "dias",
+    "hoursUnit_one": "hora",
+    "hoursUnit_other": "horas"
+  },
+  "nextStep": {
+    "upNext": "A SEGUIR",
+    "markDone": "Marcar como feito"
+  },
+  "quickActions": {
+    "guests": "Convidados",
+    "budget": "Orçamento",
+    "timeline": "Linha do tempo",
+    "newAlbum": "Novo álbum"
+  },
+  "smartTip": {
+    "eyebrow": "DICA INTELIGENTE",
+    "tipVenue": "Reserve o local e o fotógrafo cedo, eles costumam esgotar.",
+    "tipVendors": "Feche agora com os principais fornecedores para ter prioridade.",
+    "tipInvitations": "Encomende os convites e comece as provas de roupa este mês.",
+    "tipLicense": "Dê entrada na habilitação de casamento dentro do prazo exigido.",
+    "tipHeadcount": "Confirme o número final de convidados com buffet e local.",
+    "tipTimeline": "Finalize o cronograma do dia e compartilhe com os fornecedores.",
+    "tipEmergencyKit": "Monte um kit de emergência e confirme os horários dos fornecedores.",
+    "tipEnjoy": "Aproveite cada momento, os detalhes estão resolvidos."
+  },
+  "whatsLeft": {
+    "title": "O que falta",
+    "itemsLeft_one": "{{count}} pendente",
+    "itemsLeft_other": "{{count}} pendentes",
+    "seeFullPlan": "Ver plano completo"
+  },
+  "budgetCard": {
+    "title": "Orçamento",
+    "premiumTeaser": "Acompanhe cada depósito e pagamento",
+    "premium": "Premium",
+    "setTotalBudget": "Defina seu orçamento total",
+    "planSpending": "Planeje os gastos por categoria",
+    "setBudget": "Definir orçamento",
+    "edit": "Editar",
+    "set": "Definir",
+    "planned": "PLANEJADO",
+    "of": "DE",
+    "left": "{{amount}} restantes",
+    "over": "{{amount}} acima",
+    "leftStillToPay": "{{amount}} restantes · {{pending}} ainda a pagar",
+    "overStillToPay": "{{amount}} acima · {{pending}} ainda a pagar",
+    "label": "TETO ESTIPULADO",
+    "allocatedPill": "{{percent}}% alocado",
+    "overPill": "{{amount}} acima",
+    "legendPaid": "{{percent}}% quitado",
+    "legendPending": "{{percent}}% a pagar",
+    "legendFree": "{{percent}}% livre",
+    "overLegend": "{{amount}} acima do teto",
+    "unlockLegend": "Assine para ver a divisão do orçamento"
+  },
+  "albums": {
+    "noDate": "-",
+    "greeting": {
+      "morning": "dia,",
+      "afternoon": "tarde,",
+      "evening": "noite,"
+    },
+    "noPhotos": "Nenhuma foto nesta galeria",
+    "startFirstGallery": "Comece sua primeira galeria abaixo.",
+    "youHaveEvents_one": "Você tem {{count}} evento.",
+    "youHaveEvents_other": "Você tem {{count}} eventos.",
+    "noEventsTitle": "Nenhum evento ainda",
+    "noEventsSubtitle": "Crie sua primeira galeria e comece a guardar os momentos de todos.",
+    "createEvent": "Criar evento",
+    "active": "Ativos",
+    "memories": "Memórias",
+    "greetingFirst": {
+      "morning": "Bom",
+      "afternoon": "Boa",
+      "evening": "Boa"
+    }
+  },
+  "settings": {
+    "title": "Ajustes",
+    "yourAccount": "Sua conta",
+    "noEmail": "-",
+    "purchases": "Compras",
+    "notifications": "Notificações",
+    "help": "Ajuda",
+    "privacyPolicy": "Política de privacidade",
+    "loadDemoWedding": "Carregar casamento de demonstração (dev)",
+    "signOutTitle": "Sair da conta",
+    "signOutMessage": "Tem certeza de que deseja sair da conta?",
+    "cancel": "Cancelar",
+    "deleteAccountTitle": "Excluir conta",
+    "deleteAccountMessage": "Isso exclui permanentemente sua conta e todos os seus dados: eventos, fotos enviadas pelos convidados, planejamento do casamento, tarefas, orçamento e lista de convidados. Essa ação não pode ser desfeita.",
+    "delete": "Excluir",
+    "deleteAccountErrorTitle": "Não foi possível excluir a conta",
+    "deleteAccountErrorFallback": "Tente novamente ou entre em contato com o suporte.",
+    "helpSubject": "Everly - Ajuda",
+    "noMailApp": "Nenhum aplicativo de e-mail",
+    "reachUs": "Fale conosco pelo {{email}}.",
+    "appVersion": "Everly v{{version}}",
+    "language": "Idioma"
+  },
+  "welcome": {
+    "title": "Todo o seu casamento, planejado.",
+    "subtitle": "Cada tarefa, convidado e pagamento em um só plano, além de uma câmera descartável para o grande dia.",
+    "continueWithApple": "Continuar com a Apple",
+    "scanQrToJoin": "Escanear QR code para entrar"
+  },
+  "camera": {
+    "flash": {
+      "off": "Desligado",
+      "on": "Ligado",
+      "auto": "Automático"
+    },
+    "flashLabel": "Flash",
+    "timer": "Temporizador",
+    "timerSeconds": "{{seconds}}s",
+    "flip": "Virar",
+    "grid": "Grade",
+    "permissionTitle": "Acesso à câmera",
+    "permissionText": "O Everly precisa da sua câmera para tirar as fotos deste evento.",
+    "allowCamera": "Permitir câmera",
+    "notNow": "Agora não",
+    "uploading": "Enviando {{count}}",
+    "allShotsUsed_one": "Você usou todas as {{count}} foto",
+    "allShotsUsed_other": "Você usou todas as {{count}} fotos",
+    "done": "Concluir",
+    "doneWithCount": "Concluir · {{count}}"
+  },
+  "event": {
+    "noDate": "-",
+    "revealInstant": "REVELA AO FOTOGRAFAR",
+    "revealEndOfEvent": "REVELA AO FINALIZAR",
+    "revealScheduled": "REVELA EM HORÁRIO DEFINIDO",
+    "guest": "Convidado",
+    "notFound": "Evento não encontrado.",
+    "unlimitedGuests": "∞ convidados",
+    "guestCount_one": "{{count}} convidado",
+    "guestCount_other": "{{count}} convidados",
+    "eventSettings": "Ajustes do evento",
+    "shareQrCode": "Compartilhar QR code",
+    "photoWord_one": "foto",
+    "photoWord_other": "fotos",
+    "sofar": "até agora",
+    "viewGallery": "Ver galeria",
+    "gallery": "Galeria",
+    "loading": "Carregando…",
+    "noPhotosTitle": "Nenhuma foto ainda",
+    "noPhotosSubtitle": "Compartilhe o QR code para que os convidados comecem a adicionar fotos.",
+    "notRevealedTitle": "Ainda não revelado",
+    "notRevealedSubtitle": "As fotos aparecerão aqui quando a galeria for revelada.",
+    "photoCount_one": "{{count}} foto",
+    "photoCount_other": "{{count}} fotos"
+  },
+  "photo": {
+    "thisGuest": "este convidado",
+    "couldntShare": "Não foi possível compartilhar",
+    "couldntRemove": "Não foi possível removê-la",
+    "pleaseTryAgain": "Tente novamente.",
+    "removeConfirmTitle": "Remover esta foto?",
+    "removeConfirmMessage": "Ela será excluída do álbum para todos.",
+    "cancel": "Cancelar",
+    "remove": "Remover",
+    "removeBlockConfirmTitle": "Remover e bloquear {{guest}}?",
+    "removeBlockConfirmMessage": "Todas as fotos tiradas por essa pessoa serão excluídas do álbum e ela não poderá adicionar mais nada neste evento.",
+    "removeBlock": "Remover e bloquear",
+    "reportSubject": "Everly - Denunciar uma foto",
+    "reportBody": "Evento {{eventId}}, foto {{photoId}}.\n\nO que há de errado com ela:\n",
+    "noMailApp": "Nenhum aplicativo de e-mail",
+    "reportFallback": "Envie um e-mail para {{email}} com o evento {{eventId}}, foto {{photoId}}, e analisaremos em até 24 horas.",
+    "removePhoto": "Remover foto",
+    "removeAllFromGuest": "Remover todas de {{guest}} e bloquear",
+    "reportPhoto": "Denunciar foto",
+    "report": "Denunciar",
+    "menuTitle": "Foto",
+    "close": "Fechar",
+    "sharePhoto": "Compartilhar foto",
+    "removeOrReport": "Remover ou denunciar foto"
+  },
+  "qr": {
+    "scanToJoin": "Escanear para entrar",
+    "subtitle": "Aponte a câmera para este código para entrar no evento e começar a adicionar fotos.",
+    "noJoinCode": "Este evento não tem código de entrada.",
+    "copyLink": "Copiar link",
+    "linkCopied": "Link copiado"
+  },
+  "scan": {
+    "permissionTitle": "Escanear QR do evento",
+    "permissionText": "Permita o acesso à câmera para escanear o QR code do evento e entrar.",
+    "allowCamera": "Permitir câmera",
+    "notNow": "Agora não",
+    "hint": "Aponte para o QR code do evento"
+  },
+  "upload": {
+    "uploadFailed": "Falha no envio",
+    "pleaseTryAgain": "Tente novamente.",
+    "notAcceptingTitle": "Não está aceitando fotos",
+    "notAcceptingSubtitle": "Este evento pode ter terminado ou atingido o limite de envios.",
+    "sharedCount_one": "{{count}} foto compartilhada",
+    "sharedCount_other": "{{count}} fotos compartilhadas",
+    "yourName": "Seu nome",
+    "namePlaceholder": "Mostrado sob suas fotos",
+    "chooseFromLibrary": "Escolher da galeria"
+  },
+  "input": {
+    "clear": "Limpar",
+    "hidePassword": "Ocultar senha",
+    "showPassword": "Mostrar senha"
+  },
+  "eventCard": {
+    "revealed": "Revelado",
+    "live": "Ao vivo",
+    "draft": "Rascunho",
+    "unlimitedGuests": "∞ convidados",
+    "guestCount_one": "{{count}} convidado",
+    "guestCount_other": "{{count}} convidados"
+  },
+  "guests": {
+    "viewGroups": "Grupos",
+    "viewRsvp": "RSVP",
+    "viewMenu": "Cardápio",
+    "statusAttending": "Confirmados",
+    "statusDeclined": "Recusaram",
+    "statusWaiting": "Pendentes",
+    "us": "nós",
+    "couldNotExport": "Não foi possível exportar",
+    "tryAgain": "Tente novamente.",
+    "downloadTitle": "Baixar lista de convidados",
+    "chooseFormat": "Escolha um formato.",
+    "pdf": "PDF",
+    "csv": "Planilha (CSV)",
+    "cancel": "Cancelar",
+    "renameOrDeleteGroup": "Renomear ou excluir este grupo?",
+    "rename": "Renomear",
+    "delete": "Excluir",
+    "deleteGroupTitle": "Excluir grupo?",
+    "deleteGroupBody": "Os convidados serão movidos para Amigos.",
+    "statInvited": "Convidados",
+    "statAttending": "Confirmados",
+    "statWaiting": "Pendentes",
+    "statDeclined": "Recusaram",
+    "emptyTitle": "Nenhum convidado ainda",
+    "noMatchesTitle": "Nenhum resultado",
+    "emptyBody": "Adicione seu primeiro convidado ou cole uma lista.",
+    "noMatchesBody": "Tente outra busca ou filtro.",
+    "addGuest": "Adicionar convidado",
+    "pasteList": "Colar lista",
+    "title": "Convidados",
+    "plusOne": "  acompanhante",
+    "couple": "Casal",
+    "ageStatsAll": "{{adults}} adultos · {{children}} crianças · {{babies}} bebês",
+    "ageStatsAdultsChildren": "{{adults}} adultos · {{children}} crianças",
+    "ageStatsAdultsBabies": "{{adults}} adultos · {{babies}} bebês",
+    "ageStatsAdults": "{{adults}} adultos",
+    "download": "Baixar",
+    "print": "Imprimir",
+    "filterAll": "Todos",
+    "filterAttending": "Confirmados",
+    "filterWaiting": "Pendentes",
+    "filterDeclined": "Recusaram",
+    "searchPlaceholder": "Buscar convidados",
+    "groupNamePlaceholder": "Nome do grupo",
+    "save": "Salvar",
+    "menuNotChosen": "Não escolhido",
+    "fabAddGuest": "+ Adicionar convidado",
+    "fabAddList": "Adicionar lista",
+    "premiumTitle": "Lista de convidados"
+  },
+  "guestEdit": {
+    "us": "nós",
+    "removeGuestTitle": "Remover convidado?",
+    "removeGuestBody": "Isso não pode ser desfeito.",
+    "cancel": "Cancelar",
+    "remove": "Remover",
+    "editGuest": "Editar convidado",
+    "addGuest": "Adicionar convidado",
+    "fieldName": "Nome",
+    "fieldGroup": "Grupo",
+    "fieldAge": "Idade",
+    "fieldMenu": "Cardápio",
+    "fieldStatus": "Status",
+    "fieldContact": "Contato",
+    "fieldNote": "Nota",
+    "guestNamePlaceholder": "Nome do convidado",
+    "newGroup": "+ Novo grupo",
+    "groupNamePlaceholder": "Nome do grupo",
+    "save": "Salvar",
+    "ageAdult": "Adulto",
+    "ageChild": "Criança",
+    "ageBaby": "Bebê",
+    "statusWaiting": "Pendente",
+    "statusAttending": "Confirmado",
+    "statusDeclined": "Recusou",
+    "phonePlaceholder": "Telefone",
+    "emailPlaceholder": "E-mail",
+    "addressPlaceholder": "Endereço",
+    "whatsappRsvp": "Pedir RSVP no WhatsApp",
+    "plusOneTitle": "Vai levar acompanhante",
+    "plusOneSubtitle": "Conta como uma pessoa extra.",
+    "notePlaceholder": "Restrições alimentares, parentesco, etc.",
+    "saveAndAddAnother": "Salvar e adicionar outro",
+    "removeGuest": "Remover convidado",
+    "premiumTitle": "Lista de convidados",
+    "menuNotChosen": "Não escolhido"
+  },
+  "guestImport": {
+    "title": "Colar sua lista",
+    "explanation": "Um convidado por linha. Adicione um telefone depois da vírgula se tiver.",
+    "placeholderExample": "Mãe e Pai, +1 555 123 4567\nChris - 555 987 6543\nSally",
+    "fieldGroup": "Grupo",
+    "guestsFound_one": "{{count}} convidado encontrado",
+    "guestsFound_other": "{{count}} convidados encontrados",
+    "importGuests_one": "Importar {{count}} convidado",
+    "importGuests_other": "Importar {{count}} convidados",
+    "importedTitle": "Importados",
+    "importedMessage_one": "{{count}} convidado adicionado",
+    "importedMessage_other": "{{count}} convidados adicionados",
+    "premiumTitle": "Lista de convidados"
+  },
+  "paywall": {
+    "purchaseFailedTitle": "Falha na compra",
+    "purchaseFailedBody": "Algo deu errado. Você não foi cobrado.",
+    "restoredTitle": "Compras restauradas",
+    "restoredBody": "Sua assinatura está ativa novamente neste dispositivo.",
+    "ok": "OK",
+    "nothingToRestoreTitle": "Nada para restaurar",
+    "nothingToRestoreBody": "Não encontramos uma assinatura ativa para esta conta da loja.",
+    "restoreFailedBody": "Não foi possível restaurar suas compras. Tente novamente.",
+    "back": "Voltar",
+    "close": "Fechar",
+    "restore": "Restaurar",
+    "loadFailedTitle": "Não foi possível carregar os planos",
+    "checkConnection": "Verifique sua conexão e tente novamente.",
+    "tryAgain": "Tentar novamente",
+    "loadFailedBody": "Não foi possível carregar os planos. Verifique sua conexão e tente novamente.",
+    "introTitleFirst": "Seu casamento inteiro,",
+    "introTitleSecond": "organizado com o Premium",
+    "introSubtitle": "TODO O PLANEJAMENTO DO SEU CASAMENTO EM UM SÓ LUGAR",
+    "reminderTitle": "Vamos te enviar um lembrete antes do fim do seu teste grátis",
+    "noPaymentDue": "NENHUM PAGAMENTO AGORA",
+    "periodYear": "ano",
+    "periodMonth": "mês",
+    "priceLineTrialMonthly_one": "{{days}} dia grátis, depois {{price}} por {{period}} ({{monthly}}/mês)",
+    "priceLineTrialMonthly_other": "{{days}} dias grátis, depois {{price}} por {{period}} ({{monthly}}/mês)",
+    "priceLineTrial_one": "{{days}} dia grátis, depois {{price}} por {{period}}",
+    "priceLineTrial_other": "{{days}} dias grátis, depois {{price}} por {{period}}",
+    "priceLineAnnualMonthly": "{{price}} por {{period}} ({{monthly}}/mês)",
+    "priceLine": "{{price}} por {{period}}",
+    "ctaContinue": "Continuar",
+    "ctaContinueFree": "Continuar grátis",
+    "ctaSubscribeMonthly": "Assinar por {{price}}/mês",
+    "ctaStartTrial_one": "Começar meu teste grátis de {{days}} dia",
+    "ctaStartTrial_other": "Começar meu teste grátis de {{days}} dias",
+    "ctaSubscribe": "Assinar"
+  },
+  "paywallIntro": {},
+  "paywallLinks": {
+    "restore": "Restaurar",
+    "terms": "Termos",
+    "privacy": "Privacidade"
+  },
+  "paywallPlans": {
+    "everlyPremium": "Everly Premium",
+    "loadingPlans": "Carregando planos…",
+    "loadFailed": "Não foi possível carregar os planos. Verifique sua conexão e tente novamente."
+  },
+  "paywallReminder": {},
+  "planCard": {
+    "priceYearly": "{{price}}/ano",
+    "priceMonthly": "{{price}}/mês",
+    "monthlyEquivalent": "apenas {{monthly}}/mês",
+    "yearly": "Anual",
+    "monthly": "Mensal",
+    "trialBadge_one": "Teste grátis de {{days}} dia",
+    "trialBadge_other": "Teste grátis de {{days}} dias",
+    "bestPrice": "MELHOR PREÇO"
+  },
+  "premiumOnly": {
+    "isPartOfPremium": "{{title}} faz parte do Premium",
+    "subtitle": "Sua lista de tarefas e o álbum do evento continuam grátis. O Premium adiciona:",
+    "seePlans": "Ver planos Premium"
+  },
+  "noPaymentDue": {},
+  "trialTimeline": {
+    "todayTitle": "Hoje",
+    "todayBody": "Acesso total a todos os recursos Premium de graça.",
+    "reminderTitleDay": "Dia {{day}}",
+    "reminderTitleTonight": "Hoje à noite",
+    "reminderBody": "Receba um lembrete de quando seu teste grátis termina.",
+    "startTitle": "Dia {{day}}",
+    "startBody": "Sua assinatura Premium começa hoje. Cancele antes disso."
+  },
+  "priceLine": {},
+  "guestsCard": {
+    "title": "Convidados",
+    "total_one": "{{count}} no total",
+    "total_other": "{{count}} no total",
+    "confirmed": "Confirmados",
+    "pending": "Pendentes",
+    "declined": "Recusados",
+    "premium": "Premium",
+    "emptySubtitle": "Nenhum convidado ainda",
+    "addList": "Adicionar lista de convidados",
+    "premiumTeaser": "Veja quem confirmou num relance"
+  },
+  "assistant": {
+    "open": "Falar com a assistente do casamento",
+    "title": "Assistente do casamento",
+    "close": "Fechar",
+    "clear": "Apagar conversa",
+    "welcomeTitle": "Pergunte qualquer coisa sobre o seu casamento",
+    "welcomeSubtitle": "Eu vejo seu checklist, o número de convidados e o orçamento, então as respostas são sobre o seu casamento.",
+    "suggestions": {
+      "thisWeek": "O que a gente faz essa semana?",
+      "onTrack": "A gente está em dia?",
+      "budget": "Como dividir nosso orçamento?",
+      "saveTheDate": "Me ajuda a escrever o save the date"
+    },
+    "placeholder": "Pergunte sobre o casamento…",
+    "send": "Enviar",
+    "thinking": "Pensando…",
+    "retry": "Tentar de novo",
+    "error": "Não deu pra responder agora. Confira a conexão e tente de novo.",
+    "limit": "Você mandou muitas mensagens hoje. Tente de novo amanhã.",
+    "disclaimer": "A IA pode errar. Confira datas, preços e exigências legais.",
+    "consentTitle": "Antes de perguntar",
+    "consentBody": "Para responder, o Everly envia suas mensagens e um resumo do seu plano (os nomes de vocês, a data, contagens e totais, nunca nomes de convidados) para a DeepSeek, um provedor de IA terceirizado. Não compartilhe dados pessoais sensíveis. Mais na nossa Política de Privacidade.",
+    "consentAccept": "Concordo",
+    "consentDecline": "Agora não"
+  },
+  "widget": {
+    "daysToGo": "dias",
+    "dayToGo": "dia",
+    "today": "É hoje!",
+    "married": "Recém-casados",
+    "upNext": "PRÓXIMAS",
+    "allDone": "Tudo em dia",
+    "rsvp": "{attending} de {invited} confirmados",
+    "tasks": "{done}/{total} tarefas",
+    "emptyTitle": "Seu casamento",
+    "emptySubtitle": "Abra o Everly e monte seu plano"
+  },
+  "groupPicker": {
+    "title": "Escolher grupo",
+    "newGroup": "Novo grupo"
+  }
+}
